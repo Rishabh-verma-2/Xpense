@@ -1,0 +1,3033 @@
+
+Expense Tracker - Complete Software Design Document
+Product & Engineering oday
+Contents
+Expense Tracker - Complete Software Design Document	7
+Master Index	7
+Part 1 - Overview, Requirements, Personas, User Stories, App Flow & Informa-
+tion Architecture	7
+Part 2 - Wireframes, UI/UX, Design System, Folder Structure & Component Architecture	7
+Part 3 - Data Models, Storage, State Management & Navigation	7
+Part 4 - Reports, Charts, Search, Settings, Error Handling, Security, Testing & Deployment	7
+Part 5 - Roadmap, Timeline, Checklist, API Design, Database Schema, Diagrams, Risk & Standards	8
+Expense Tracker - Software Design Document	9
+Part 1 of 5: Overview, Requirements, Personas, User Stories, App Flow & Information Architecture	9
+Table of Contents (Part 1)	9
+1. Project Overview	9
+1.1 What the Application Is	9
+1.2 Problem Statement	9
+1.3 Goals	10
+1.4 Target Users	10
+1.5 Use Cases	10
+1.6 Business Objectives	10
+1.7 Benefits	10
+1.8 Scope	10
+1.9 Future Scalability	11
+2. Functional Requirements	11
+2.1 Dashboard	11
+2.2 Income Management	11
+2.3 Expense Management	12
+2.4 Transaction History	12
+2.5 Categories	13
+2.6 Monthly Reports	13
+2.7 Yearly Reports	13
+2.8 Charts	13
+2.9 Budgets	14
+2.10 Settings	14
+2.11 Dark Mode	14
+
+2.12 Search	14
+2.13 Filters	14
+2.14 Export CSV	15
+2.15 Backup	15
+2.16 Restore	15
+2.17 Notifications	16
+2.18 Future Features	16
+3. Non-Functional Requirements	16
+4. User Personas	17
+Persona 1 - Riya, The Student	17
+Persona 2 - Arjun, The Freelancer	17
+Persona 3 - Meera, The Working Professional	18
+Persona 4 - Ramesh, The Household Manager	18
+Persona 5 - Priya, The Budget-Conscious Newlywed	18
+5. User Stories	19
+5.1 Onboarding & Splash (5)	19
+5.2 Dashboard (8)	19
+5.3 Add/Edit/Delete Expense (12)	19
+5.4 Add/Edit/Delete Income (6)	20
+5.5 Transaction History (10)	20
+5.6 Categories (8)	21
+5.7 Budgets (8)	21
+5.8 Reports & Charts (12)	21
+5.9 Search & Filters (5) (additional to History-embedded ones above)	22
+5.10 Settings (12)	22
+5.11 Security & Privacy (5)	23
+5.12 Notifications (4) (additional to Budget ones above)	23
+5.13 Cross-Cutting / Non-Functional Stories (5)	23
+5.14 Backup/Restore Edge Cases (3 bonus)	24
+6. Complete App Flow	24
+6.1 Screen Transition Narrative	24
+6.2 Primary Navigation Diagram	24
+6.3 Add-Expense Detailed Flow	24
+7. Information Architecture	24
+7.1 Sitemap	24
+7.2 Navigation Hierarchy	24
+7.3 Screen Inventory	25
+Expense Tracker - Software Design Document	27
+Part 2 of 5: Wireframes, UI/UX Guidelines, Design System, Folder Structure, Compo- nent Architecture & Screen Documentation	27
+Table of Contents (Part 2)	27
+8. Wireframes	27
+8.1 Dashboard	27
+8.2 Expense List (History)	29
+8.3 Add Expense	30
+8.4 Reports (Monthly)	30
+8.5 Charts (Yearly Comparison)	31
+8.6 Settings	31
+8.7 Budget Screen	31
+8.8 Category Management	32
+8.9 Statistics / Category Drilldown	32
+9. UI/UX Design Guidelines	32
+9.1 Typography	32
+9.2 Spacing	33
+9.3 Color Palette	33
+9.4 Icons	34
+9.5 Buttons	34
+9.6 Cards	34
+9.7 Lists	34
+9.8 Bottom Navigation	35
+9.9 Animations	35
+9.10 Empty States	35
+9.11 Loading States	35
+9.12 Dark Theme	36
+9.13 Accessibility	36
+9.14 Material Design 3 Application	36
+10. Design System	36
+10.1 Colors	36
+10.2 Typography	36
+10.3 Shadows / Elevation	36
+10.4 Radius	37
+10.5 Spacing Scale	37
+10.6 Icon Sizes	37
+10.7 Button Variants	37
+10.8 Input Components	37
+10.9 Cards	37
+10.10 Dialogs	38
+10.11 Snackbars	38
+10.12 Bottom Sheets	38
+11. Folder Structure	38
+11.1 Rationale per Top-Level Folder	41
+12. Component Architecture	42
+12.1 Component Layering	42
+12.2 Reusable Components Catalog	42
+12.3 Modals, Bottom Sheets & Dialogs	43
+12.4 Forms	44
+12.5 Loading & Error Components	44
+13. Screen Documentation	44
+13.1 Dashboard Screen	44
+13.2 Add / Edit Transaction Screen	45
+13.3 Transaction Detail Screen	45
+13.4 History Screen	46
+13.5 Monthly / Yearly Report Screens	46
+13.6 Category Drilldown Screen	47
+13.7 Budgets Screen	47
+13.8 Add / Edit Budget Screen	48
+13.9 Category Management & Add/Edit Category Screens	48
+13.10 Settings Screen & Sub-Screens	48
+13.11 Export / Backup / Restore Screens	49
+13.12 App Lock Screen	49
+Expense Tracker - Software Design Document	51
+Part 3 of 5: Data Models, Storage Design, State Management, Navigation, Validation
+& Business Logic	51
+Table of Contents (Part 3)	51
+14. Data Models	51
+14.1 Transaction (Expense / Income)	51
+14.2 Category	52
+14.3 Budget	52
+14.4 Settings (App Preferences)	53
+14.5 Currency (Reference Data - bundled, not user-editable)	53
+14.6 User Preferences vs. Settings	54
+14.7 Statistics (Derived - Not Persisted)	54
+14.8 Entity Relationship Diagram	54
+15. Storage Design	56
+15.1 Phase 1 Default: AsyncStorage Structure	56
+15.2 SQLite Structure (Optional/Recommended Path for Scale)	56
+15.3 Indexes	57
+15.4 AsyncStorage ? SQLite Migration Trigger	57
+15.5 Caching	58
+15.6 Backup & Restore Strategy	58
+15.7 Migration Strategy (Schema Evolution)	58
+16. State Management	59
+16.1 Context API Architecture (Phase 1 Default)	59
+16.2 Local State	59
+16.3 Reducers	59
+16.4 Actions & Hooks	60
+16.5 Redux Toolkit - Explained as an Alternative	60
+17. Navigation Architecture	61
+17.1 Stack Navigation	61
+17.2 Bottom Tabs	61
+17.3 Nested Navigation	61
+17.4 Deep Linking	61
+17.5 Navigation Guards	63
+18. Validation Rules	63
+19. Business Logic	65
+19.1 Monthly Totals	65
+19.2 Yearly Totals	65
+19.3 Category Totals	65
+19.4 Budget Calculations	65
+19.5 Remaining Balance	65
+19.6 Average Spending	65
+19.7 Daily Spending (Trend Data)	65
+19.8 Recurring Expenses (Data Model Reserved, Logic Deferred to Phase 2)	66
+19.9 Future Predictions (Reserved)	66
+19.10 Savings Rate	66
+19.11 Comparison to Previous Period	66
+Expense Tracker - Software Design Document	67
+Part 4 of 5: Reports, Charts, Search & Filters, Settings, Error Handling, Security, Testing & Deployment	67
+Table of Contents (Part 4)	67
+20. Reports Module	67
+21. Charts	68
+22. Search and Filters	69
+22.1 Search	69
+22.2 Filters (combinable via AND logic)	69
+22.3 Sort Options	69
+22.4 Filter Application Logic	69
+23. Settings Module	70
+24. Error Handling Strategy	70
+24.1 Storage Errors	70
+24.2 Invalid Input	71
+24.3 Data Corruption	71
+24.4 Backup Failures	71
+24.5 Import Failures	71
+24.6 App Crashes	71
+24.7 Recovery Methods	71
+25. Security	72
+25.1 Data Encryption	72
+25.2 Secure Storage	72
+25.3 Backup Security	72
+25.4 PIN Lock	72
+25.5 Biometric Authentication	73
+25.6 Privacy	73
+26. Testing Strategy	73
+26.1 Unit Tests (Jest)	73
+26.2 Integration Tests	73
+26.3 UI Tests (Component-level)	73
+26.4 Manual Testing	73
+26.5 Edge Cases (Test Matrix Highlights)	73
+26.6 Performance Testing	74
+26.7 Acceptance Testing	74
+26.8 Testing Checklist (Pre-Release)	74
+27. Deployment	74
+27.1 Environments	74
+27.2 Build Pipeline (Expo Application Services - EAS)	74
+27.3 APK / AAB Generation	74
+27.4 Play Store Release	75
+27.5 Versioning	75
+27.6 CI/CD	75
+27.7 Environment Configuration	75
+Expense Tracker - Software Design Document	76
+Part 5 of 5: Future Roadmap, Timeline, Checklist, API Readiness, Database Schema, Diagrams, Risk, Standards, Documentation & Appendix	76
+Table of Contents (Part 5)	76
+28. Future Roadmap	76
+29. Project Timeline	77
+29.1 Four-Week Plan (Aggressive MVP - Core Only)	77
+29.2 Eight-Week Plan (Recommended - Full Phase 1 Scope, Higher Quality Bar)	78
+29.3 Twelve-Week Plan (Full Polish + Buffer + Beta)	78
+30. Development Checklist	79
+31. API Readiness	79
+31.1 Authentication	80
+31.2 Expenses / Income (unified under /transactions)	80
+31.3 Categories	80
+31.4 Budgets	81
+31.5 Reports / Analytics	81
+31.6 Notifications	81
+31.7 Design Notes	81
+32. Database Schema	82
+32.1 Relationships	83
+32.2 Indexing Strategy	84
+33. Sequence Diagrams	84
+33.1 Add Expense	84
+33.2 Delete Expense (with Undo)	87
+33.3 Monthly Report Generation	87
+33.4 Backup	87
+33.5 Restore	87
+33.6 Search	87
+34. Class Diagrams	87
+35. Activity Diagrams	87
+35.1 Add Transaction - Major Flow	87
+35.2 Restore Backup - Major Flow	87
+35.3 Budget Threshold Notification - Major Flow	87
+36. Risk Analysis	87
+37. Coding Standards	89
+37.1 TypeScript Guidelines	89
+37.2 Naming Conventions	89
+37.3 Folder Naming	94
+37.4 File Naming	94
+37.5 Component Naming	94
+37.6 Hooks	94
+37.7 Testing	94
+37.8 Linting & Formatting	94
+37.9 Git Workflow	94
+37.10 Commit Messages	94
+38. Documentation	95
+38.1 Maintaining This Documentation	95
+38.2 README Structure (Recommended)	95
+39. Appendix	95
+39.1 Glossary	95
+39.2 Abbreviations	96
+39.3 References & Useful Resources	96
+39.4 Core Libraries Summary	96
+
+-e
+
+Expense Tracker - Complete Software Design Document
+Master Index
+A production-quality, end-to-end specification for building the Expense Tracker mobile app: React Native (Expo) + TypeScript, offline-first (AsyncStorage, with an optional SQLite path), Material Design 3 via React Native Paper, feature-based architecture - designed to support future cloud sync without a rewrite.
+This document set is split into 5 parts for readability. Read them in order for a first pass; use this index to jump to any section.
+
+
+Part 1 - Overview, Requirements, Personas, User Stories, App Flow & Information Architecture
+1. Project Overview
+2. Functional Requirements
+3. Non-Functional Requirements
+4. User Personas (5)
+5. User Stories (103, with acceptance criteria)
+6. Complete App Flow (with Mermaid diagrams)
+7. Information Architecture (sitemap, navigation hierarchy, screen inventory)
+
+Part 2 - Wireframes, UI/UX, Design System, Folder Structure & Component Archi- tecture
+8. Wireframes (Dashboard, History, Add Expense, Reports, Charts, Settings, Budgets, Cat- egories, Statistics)
+9. UI/UX Design Guidelines
+10. Design System (colors, typography, elevation, radius, spacing, components)
+11. Folder Structure (enterprise-grade, feature-based, fully annotated)
+12. Component Architecture (reusable component catalog)
+13. Screen Documentation (every screen: purpose, inputs, outputs, navigation, state, vali- dation, business logic, error handling)
+
+Part 3 - Data Models, Storage, State Management & Navigation
+14. Data Models (Transaction, Category, Budget, Settings, Currency, Statistics + ERD)
+15. Storage Design (AsyncStorage structure, SQLite schema, indexing, caching, backup/restore, migration strategy)
+16. State Management (Context API architecture + Redux Toolkit as a documented alterna- tive)
+17. Navigation Architecture (stacks, tabs, deep linking, guards)
+18. Validation Rules (every field, every screen)
+19. Business Logic (all formulas: totals, budgets, averages, savings rate, trends)
+
+Part 4 - Reports, Charts, Search, Settings, Error Handling, Security, Testing & De- ployment
+20. Reports Module
+21. Charts (when to use each type)
+22. Search and Filters
+23. Settings Module
+
+24. Error Handling Strategy
+25. Security (encryption, secure storage, PIN, biometrics, privacy)
+26. Testing Strategy (unit, integration, UI, manual, performance, acceptance, checklist)
+27. Deployment (environments, EAS build pipeline, Play Store release, CI/CD)
+
+Part 5 - Roadmap, Timeline, Checklist, API Design, Database Schema, Diagrams, Risk & Standards
+28. Future Roadmap (cloud sync, OCR, voice input, AI insights, and more)
+29. Project Timeline (4-week / 8-week / 12-week plans)
+30. Development Checklist
+31. API Readiness (full REST API design for a future backend)
+32. Database Schema (relational, with relationships and indexing strategy)
+33. Sequence Diagrams (Add Expense, Delete, Report, Backup, Restore, Search)
+34. Class Diagrams (UML)
+35. Activity Diagrams (major flows)
+36. Risk Analysis
+37. Coding Standards
+38. Documentation (README structure, doc-maintenance guidance)
+39. Appendix (glossary, abbreviations, references, core libraries)
+
+
+How to use this document set: Part 1 is the "what and why" (product), Parts 2-3 are the "how it looks and how it's built" (design + architecture), Part 4 is the "how it behaves and ships" (features + quality + release), and Part 5 is "what's next and how we build it right" (roadmap + engineering discipline). A developer starting from zero should read Parts 1-3 fully before writing code, then use Parts 4-5 as an ongoing reference during implementation.
+-e
+
+Expense Tracker - Software Design Document
+Part 1 of 5: Overview, Requirements, Personas, User Stories, App Flow & Information Architecture
+Document Set: This SDD is delivered in 5 parts for readability. See 00-index.md for the full table of contents across all parts. Version: 1.0 · Status: Baseline for Phase 1 development · Owner: Product/Engineering
+
+
+Table of Contents (Part 1)
+1. Project Overview
+2. Functional Requirements
+3. Non-Functional Requirements
+4. User Personas
+5. User Stories
+6. Complete App Flow
+7. Information Architecture
+
+
+1. Project Overview
+1.1 What the Application Is
+Expense Tracker is an offline-first personal finance mobile application built with React Native (Expo) and TypeScript. It lets an individual record income and expenses, organize them into categories, set monthly budgets, and view spending patterns through reports and charts - entirely without an internet connection. The architecture is deliberately layered so that a future cloud-sync backend (Firebase or a custom REST API) can be added without rewriting the data or UI layers.
+
+1.2 Problem Statement
+Most people do not track day-to-day spending because existing tools are one of the following:
+
+Problem	Consequence
+
+Require constant internet / bank login	Fails in low-connectivity regions, raises
+privacy concerns
+
+Overloaded with features (investments, credit score, ads)
+
+High cognitive load, slow onboarding
+
+No offline-first guarantee	Data loss or blocked usage without signal
+Poor category/budget UX	Users abandon tracking within days
+No local data ownership	Users distrust cloud-only storage of financial data
+
+
+Expense Tracker solves this by being fast, private, offline-capable, and focused exclu- sively on personal expense/income tracking.
+
+1.3 Goals
+• Enable a user to log a transaction in under 10 seconds.
+• Work 100% offline with zero mandatory network dependency in Phase 1.
+• Provide clear visual feedback on spending vs. budget.
+• Keep all financial data on-device by default, encrypted where the OS allows.
+• Be architected so cloud sync, multi-device support, and OCR/voice input can be added later without breaking existing screens or data.
+
+1.4 Target Users
+• Individuals who want a lightweight, private daily expense log.
+• Students and early-career professionals managing a limited monthly budget.
+• Freelancers/gig workers tracking irregular income and business expenses.
+• Households wanting a simple (non-collaborative, Phase 1) budget tool.
+• Users in regions with unreliable internet connectivity.
+
+1.5 Use Cases
+1. Quickly log a cash purchase after leaving a store.
+2. Review "how much did I spend on Food this month?"
+3. Set a monthly budget per category and get warned when nearing the limit.
+4. Export a CSV of all transactions for tax filing or manual bookkeeping.
+5. Back up all data before switching phones and restore on the new device.
+6. View a pie chart of category-wise spending for the current month.
+7. Track recurring bills as a special expense subtype (Phase 2).
+
+1.6 Business Objectives
+• Ship a Play Store-ready MVP within 8-12 weeks.
+• Achieve high day-7 retention through frictionless entry (low-cognitive-load UX).
+• Build a codebase that can later monetize via optional cloud-sync premium tier without a rewrite.
+• Keep infrastructure cost at zero for Phase 1 (no backend required).
+
+1.7 Benefits
+• Privacy: no data leaves the device in Phase 1.
+• Speed: local reads/writes are instantaneous - no network latency.
+• Reliability: app is fully functional in airplane mode, on flights, in remote areas.
+• Low cost: no server, no database hosting, no API bills for MVP.
+
+1.8 Scope
+In Scope (Phase 1 - MVP): Dashboard, Add/Edit/Delete Income & Expense, Categories (default + custom), Transaction History with search/filter, Monthly & Yearly Reports, Charts (pie/bar/line), Budgets per category, Settings (currency, theme, language stub), Dark Mode, CSV Export, Local Backup/Restore (file-based), Local Notifications (budget alerts, reminders).
+Out of Scope (Phase 1): Cloud sync, multi-user accounts, bank/UPI integration, OCR re- ceipt scanning, voice input, AI insights, investments tracking, Wear OS/widgets. These are documented in the Future Roadmap.
+
+1.9 Future Scalability
+The app is built with a feature-based architecture and a repository pattern over storage (see Storage Design) so that:
+• AsyncStorage can be swapped for SQLite (or run alongside it) without touching UI code.
+• A SyncService interface can be implemented later to push/pull data to Firebase or a custom REST API (see API Readiness) using the same local-first data as the source of truth (offline-first, sync-when-available pattern).
+• Redux Toolkit can replace Context API for global state if the app's state complexity grows (documented as an alternative in State Management).
+
+
+2. Functional Requirements
+Each feature below is documented with Purpose, Description, User Actions, Validation Rules, Edge Cases, and Acceptance Criteria.
+
+2.1 Dashboard
+Purpose: Give the user an at-a-glance summary of their current financial position.
+Description: The Dashboard is the app's home screen, shown after splash. It displays: cur- rent month's total income, total expense, net balance, a mini category-wise pie chart, budget progress bars for categories with a budget set, and the 5 most recent transactions.
+User Actions: - Tap "+" FAB to add a new expense or income. - Tap "See All" on recent trans- actions to go to full history. - Tap a budget progress bar to go to that category's detail/report.
+- Pull to refresh (recomputes totals from storage). - Switch the displayed month via a month selector.
+Validation Rules: N/A (read-only aggregation screen); all validation happens at data-entry screens.
+Edge Cases: - No transactions yet ? show empty state with a "Add your first transaction" call to action. - All income, no expenses (or vice versa) ? chart shows single-segment or "no expense data" placeholder. - Negative net balance ? balance is shown in the "danger" color token. - Very large numbers (7+ digits) ? abbreviate (e.g., ?12.4L / $1.2M) with full value on long-press/tooltip.
+Acceptance Criteria: - Given transactions exist for the selected month, the dashboard totals equal the sum of all expense/income records for that month, computed in = 100ms for up to 10,000 records. - Given zero transactions, an empty state is shown instead of a zeroed chart.
+
+2.2 Income Management
+Purpose: Let the user record money received.
+Description: A dedicated "Add Income" form (visually distinct color from expense) captur- ing amount, date, source/category (Salary, Freelance, Gift, Interest, Other - customizable), payment method, and optional notes.
+User Actions: Add, edit, delete an income entry; mark as recurring (Phase 2 flag reserved in data model now).
+Validation Rules: - Amount: required, numeric, > 0, = 999,999,999.99, max 2 decimal places. - Date: required, cannot be more than 1 day in the future (configurable), defaults to
+
+today. - Source/Category: required, must reference an existing category ID. - Notes: optional, max 500 characters.
+Edge Cases: - Duplicate-looking entry (same amount/date/category within 60 seconds) ? show a non-blocking "possible duplicate" warning, do not block save. - Category deleted after being used by an income record ? historical record keeps a denormalized category name snapshot so history is not broken (see Data Models).
+Acceptance Criteria: - Saving a valid income entry updates Dashboard totals and History list immediately (optimistic UI) without requiring app restart. - Invalid amount (0, negative, non-numeric) blocks save and shows inline field error.
+
+2.3 Expense Management
+Purpose: Let the user record money spent - the app's core feature.
+Description: "Add Expense" form capturing amount, date, category (Food, Transport, Bills, Shopping, Health, Entertainment, Other - customizable), payment method (Cash, Card, UPI, Bank Transfer, Other), notes, and optional attachment placeholder (Phase 2: receipt photo).
+User Actions: Add, edit, delete; duplicate an existing entry as a starting point for a new one; quick-add from Dashboard FAB.
+Validation Rules: - Amount: required, > 0, = 999,999,999.99, max 2 decimals. - Date: required, cannot be in the future beyond today (configurable per user setting for post-dated entries). - Category: required. - Payment Method: required, defaults to last-used method. - Notes: optional, max 500 characters.
+Edge Cases: - Deleting a category that has expenses tied to it ? expenses are reassigned to an "Uncategorized" system category rather than being deleted. - Editing an expense's date to a different month ? transaction must move correctly between monthly aggregates and reports. - Extremely high amount relative to history (e.g., >10x the user's monthly average)
+? soft warning dialog, not a hard block.
+Acceptance Criteria: - Deleting an expense removes it from all aggregates (dashboard, re- ports, charts) instantly. - Editing amount/date/category correctly re-triggers recalculation of monthly totals and budget consumption.
+
+2.4 Transaction History
+Purpose: Provide a complete, searchable, filterable ledger of all income and expenses.
+Description: Infinite-scroll (virtualized) list grouped by date (Today, Yesterday, then date headers), each row showing category icon, title/notes, amount (color-coded income/expense), and payment method icon.
+User Actions: Scroll, tap a row to view/edit detail, swipe to delete (with undo snackbar), search, filter, sort, multi-select for bulk delete.
+Validation Rules: N/A (list/read screen).
+Edge Cases: - 10,000+ transactions ? list must remain smooth via FlashList/virtualization and pagination (load 50 at a time). - Swipe-delete on the last visible item while list is scrolled
+? maintain scroll position after removal.
+Acceptance Criteria: - Deleting via swipe shows an "Undo" snackbar for 5 seconds before permanent deletion. - Filtering by category + date range returns correct results verified against a manual sum.
+
+2.5 Categories
+Purpose: Organize transactions for meaningful reporting.
+Description: System ships with default categories (Food, Transport, Bills, Shopping, Health, Entertainment, Education, Groceries, Salary, Freelance, Gifts, Other). Users can add custom categories with a name, icon (from an icon picker), color, and type (income/expense).
+User Actions: Add, edit, delete, reorder, archive (hide without deleting history) a category.
+Validation Rules: - Name: required, 1-30 characters, unique per type (case-insensitive). - Icon: required, chosen from a predefined icon set. - Color: required, chosen from the design system's palette or a custom hex (validated as a proper hex color).
+Edge Cases: - Deleting a category in use ? prompt: "Reassign N transactions to Uncatego- rized?" before allowing delete. - Default/system categories cannot be deleted, only archived (hidden from picker but still valid for historical records).
+Acceptance Criteria: - Duplicate category name (same type) is rejected with inline error be- fore save. - Archived categories no longer appear in Add Expense/Income pickers but remain correctly labeled in historical transactions.
+
+2.6 Monthly Reports
+Purpose: Summarize a single month's financial activity.
+Description: Total income, total expense, net savings, category-wise breakdown (table + pie chart), day-wise spending trend (line/bar chart), comparison vs. previous month (% change indicator).
+User Actions: Change month via selector/swipe, tap a category to drill into its transactions, export this report as CSV/PDF (Phase 2 for PDF).
+Validation Rules: N/A (read-only).
+Edge Cases: Month with zero transactions ? empty state, no divide-by-zero errors in average calculations.
+Acceptance Criteria: Sum of category breakdown equals the total expense figure shown at the top, always.
+
+2.7 Yearly Reports
+Purpose: Show annual trends across all 12 months.
+Description: Bar chart of monthly totals (income vs expense), yearly category breakdown pie chart, best/worst spending month highlighted, average monthly spend.
+User Actions: Change year, tap a month bar to jump to that Monthly Report.
+Edge Cases: Partial year data (e.g., app installed in June) ? only render months with data or explicitly show "no data" months at zero.
+Acceptance Criteria: Sum of the 12 monthly totals equals the yearly total shown.
+
+2.8 Charts
+Purpose: Visual representation of financial data (detailed in Section 21).
+Description: Pie (category share), Bar (monthly/weekly comparison), Line (spending trend over time), Area (cumulative spend), Budget progress rings/bars.
+
+Acceptance Criteria: Chart segment values always sum to 100% (± rounding tolerance of 0.1%) for pie charts; axis scales auto-adjust to data range.
+
+2.9 Budgets
+Purpose: Let users set a spending limit per category per month and get warned as they approach it.
+Description: User sets a monthly amount per category (or an overall monthly budget). Dash- board and Reports show a progress bar: green (<70%), amber (70-99%), red (=100%, over budget).
+User Actions: Set/edit/remove a budget per category; set overall monthly budget; en- able/disable threshold notifications.
+Validation Rules: Amount required, > 0, = 999,999,999.99. A category can have only one active budget per calendar month.
+Edge Cases: Budget set mid-month ? applies to the whole month retroactively for calculation purposes (spend-to-date is compared against it immediately). Category with no budget ? no progress bar shown, just raw total.
+Acceptance Criteria: Progress percentage = (sum of category expenses this month / budget amount) × 100, recalculated on every relevant transaction change.
+
+2.10 Settings
+Purpose: Central place for app configuration (full detail in Section 23).
+Description: Currency selection, theme (Light/Dark/System), language (stub for Phase 1, English only), notification toggles, App Lock (PIN/biometric), Export, Backup, Restore, About/Version, Reset App Data.
+
+2.11 Dark Mode
+Purpose: Reduce eye strain and respect system preference; Material Design 3 dynamic them- ing.
+Description: Three modes: Light, Dark, System (default). All design tokens (see Design System) are theme-aware; toggling is instant with no app restart.
+Acceptance Criteria: Every screen (including charts, dialogs, snackbars) renders correctly in both themes with WCAG AA contrast minimums.
+
+2.12 Search
+Purpose: Quickly find a specific transaction.
+Description: Search bar on History screen matching notes text, category name, and amount (exact or prefix match), debounced at 300ms.
+Edge Cases: Empty query ? show full list. Query matching zero results ? "No transactions found" empty state with a "Clear search" action.
+
+2.13 Filters
+Purpose: Narrow the transaction list by structured criteria (detailed in Section 22).
+
+Description: Filter by category (multi-select), date range (presets + custom), payment method, amount range, transaction type (income/expense/all). Filters are combined with AND logic; search text is combined with active filters.
+Acceptance Criteria: Applying multiple filters returns the correct intersection set, verified against a reference query over the raw dataset.
+
+2.14 Export CSV
+Purpose: Allow data portability for tax/accounting purposes.
+Description: Generates a CSV with columns: Date, Type, Category, Amount, Payment Method, Notes. Scope options: current month, current year, custom range, all-time. Uses the OS share sheet to save/send the file.
+Validation Rules: Must have at least 1 transaction in range to export; otherwise disabled with a tooltip explaining why.
+Edge Cases: Notes containing commas/quotes must be properly CSV-escaped. Very large export (50,000+ rows) is chunsäked/streamed to avoid blocking the UI thread.
+Acceptance Criteria: Exported CSV opens correctly in Excel/Google Sheets with no column misalignment, for a dataset including special characters in notes.
+
+2.15 Backup
+Purpose: Protect against data loss and enable device migration (Phase 1: manual, file-based; not automatic cloud backup).
+Description: Serializes all AsyncStorage/SQLite data into a single JSON file (versioned schema), optionally shared via the OS share sheet to Drive/email/local storage.
+Validation Rules: Backup file includes a schema version number and checksum for integrity verification on restore.
+Edge Cases: Backup created on a newer app version than the device restoring it ? restore must handle backward-incompatible schema versions gracefully with a clear error message.
+Acceptance Criteria: A backup taken immediately after adding a transaction, then restored on a clean install, reproduces identical data (byte-for-byte for records, ignoring generated timestamps like updatedAt).
+
+2.16 Restore
+Purpose: Recover data from a backup file.
+Description: User picks a .json backup file via the OS file picker; app validates schema version and checksum, previews the summary (X transactions, Y categories, date range), and asks for confirmation (merge or overwrite) before applying.
+Validation Rules: Reject files that fail checksum validation or have an unrecognized schema version, with a clear error and no partial write.
+Edge Cases: Restoring into an app that already has data ? user must choose "Merge" (dedupe by ID) or "Overwrite" (replace all local data) - overwrite requires a second con- firmation.
+Acceptance Criteria: A corrupted/tampered backup file is rejected before any data is written (all-or-nothing transaction).
+
+2.17 Notifications
+Purpose: Keep the user engaged and warn about budget thresholds (local notifications only in Phase 1 - no push server).
+Description: Local, on-device scheduled notifications: daily/weekly reminder to log ex- penses (user-configurable time), budget threshold alerts (70%/90%/100% of a category or overall budget), monthly summary ready notification.
+Validation Rules: Requires OS notification permission; app must gracefully degrade (in-app banner only) if permission is denied.
+Edge Cases: Multiple budgets crossing thresholds the same day ? batch into a single notifi- cation rather than spamming.
+Acceptance Criteria: Disabling notifications in Settings cancels all scheduled local notifica- tions immediately.
+
+2.18 Future Features
+Documented fully in Future Roadmap: Cloud Sync, OCR Receipt Scanner, Voice Input, AI Spending Analysis, Savings Goals, Bank/UPI Integration, Multi-device Sync, Widgets, Wear OS.
+
+
+3. Non-Functional Requirements
+
+Category	Requirement
+
+Performance	Cold start < 2.5s on a mid-range Android device (4GB RAM); list scroll at 60fps for up to 10,000 transactions via virtualization; screen transitions < 300ms.
+Offline Support	100% of Phase 1 features function with no network connectivity; no feature displays a network-error blocking state.
+Security	Optional App Lock (PIN/biometric); local data stored via AsyncStorage/SQLite, sensitive settings (PIN hash) stored via expo-secure-store; no plaintext PIN storage.
+Accessibility	WCAG 2.1 AA color contrast; all interactive elements have accessible labels; minimum touch target 44×44dp; supports OS
+font-scaling up to 130% without layout breakage.
+Scalability	Feature-based architecture supports adding sync, multi-currency, and multi-user without core rewrites; storage layer abstracted behind repositories.
+Maintainability	TypeScript strict mode; ESLint + Prettier enforced; feature folders keep logic
+co-located; = 70% unit test coverage on business-logic modules.
+
+
+
+Category	Requirement
+
+Responsiveness	Layouts adapt to phone sizes from 4.7" to
+6.9" and to tablets (Phase 2) using flexible/percentage-based layouts, not fixed pixel dimensions.
+Error Handling		All storage operations wrapped in try/catch with user-facing, non-technical error messages; crash reporting hook reserved for future Sentry/Crashlytics integration.
+Storage Limits		AsyncStorage practical ceiling ~6MB on Android - app monitors record count and prompts migration to SQLite (or warns) above ~5,000-8,000 transactions (see Storage Design).
+Performance Goals	Dashboard aggregate calculation = 100ms for 10,000 records; CSV export of 10,000 rows = 2s.
+Battery Optimization	No background polling; local notifications scheduled via OS scheduler, not a persistent background service.
+Memory Usage		List virtualization to keep memory flat regardless of transaction count; images (Phase 2 receipts) lazy-loaded and thumbnailed.
+
+
+
+4. User Personas
+Persona 1 - Riya, The Student
+
+Field	Detail
+
+Age	20
+Occupation	Undergraduate student
+Income	Pocket money + part-time tutoring,
+~?8,000/month
+Financial Habits	Impulsive small purchases (food delivery, coffee); rarely tracks spending
+Pain Points		Runs out of money before month-end; no visibility into where it goes
+Goals	Understand spending patterns; avoid overspending on food delivery
+
+
+Persona 2 - Arjun, The Freelancer
+
+Field	Detail
+Age	28
+Occupation	Freelance graphic designer
+Income	Irregular, ?30,000-?90,000/month
+
+
+
+Field	Detail
+
+Financial Habits	Mixes personal and business expenses; inconsistent income tracking
+Pain Points	Hard to separate business vs personal spend at tax time
+Goals	Categorize business expenses; export data for his accountant
+
+
+Persona 3 - Meera, The Working Professional
+
+Field	Detail
+
+Age	34
+Occupation	Software engineer
+Income	?1,80,000/month (salaried)
+Financial Habits	Budgets loosely in her head; wants automation but distrusts bank-linked apps
+Pain Points	Doesn't want to share bank credentials with third-party apps
+Goals	Set category budgets; get alerted before overspending; keep data private/local
+
+
+Persona 4 - Ramesh, The Household Manager
+
+Field	Detail
+
+Age	52
+Occupation	Small business owner
+Income	Variable, ~?1,00,000/month
+Financial Habits	Manages household + shop expenses; prefers simple, large-text UI
+Pain Points	Not tech-savvy; needs a simple, low-clutter interface; low connectivity at shop
+Goals	Log expenses quickly offline; view a simple monthly summary
+
+
+Persona 5 - Priya, The Budget-Conscious Newlywed
+
+Field	Detail
+
+Age	26
+Occupation	Marketing executive
+Income	?65,000/month
+Financial Habits	Actively saving for a house down payment; disciplined but wants data-driven insight
+Pain Points	Existing apps are cluttered with ads and unrelated financial products
+Goals	Track savings rate month over month; see year-over-year trend; export CSV for annual review
+
+
+
+
+5. User Stories
+Format: As a [persona/user], I want [capability], so that [benefit]. Grouped by module, with acceptance criteria (AC).
+
+5.1 Onboarding & Splash (5)
+1. As a first-time user, I want a short splash screen, so that the app feels polished while it ini- tializes local storage. AC: Splash shown = 2s, then navigates to Dashboard/Onboarding.
+2. As a first-time user, I want a brief onboarding carousel, so that I understand the app's core value in under 30 seconds. AC: 3 slides, skippable, shown only once (flag persisted).
+3. As a first-time user, I want to select my currency during onboarding, so that all amounts display correctly from day one. AC: Currency picker with search, defaults to device locale currency.
+4. As a first-time user, I want to skip onboarding, so that I can get to the app immediately.
+AC: "Skip" visible on every slide.
+5. As a returning user, I want the app to open directly to the Dashboard, so that I don't see onboarding again. AC: Onboarding flag checked before navigation decision.
+
+5.2 Dashboard (8)
+6. As a user, I want to see my total income and expense for the current month, so that I know my financial position at a glance. AC: Values match sum of records for selected month.
+7. As a user, I want to see my net balance, so that I know if I'm saving or overspending. AC:
+Balance = income - expense, colored red if negative.
+8. As a user, I want to see a mini pie chart of category spending, so that I instantly see where my money goes. AC: Chart updates when a transaction is added/edited/deleted.
+9. As a user, I want to see my 5 most recent transactions on the dashboard, so that I don't need to open History for quick checks. AC: Sorted by date+createdAt descending.
+10. As a user, I want to switch the dashboard's month, so that I can review past months without leaving the home screen. AC: Month selector persists selection during session.
+11. As a user, I want to see budget progress bars on the dashboard, so that I know which categories are close to their limit. AC: Bars only shown for categories with an active budget.
+12. As a user, I want to pull-to-refresh the dashboard, so that I'm confident I'm seeing the latest data. AC: Refresh indicator shown for = 1s on typical data sizes.
+13. As a user with no transactions, I want a friendly empty state, so that I know how to get started. AC: Empty state includes a CTA button that opens Add Expense.
+
+5.3 Add/Edit/Delete Expense (12)
+14. As a user, I want to add an expense with amount, category, date, and payment method, so that I can record my spending. AC: Save disabled until required fields valid.
+15. As a user, I want the date to default to today, so that I don't have to set it manually for same-day entries. AC: Date field pre-filled, editable.
+16. As a user, I want to add optional notes to an expense, so that I remember details later.
+AC: Notes capped at 500 characters with a live counter.
+17. As a user, I want to pick a category from icons and colors, so that entry feels fast and visual. AC: Category grid with icon+label, single tap selects.
+18. As a user, I want to edit an existing expense, so that I can correct mistakes. AC: Edit form pre-filled with existing values; save updates all aggregates.
+19. As a user, I want to delete an expense, so that I can remove incorrect entries.  AC:
+Confirmation dialog before permanent delete.
+
+20. As a user, I want an undo option after deleting, so that I don't lose data from an accidental swipe. AC: 5-second undo snackbar restores the exact record.
+21. As a user, I want the app to warn me (not block me) if an amount looks unusually high, so that I catch typos without being obstructed. AC: Soft warning dialog with "Save anyway"
+/ "Edit" options.
+22. As a user, I want to duplicate a previous expense as a template, so that recurring-like entries are faster to add. AC: "Duplicate" action pre-fills a new form with the same category/amount/payment method, today's date.
+23. As a user, I want validation errors shown inline near the field, so that I know exactly what to fix. AC: Error text appears below the offending field on blur/submit.
+24. As a user, I want to select a payment method, so that I can track how I paid. AC: Defaults to my last-used method.
+25. As a user, I want future dates disallowed by default, so that I don't accidentally log spending that hasn't happened. AC: Date picker disables future dates unless "Allow post-dated entries" is enabled in Settings.
+
+5.4 Add/Edit/Delete Income (6)
+26. As a user, I want to add income with amount, source, and date, so that I can track money coming in. AC: Same validation pattern as expense amount.
+27. As a user, I want income entries visually distinct from expenses, so that I don't confuse the two in lists. AC: Green vs red color coding, "+"/"-" prefix.
+28. As a user, I want to edit an income entry, so that I can fix incorrect amounts. AC: Edits recalculate dashboard/report totals.
+29. As a user, I want to delete an income entry, so that I can remove duplicates. AC: Confir- mation + undo snackbar.
+30. As a user, I want to categorize income by source (Salary, Freelance, Gift, etc.), so that I can see income composition. AC: Income category picker separate from expense cate- gories.
+31. As a user, I want to add notes to income, so that I remember what a payment was for.
+AC: Same 500-char limit as expenses.
+
+5.5 Transaction History (10)
+32. As a user, I want to see all transactions in a scrollable list grouped by date, so that browsing feels organized. AC: Date headers "Today"/"Yesterday"/formatted date.
+33. As a user, I want to tap a transaction to view full details, so that I can review or edit it.
+AC: Detail screen shows all fields including timestamps.
+34. As a user, I want to swipe a transaction to delete it, so that removal is fast. AC: Swipe reveals a delete action with confirmation threshold.
+35. As a user, I want to search transactions by keyword, so that I can find a specific one quickly. AC: Debounced search across notes/category/amount.
+36. As a user, I want to filter by category, so that I can review spending in one area. AC:
+Multi-select filter chip UI.
+37. As a user, I want to filter by date range, so that I can review a specific period. AC: Preset ranges (This week/month/year) + custom range picker.
+38. As a user, I want to filter by payment method, so that I can see how much I spend via each method. AC: Filter combines with other active filters via AND logic.
+39. As a user, I want to sort transactions by amount or date, so that I can find the largest expenses easily. AC: Sort toggle ascending/descending.
+40. As a user, I want to multi-select and bulk-delete transactions, so that cleanup is efficient.
+AC: Long-press enters selection mode; bulk delete confirms count before executing.
+41. As a user, I want an empty state when a filter/search returns nothing, so that I know to adjust my criteria. AC: "No results" state with a "Clear filters" action.
+
+5.6 Categories (8)
+42. As a user, I want default categories pre-loaded, so that I can start tracking immediately without setup. AC: 12 default categories seeded on first launch.
+43. As a user, I want to create a custom category, so that I can track spending unique to my life. AC: Name+icon+color+type required; uniqueness enforced.
+44. As a user, I want to edit a category's name/icon/color, so that I can personalize it. AC:
+Edits reflect immediately across all historical transaction displays.
+45. As a user, I want to delete a custom category, so that I can remove ones I don't use. AC:
+Prompt to reassign existing transactions to "Uncategorized."
+46. As a user, I want to archive rather than delete a category, so that historical data stays intact but the category stops cluttering new-entry pickers. AC: Archived categories ex- cluded from Add Expense/Income pickers only.
+47. As a user, I want to reorder categories, so that my most-used ones appear first. AC:
+Drag-to-reorder persists order in storage.
+48. As a user, I want default/system categories protected from deletion, so that I can't ac- cidentally break core functionality. AC: Delete action disabled/hidden for system cate- gories; archive still allowed.
+49. As a user, I want to see how many transactions use a category before deleting it, so that I understand the impact. AC: Delete confirmation shows transaction count.
+
+5.7 Budgets (8)
+50. As a user, I want to set a monthly budget per category, so that I can control spending in specific areas. AC: One active budget per category per month.
+51. As a user, I want to set an overall monthly budget, so that I can cap total spending regardless of category. AC: Overall budget tracked independently of category budgets.
+52. As a user, I want a visual progress bar for each budgeted category, so that I can see my usage at a glance. AC: Green/amber/red thresholds at <70%/70-99%/=100%.
+53. As a user, I want a notification when I cross 90% of a budget, so that I can slow down spending in time. AC: Local notification fired once per threshold per month (no repeats).
+54. As a user, I want to edit a budget mid-month, so that I can adjust for unexpected changes.
+AC: New amount immediately recalculates progress.
+55. As a user, I want to remove a budget, so that a category is no longer tracked against a limit. AC: Progress bar disappears; historical spend data unaffected.
+56. As a user, I want to see which categories are over budget at a glance, so that I can take corrective action. AC: Over-budget categories surfaced at the top of the Budgets screen.
+57. As a user, I want budgets to reset automatically each month, so that I don't have to re-enter them manually. AC: Budget "amount" persists as a recurring monthly setting unless explicitly changed/removed.
+
+5.8 Reports & Charts (12)
+58. As a user, I want a monthly report with category breakdown, so that I understand where my money went. AC: Category sum equals total expense for the month.
+59. As a user, I want a yearly report with monthly comparison, so that I can see seasonal trends. AC: Bar chart with 12 bars (or fewer if partial year).
+60. As a user, I want a pie chart of category spending, so that proportions are visually clear.
+AC: Segments sum to 100% ± 0.1%.
+61. As a user, I want a line chart of daily spending within a month, so that I can spot spending spikes. AC: X-axis = days, Y-axis = amount spent that day.
+62. As a user, I want to compare this month vs last month, so that I know if I'm improving.
+AC: % change indicator (up/down arrow, colored).
+
+63. As a user, I want to see my average daily spend, so that I can pace myself for the rest of the month. AC: Average = total expense / days elapsed in month.
+64. As a user, I want to see my top 5 spending categories, so that I know where to cut back.
+AC: Sorted descending by amount.
+65. As a user, I want to filter reports by custom date range, so that I can review any arbitrary period (e.g., a trip). AC: Custom range picker feeds the same aggregation engine as monthly/yearly views.
+66. As a user, I want a savings rate metric (income - expense)/income, so that I can track my financial health. AC: Displayed as a percentage, handles zero-income edge case gracefully (shows "N/A").
+67. As a user, I want to tap a report category to drill into its transactions, so that I can inves- tigate specific spending. AC: Navigates to filtered History pre-set to that category+date range.
+68. As a user, I want to export a report as CSV, so that I can analyze it further outside the app. AC: CSV matches on-screen totals exactly.
+69. As a user, I want budget-vs-actual shown on the report screen, so that I get the full budget picture in one place. AC: Progress bars mirror the Budgets screen data.
+
+5.9 Search & Filters (5) (additional to History-embedded ones above)
+70. As a user, I want to filter by amount range, so that I can find unusually large or small transactions. AC: Min/max numeric inputs, validated min = max.
+71. As a user, I want to combine search text with active filters, so that I can narrow results precisely. AC: Search applies within the already-filtered set.
+72. As a user, I want to save a filter combination as a preset, so that I can reuse common queries (Phase 2). AC: Deferred - documented in roadmap.
+73. As a user, I want a visible count of active filters, so that I remember what's currently applied. AC: Badge showing number of active filter dimensions.
+74. As a user, I want a one-tap "Clear all filters" action, so that I can reset quickly. AC:
+Resets search text and all filter dimensions.
+
+5.10 Settings (12)
+75. As a user, I want to change my display currency, so that amounts match my locale. AC: All existing amounts re-render with the new currency symbol (no conversion of values, display-only in Phase 1).
+76. As a user, I want to toggle Dark Mode, so that I can use the app comfortably at night.
+AC: Instant theme switch, no restart.
+77. As a user, I want to set the theme to "System," so that it follows my OS setting automat- ically. AC: Detects OS theme changes in real time.
+78. As a user, I want to enable a PIN lock, so that my financial data is protected if someone picks up my phone. AC: PIN required on app foreground after a configurable timeout.
+79. As a user, I want to use biometric unlock instead of a PIN, so that unlocking is faster. AC:
+Falls back to PIN if biometrics fail or aren't enrolled.
+80. As a user, I want to export all my data as CSV, so that I have a portable copy. AC: Same export engine as Reports export, scoped to "All time."
+81. As a user, I want to create a backup file, so that I can protect against data loss. AC:
+Backup includes schema version and checksum.
+82. As a user, I want to restore from a backup file, so that I can recover or migrate my data.
+AC: Preview shown before applying; merge/overwrite choice required.
+83. As a user, I want to enable/disable budget notifications, so that I control how often the app alerts me. AC: Toggling off cancels all scheduled budget notifications.
+84. As a user, I want to set a daily reminder time to log expenses, so that I build a consistent habit. AC: Local notification scheduled via OS scheduler at chosen time.
+
+85. As a user, I want to reset all app data, so that I can start fresh if needed. AC: Requires typed confirmation ("DELETE") before wiping storage.
+86. As a user, I want to see the app version and basic info, so that I know what I'm running.
+AC: About screen shows version, build number, and licenses link.
+
+5.11 Security & Privacy (5)
+87. As a user, I want my PIN stored securely (not in plain text), so that my financial data stays private. AC: PIN hash stored via expo-secure-store, never in AsyncStorage.
+88. As a user, I want the app to lock automatically after a period of inactivity, so that I don't have to remember to lock it manually. AC: Configurable timeout (immediate/1 min/5 min/never).
+89. As a user, I want my backup file to not contain my PIN, so that sharing a backup doesn't expose my app lock. AC: Backup JSON excludes SecureStore-held secrets.
+90. As a user, I want the app to hide sensitive content in the app-switcher preview, so that my balance isn't visible when I switch apps. AC: Privacy screen/blur overlay shown in the recents view (Android FLAG_SECURE equivalent via Expo).
+91. As a user, I want confirmation before destructive actions (delete category with data, reset app, overwrite restore), so that I don't lose data accidentally. AC: Every destructive action has a distinct, explicit confirmation step.
+
+5.12 Notifications (4) (additional to Budget ones above)
+92. As a user, I want a monthly summary notification on the 1st of each month, so that I get a recap without opening the app. AC: Notification deep-links into last month's Report.
+93. As a user, I want to snooze a reminder notification, so that it doesn't nag me at a bad time. AC: Snooze reschedules for +1 hour, max 2 snoozes/day.
+94. As a user, I want notifications to respect Do Not Disturb / quiet hours, so that they don't wake me up. AC: No notification scheduled between configurable quiet hours (default 22:00-07:00).
+95. As a user denied notification permission, I want an in-app banner substitute for budget alerts, so that I'm still informed. AC: Banner shown on Dashboard when a budget crosses a threshold and OS permission is denied.
+
+5.13 Cross-Cutting / Non-Functional Stories (5)
+96. As a user, I want the app to work with no internet connection at all, so that I can log expenses anywhere. AC: Airplane-mode QA pass covers every Phase 1 feature.
+97. As a user, I want the app to load instantly even with thousands of transactions, so that performance doesn't degrade over time. AC: List virtualization + indexed queries keep frame time < 16ms.
+98. As a user, I want clear, non-technical error messages when something goes wrong, so that I'm not confused or alarmed. AC: No raw stack traces or error codes surfaced in UI copy.
+99. As a user with a visual impairment, I want sufficient color contrast and screen-reader labels, so that I can use the app with assistive technology. AC: WCAG AA contrast; all icons/buttons have accessibilityLabel.
+100. As a user, I want my data to survive an app update, so that I never lose history when the app updates itself. AC: Storage schema migrations run automatically and are covered by migration tests.
+
+5.14 Backup/Restore Edge Cases (3 bonus)
+101. As a user restoring a backup from an older app version, I want the app to auto-migrate the schema, so that restore doesn't fail outright. AC: Migration runner applies version- by-version upgrades before import.
+102. As a user, I want a corrupted backup file rejected with a clear message, so that I don't end up with partially-imported broken data. AC: Checksum validated before any write; all-or-nothing import.
+103. As a user, I want to see a preview (transaction count, date range) before confirming a restore, so that I can verify it's the right file. AC: Preview screen shown prior to the merge/overwrite decision.
+
+
+6. Complete App Flow
+6.1 Screen Transition Narrative
+• Splash ? Onboarding (first launch only) ? Dashboard.
+• Splash ? App Lock (if PIN/biometric enabled) ? Dashboard.
+• Dashboard ? Add Expense/Income (via FAB) ? back to Dashboard (with success snackbar).
+• Dashboard ? History (via "See All") ? Transaction Detail ? Edit Expense/Income.
+• Dashboard ? Reports (tab) ? Monthly/Yearly toggle ? Category Drill-down ? filtered History.
+• History ? Search/Filter sheet ? filtered History.
+• History ? Transaction Detail ? Edit ? save ? back to History (updated).
+• Settings ? Category Management ? Add/Edit Category ? back to Settings or wherever categories are managed from (also reachable from Add Expense "Man- age Categories" shortcut).
+• Settings ? Export ? OS Share Sheet.
+• Settings ? Backup ? OS Share Sheet.
+• Settings ? Restore ? File Picker ? Preview ? Confirm ? Dashboard (refreshed).
+• Settings ? Budgets (tab) ? Add/Edit Budget ? back to Budgets.
+
+6.2 Primary Navigation Diagram
+6.3 Add-Expense Detailed Flow
+
+
+7. Information Architecture
+7.1 Sitemap
+7.2 Navigation Hierarchy
+
+LevelNavigator TypeScreensRootNative StackSplash, Onboarding,AppLock, MainTabs (nested),Modal screens (Add/EditTransaction, Add/EditCategory, Add/Edit Budget,Restore flow)
+
+
+Level	Navigator Type	Screens
+
+Main	Bottom Tab Navigator	Dashboard, History, Reports, Budgets, Settings
+Nested (History)	Native Stack	History List ? Transaction Detail ? Edit Transaction
+Nested (Reports)	Native Stack	Monthly ? Yearly
+(tab-within-tab or segmented control) ? Category Drilldown (pushes into History stack)
+Nested (Settings)	Native Stack	Settings Home ? Category Management ? Add/Edit Category; Settings Home ? Export/Backup/Restore/App
+Lock/Currency/Theme/Notifications/About
+
+
+7.3 Screen Inventory
+
+#	Screen	Type	Reachable From
+
+1	Splash	Full screen	App launch
+
+2	Onboarding		Full screen (carousel)
+3	App Lock		Full screen (modal-like)
+
+Splash (first launch)
+
+Splash / App foreground resume
+
+4	Dashboard	Tab root	Main Tabs
+5	Add Expense	Modal	Dashboard FAB, History FAB
+6	Add Income	Modal	Dashboard FAB, History FAB
+7	Edit Transaction	Modal	Transaction Detail
+8	Transaction Detail	Stack push	Dashboard recent list, History list
+9	History	Tab root	Main Tabs
+10	Search/Filter Sheet	Bottom sheet	History
+11	Reports (Monthly)	Tab root	Main Tabs
+12	Reports (Yearly)	Segmented view	Reports
+13	Category Drilldown	Stack push	Reports
+14	Budgets	Tab root	Main Tabs
+15	Add/Edit Budget	Modal	Budgets
+16	Settings	Tab root	Main Tabs
+
+17	Category
+Management
+
+Stack push	Settings
+
+18	Add/Edit Category	Modal		Category Management, Add Expense/Income ("Manage")
+19	Export CSV	Modal/sheet	Settings
+20	Backup	Stack push	Settings
+21	Restore	Stack push	Settings
+22	Restore Preview	Stack push	Restore
+23	App Lock Settings	Stack push	Settings
+
+
+#ScreenTypeReachable From24Currency SettingsModal/sheetSettings25Theme SettingsModal/sheetSettings26Notification SettingsStack pushSettings27AboutStack pushSettings
+
+
+(Continue to Part 2 - UI/UX, Design System, Folder Structure & Component Architecture) -e
+
+
+
+Figure 1: Diagram
+
+Expense Tracker - Software Design Document
+Part 2 of 5:	Wireframes, UI/UX Guidelines, Design System, Folder Structure, Component Architecture & Screen Documentation
+
+
+Table of Contents (Part 2)
+8. Wireframes
+9. UI/UX Design Guidelines
+10. Design System
+11. Folder Structure
+12. Component Architecture
+13. Screen Documentation
+
+
+8. Wireframes
+Text-based, low-fidelity wireframes. All screens use Material Design 3 components from React Native Paper.
+
+8.1 Dashboard
++-------------------------------------+
+¦	?	Expense Tracker	?	¦	<- Header
++-------------------------------------¦
+¦	?	August  2026	?	¦	<- Month selector
++-------------------------------------¦
+¦	+---------------+ +---------------+¦
+¦	¦ Income	¦ ¦ Expense	¦¦
+¦	¦ ?45,000	¦ ¦ ?28,340	¦¦
+
+
+
+Figure 2: Diagram
+
+
+
+Figure 3: Diagram
+
+
+¦
+¦+---------------+ +---------------+¦
++-------------------------------+	¦¦¦ Net Balance:	?16,660	¦¦¦+-------------------------------+	¦+-------------------------------------¦
+¦	Spending by Category	¦
+¦	? Pie Chart	¦
+¦	Food 32% | Transport 18% | ...	¦
++-------------------------------------¦
+¦	Budget Progress	¦
+¦	Food	[¦¦¦¦¦¦¦¦¦¦] 72%	¦
+¦	Transport	[¦¦¦¦¦¦¦¦¦¦] 34%	¦
++-------------------------------------¦
+¦	Recent Transactions	See All ?¦
+¦	? Food	-?450	Today	¦
+¦	? Transport	-?120	Today	¦
+¦	? Salary	+?45,000	1 Aug	¦
++-------------------------------------¦
+¦	[Home] [History] [ (+) ] [Reports] [Settings]	<- Bottom Tabs + center FAB
++-------------------------------------+
+
+8.2 Expense List (History)
++-------------------------------------+
+¦	? Transactions	?	?filter	¦
++-------------------------------------¦
+¦	[Active filters: Food ?] [Clear all]¦
++-------------------------------------¦
+¦	TODAY	¦
+¦	? Lunch - Food	-?450	¦
+¦	Cash · 12:30 PM	?	¦
+¦	? Metro - Transport	-?120	¦
+¦	UPI · 09:15 AM	?	¦
++-------------------------------------¦
+¦	YESTERDAY	¦
+¦	? Movie - Entertainment -?600	¦
+¦	Card · 08:00 PM	?	¦
++-------------------------------------¦
+¦	1 AUGUST	¦
+¦	? Salary - Income	+?45,000	¦
+¦	Bank Transfer · 09:00 AM	?	¦
++-------------------------------------¦
+¦	(+)  FAB	¦
+
+¦	[Home] [History] [ (+) ] [Reports] [Settings] ¦
++-------------------------------------+
+
+8.3 Add Expense
++-------------------------------------+
+¦	?	Add Expense	?	¦
++-------------------------------------¦
+¦	Amount	¦
+¦	+-------------------------------+	¦
+¦	¦	?	0.00	¦	¦
+¦	+-------------------------------+	¦
+¦	¦
+¦	Category	¦
+¦	[? Food] [? Transport] [? Shop]	¦
+¦	[? Health] [? Fun] [+ More]	¦
+¦	¦
+¦	Date	Payment Method	¦
+¦	? Today ?	? Cash ?	¦
+¦	¦
+¦	Notes (optional)	¦
+¦	+-------------------------------+	¦
+¦	¦	¦	¦
+¦	+-------------------------------+	¦
+¦	0/500	¦
+¦	¦
+¦	+-------------------------------+	¦
+¦	¦	SAVE EXPENSE	¦ ¦
+¦	+-------------------------------+	¦
++-------------------------------------+
+
+8.4 Reports (Monthly)
++-------------------------------------+
+¦	Reports	[Monthly | Yearly]	¦
++-------------------------------------¦
+¦	?	August  2026	?	¦
++-------------------------------------¦
+¦	Income ?45,000	Expense ?28,340	¦
+¦	Savings Rate: 37%	? +5% vs July	¦
++-------------------------------------¦
+¦	Daily Spending Trend	¦
+¦	????????????????_?	¦
++-------------------------------------¦
+¦	Category Breakdown	¦
+¦	? Pie Chart	¦
+¦Food?9,10032%?¦¦Transport?5,10018%?¦¦Bills?4,80017%?¦¦	[Export  CSV]	¦
++-------------------------------------+
+
+8.5 Charts (Yearly Comparison)
++-------------------------------------+
+¦	Reports	[Monthly | Yearly]	¦
++-------------------------------------¦
+¦	?	2026	?	¦
++-------------------------------------¦
+¦	Income vs Expense by Month	¦
+¦	Jan ¦¦ Feb ¦¦ Mar ¦¦ Apr ¦¦ ...	¦
+¦	(¦ = income	¦ = expense)	¦
++-------------------------------------¦
+¦	Best Month: March (Saved ?22,000)	¦
+¦	Worst Month: June (Overspent ?2,000)¦
++-------------------------------------¦
+¦	Yearly Category Split	¦
+¦	? Pie Chart	¦
++-------------------------------------+
+
+8.6 Settings
++-------------------------------------+
+¦	Settings	¦
++-------------------------------------¦
+¦	GENERAL	¦
+¦	Currency	? INR ? ¦
+¦	Theme	System  ?	¦
+¦	Language	English  ?	¦
++-------------------------------------¦¦DATA¦¦ManageCategories?¦¦ExportData (CSV)?¦¦Backup?¦¦Restore?¦+-------------------------------------¦¦SECURITY¦¦App LockOff	?¦¦BiometricUnlockOff	?¦+-------------------------------------¦¦NOTIFICATIONS¦¦Budget AlertsOn ?¦¦Daily  ReminderOff  ?¦+-------------------------------------¦¦ABOUT¦¦Version 1.0.0¦¦Reset App Data?¦+-------------------------------------+
+8.7 Budget Screen
++-------------------------------------+
+¦	Budgets	+ Add	¦
++-------------------------------------¦
+¦	Overall Monthly Budget	¦
+¦	?35,000	[¦¦¦¦¦¦¦¦¦¦] 81%	¦
+
++-------------------------------------¦
+¦	OVER BUDGET	¦
+¦	? Entertainment	[¦¦¦¦¦¦¦¦¦¦] 112% ¦
+¦	?4,480 / ?4,000	¦
++-------------------------------------¦
+¦	ON TRACK	¦
+¦	? Food	[¦¦¦¦¦¦¦¦¦¦] 72%	¦
+¦	?9,100 / ?12,600	¦
+¦	? Transport	[¦¦¦¦¦¦¦¦¦¦] 34%	¦
+¦	?5,100 / ?15,000	¦
++-------------------------------------+
+
+8.8 Category Management
++-------------------------------------+
+¦	? Manage Categories	+ Add	¦
++-------------------------------------¦
+¦	EXPENSE CATEGORIES	¦
+¦	? Food	(system)	?	¦
+¦	? Transport	(system)	?	¦
+¦	? Shopping	(system)	?	¦
+¦	? Gym	(custom)	?	¦
++-------------------------------------¦
+¦	INCOME CATEGORIES	¦
+¦	? Salary	(system)	?	¦
+¦	? Freelance	(custom)	?	¦
++-------------------------------------¦
+¦	ARCHIVED (2)	?	¦
++-------------------------------------+
+
+8.9 Statistics / Category Drilldown
++-------------------------------------+
+¦	? Food - August 2026	¦
++-------------------------------------¦
+¦	Total Spent: ?9,100 (32% of month)	¦
+¦	vs Budget: ?9,100 / ?12,600 (72%)	¦
++-------------------------------------¦
+¦	Trend (last 6 months)	¦
+¦	??????	¦
++-------------------------------------¦
+¦	Transactions (14)	¦
+¦	? Lunch	-?450	Today	¦
+¦	? Groceries	-?1,200 3 Aug	¦
+¦	...	¦
++-------------------------------------+
+
+
+9. UI/UX Design Guidelines
+9.1 Typography
+Material Design 3 type scale, mapped to react-native-paper's MD3Typescale:
+
+
+RoleSize / Line HeightWeightUsageDisplay Large57/64RegularNot used(mobile-first, avoidoversized text)Headline Small24/32MediumScreen titlesTitle Large22/28MediumSection headers(e.g., "RecentTransactions")Title Medium16/24MediumCard titles, list itemprimary textBody Large16/24RegularForm input text,body copyBody Medium14/20RegularSecondary list text,helper textLabel Large14/20MediumButtonsLabel Small11/16MediumChips, badges,timestamps
+Font family: system default (Roboto on Android, San Francisco on iOS) - no custom font in Phase 1 to keep bundle size minimal and ensure native rendering quality.
+
+9.2 Spacing
+8pt grid system:TokenValueUsagespace-xs4dpIcon-to-label gapspace-sm8dpInline element gapsspace-md16dpDefault screen padding, card paddingspace-lg24dpSection spacingspace-xl32dpMajor section breaksspace-xxl48dpEmpty-state vertical centering
+9.3 Color Palette
+Material Design 3 dynamic-color-ready tonal palette (seed color: Emerald Green #00695C, chosen to evoke money/growth without literal "cash green" cliché):
+
+TokenLightDarkUsageprimary#00695C#4DB6ACFAB, primarybuttons, active tabonPrimary#FFFFFF#003731Text/icons onprimarysecondary#4A6360#B0CCC7Secondary actions,chipserror#BA1A1A#FFB4ABExpense amounts,destructive actions,over-budgetsuccess#2E7D32#81C995Income amounts,under-budget
+
+TokenLightDarkUsagewarning#F9A825#FFD54FNear-budget(70-99%)surface#FBFDFB#191C1BCard/screenbackgroundsurfaceVariant#DBE5E1#3F4946Subtle containers,dividersonSurface#191C1B#E1E3E0Primary textonSurfaceVariant#3F4946#BFC9C5Secondary textoutline#6F7975#899390Borders
+Semantic amount coloring: income = success green, expense = error red - consistent everywhere (Dashboard, History, Reports) so users pattern-match instantly.
+
+9.4 Icons
+• Icon  set:	Material Community Icons (bundled with react-native-paper via
+@expo/vector-icons).
+• Category icons: chosen from a curated subset of ~60 relevant icons (food, transport, shopping, bills, health, entertainment, education, gifts, salary, freelance, etc.) presented in an icon picker grid.
+• Standard sizes: 16dp (inline/label), 24dp (list items, buttons), 32dp (category grid), 48dp (empty states).
+
+9.5 Buttons
+
+Variant	Usage
+
+Filled (Contained)	Primary action per screen (Save, Confirm) - one per screen max
+Outlined	Secondary action (Cancel, alternate choice)
+Text	Tertiary/low-emphasis action (Skip, Clear filters)
+Icon Button	Header actions (search, filter, notification bell)
+FAB (Extended/Regular)	Add Transaction - the app's single most important action, always reachable
+
+
+Minimum touch target: 48×48dp (exceeds WCAG's 44×44dp minimum). Disabled state uses 38% opacity per MD3 spec.
+
+9.6 Cards
+• Elevation level 1 (subtle shadow) for list/summary cards on Dashboard.
+• Border radius: 12dp (medium, per MD3 shape scale).
+• Padding: 16dp internal.
+• Cards never nest cards-within-cards (avoid visual clutter).
+
+9.7 Lists
+• Row height: 64dp minimum (icon + 2 lines of text + trailing amount).
+
+• Dividers: 1dp outline color, inset 16dp from leading icon (not full-bleed) to visually group icon+text.
+• Swipe actions: red delete background revealed on swipe-left, spring-back if swipe < 40% of row width.
+
+9.8 Bottom Navigation
+• 5 destinations: Home, History, (+) FAB center, Reports, Settings - Budgets accessible via Reports tab's segmented control OR as a 5th tab (final IA choice: Budgets is a full tab, Reports/History share adjacent icons since they're both "look back" flows). See navigation hierarchy in Part 1 §7.2 for the authoritative structure.
+• Active tab: filled icon + primary color + label.
+• Inactive tab: outlined icon + onSurfaceVariant color.
+• FAB is visually elevated above the bar (MD3 "docked FAB" pattern), always opens the Add Transaction sheet regardless of active tab.
+
+9.9 Animations
+• Screen transitions: native stack default (slide from right on Android per platform con- vention; card modal presentation for Add/Edit sheets).
+• List item insert/delete: LayoutAnimation fade+height collapse (150ms).
+• Progress bars: animate fill on mount/update (300ms ease-out).
+• Chart entrance: bars/pie segments animate in on first render only (not on every re- render, to avoid jank when scrolling triggers rerenders).
+• Respect Reduce Motion OS accessibility setting - animations shortened/disabled when
+set.
+
+9.10 Empty States
+Every list/aggregation screen has a distinct empty state: icon (64dp, muted color) + headline
++ one-line explanation + primary CTA where applicable.
+
+Screen	Empty State Message
+
+Dashboard (no transactions)	"No transactions yet - Add your first one to get started." + CTA
+History (filtered, no results)		"No transactions match your filters." + "Clear filters"
+Reports (month with no data)	"No data for this month."
+Budgets (none set)	"You haven't set any budgets yet." + CTA
+Categories (all archived)	"No active categories - unarchive one or add a new category."
+
+
+9.11 Loading States
+• Initial app load: Splash screen (branded, =2.5s).
+• Screen-level data fetch (from local storage - should be near-instant, but always guarded): skeleton placeholders matching final layout shape (shimmer effect), not spinners, to reduce perceived latency.
+• Action-level (save/delete/export/backup): button shows inline ActivityIndicator replac-
+ing its label, disabled state, no layout shift.
+
+9.12 Dark Theme
+• Governed by MD3 dark tonal palette (see §9.3).
+• True elevation via subtle surface-tint overlays rather than pure black backgrounds (MD3 recommendation), except OLED considerations are deferred (pure-black "AMOLED mode" is a Phase 2 nice-to-have).
+• Charts re-theme axis/label colors and gridlines for dark backgrounds (no hardcoded chart colors).
+
+9.13 Accessibility
+• All interactive elements: accessibilityRole, accessibilityLabel, accessibilityHint
+where non-obvious.
+• Color is never the sole indicator (e.g., over-budget also shows an icon + text "Over bud- get," not just red color).
+• Dynamic font scaling supported up to 130% (allowFontScaling, layouts use flex not fixed
+heights for text containers).
+• Focus order matches visual order for screen readers (TalkBack/VoiceOver tested).
+• Minimum contrast ratio 4.5:1 for body text, 3:1 for large text/icons (WCAG AA).
+
+9.14 Material Design 3 Application
+• Uses react-native-paper's PaperProvider with a custom MD3LightTheme/MD3DarkTheme
+extended with the palette in §9.3.
+• Components sourced from Paper: Appbar, Card, Button, TextInput, Chip, FAB, Snackbar, Dialog, Portal, SegmentedButtons, ProgressBar, Switch, List.
+• Custom components (charts, budget progress rings, category icon grid) are built to match MD3 shape/elevation/color tokens exactly, so they feel native to the design system rather than bolted-on.
+
+
+10. Design System
+10.1 Colors
+See §9.3 for the full palette. Implementation: a single theme.ts file exports lightColors and darkColors objects conforming to MD3's MD3Colors interface, plus app-specific semantic extensions (income, expense, budgetSafe, budgetWarning, budgetDanger).
+
+10.2 Typography
+See §9.1. Implemented as a typography.ts exporting a fonts object matching Paper's MD3Typescale, consumed via theme.fonts.titleMedium etc. - never hardcoded font sizes in component StyleSheets.
+
+10.3 Shadows / Elevation
+MD3 elevation levels (0-5), implemented via Paper's elevation prop (which applies platform- correct shadow/surface-tint):
+
+Level	Usage
+
+0 Flat surfaces, screen background
+1 Cards, list rows
+
+
+
+Level	Usage
+
+2 Raised buttons on press, chips
+3 FAB (resting), bottom sheets
+4 Navigation bar, app bar (scrolled state)
+5 Dialogs, modals
+
+
+10.4 Radius
+
+Token	Value	Usage
+
+radius-sm	4dp	Chips, small badges
+radius-md	12dp	Cards, text inputs
+radius-lg	16dp	Bottom sheets (top corners), dialogs
+radius-full	999dp	FAB, avatar/icon circles, pill buttons
+
+
+10.5 Spacing Scale
+Reiterating §9.2 as the canonical token set consumed via a spacing.ts export (xs, sm, md, lg, xl, xxl = 4/8/16/24/32/48dp) - all screens import from this file; no magic numbers in component styles.
+
+10.6 Icon Sizes
+16 / 24 / 32 / 48 dp as defined in §9.4, exported as iconSizes constants.
+
+10.7 Button Variants
+Filled, Outlined, Text, Icon, FAB (Regular + Extended) - see §9.5. Each has defined min- height 48dp, horizontal padding 24dp (Filled/Outlined/Text), label uses labelLarge typogra- phy token.
+
+10.8 Input Components
+• AmountInput: large, centered, currency-symbol-prefixed numeric input with a custom numeric keypad (Phase 1 can use OS keyboard with keyboardType="decimal-pad").
+• TextField (Paper TextInput wrapper, "outlined" mode): used for Notes, Category Name.
+• DatePickerField: opens native date picker (@react-native-community/datetimepicker), displays formatted date as a tappable field.
+• CategoryPicker: horizontally scrollable / grid icon-chip selector.
+• PaymentMethodPicker: segmented buttons or dropdown menu.
+• All inputs: label above field (not floating-only) for clarity + accessibility, inline error text below in error color, helper text in onSurfaceVariant.
+
+10.9 Cards
+Standard card: 12dp radius, elevation 1, 16dp padding, optional leading icon (32dp cir- cle with tonal background), title (titleMedium), subtitle (bodyMedium), trailing content (amount/chevron).
+
+10.10 Dialogs
+Used for: delete confirmation, restore confirmation, reset app data confirmation, budget threshold info. MD3 dialog: title (headlineSmall), body (bodyMedium), 2 actions max (Can- cel + primary action), primary action uses error color when destructive.
+
+10.11 Snackbars
+Used for: save success, delete-with-undo, export complete, backup complete, generic error toast. Duration: 3s (info), 5s (undo actions), positioned above bottom tab bar, single-line unless an action button is present (then wraps to 2 lines max).
+
+10.12 Bottom Sheets
+Used for: Add Transaction type chooser (Expense/Income), Search/Filter panel, currency picker, theme picker. Implemented via @gorhom/bottom-sheet for smooth gesture-driven in- teraction (Paper's built-in modal is used for simpler cases like confirmation dialogs).
+
+
+11. Folder Structure
+Enterprise-grade, feature-based architecture. Each feature is self-contained (its own components, hooks, screens, types) to keep the codebase scalable as features grow, while shared/common code lives in dedicated top-level folders.
+expense-tracker/
++-- app.json	# Expo config
++-- App.tsx	# Root entry - providers + navigation
++-- babel.config.js
++-- tsconfig.json
++-- package.json
++-- .eslintrc.js
++-- .prettierrc
+¦
++-- src/
+¦	+-- app/	# App-level composition root
+¦	¦	+-- providers/	# Combines all context providers into one tree
+¦	¦	¦	+-- AppProviders.tsx
+¦	¦	+-- navigation/	# Root & tab navigators (see Part 3 §17)
+¦	¦	¦	+-- RootNavigator.tsx
+¦	¦	¦	+-- MainTabNavigator.tsx
+¦	¦	¦	+--  HistoryStackNavigator.tsx
+¦	¦	¦	+-- ReportsStackNavigator.tsx
+¦	¦	¦	+--  SettingsStackNavigator.tsx
+¦	¦	¦	+-- linking.ts	# Deep linking config
+¦	¦	+-- theme/
+¦	¦	+-- colors.ts
+¦	¦	+-- typography.ts
+¦	¦	+-- spacing.ts
+¦	¦	+-- index.ts	# Combined MD3 theme export
+¦	¦
+¦	+-- features/	# Feature-based modules - the heart of the app
+¦	¦	+-- dashboard/
+¦	¦	¦	+-- screens/DashboardScreen.tsx
+
+¦¦¦+-- components/	#  BalanceCard,  MiniPieChart,  RecentTransactionsList...¦¦¦	+-- hooks/useDashboardData.ts¦¦¦	+-- index.ts	# Public exports (barrel file)¦¦¦¦¦+-- transactions/	# Expense + Income (share 90% of logic/UI)¦¦¦	+-- screens/¦¦¦	¦	+-- AddTransactionScreen.tsx¦¦¦	¦	+-- EditTransactionScreen.tsx¦¦¦	¦	+--  TransactionDetailScreen.tsx¦¦¦	+-- components/¦¦¦	¦	+-- AmountInput.tsx¦¦¦	¦	+-- CategoryPicker.tsx¦¦¦	¦	+-- PaymentMethodPicker.tsx¦¦¦	¦	+-- TransactionForm.tsx¦¦¦	+-- hooks/¦¦¦	¦	+-- useTransactionForm.ts¦¦¦	¦	+--  useTransactionValidation.ts¦¦¦	+-- services/transactionRepository.ts	# Storage access for this feature¦¦¦	+-- types/transaction.types.ts¦¦¦	+-- index.ts¦¦¦¦¦+-- history/¦¦¦	+-- screens/HistoryScreen.tsx¦¦¦	+-- components/¦¦¦	¦	+-- TransactionListItem.tsx¦¦¦	¦	+-- DateSectionHeader.tsx¦¦¦	¦	+-- FilterSheet.tsx¦¦¦	+-- hooks/¦¦¦	¦	+-- useTransactionSearch.ts¦¦¦	¦	+-- useTransactionFilters.ts¦¦¦	+-- index.ts¦¦¦¦¦+-- categories/¦¦¦	+-- screens/CategoryManagementScreen.tsx¦¦¦	+-- screens/AddEditCategoryScreen.tsx¦¦¦	+-- components/CategoryListItem.tsx¦¦¦	+-- components/IconPicker.tsx¦¦¦	+--  services/categoryRepository.ts¦¦¦	+-- types/category.types.ts¦¦¦	+-- index.ts¦¦¦¦¦+-- budgets/¦¦¦	+-- screens/BudgetsScreen.tsx¦¦¦	+-- screens/AddEditBudgetScreen.tsx¦¦¦	+-- components/BudgetProgressBar.tsx¦¦¦	+-- hooks/useBudgetCalculations.ts¦¦¦	+-- services/budgetRepository.ts¦¦¦	+-- types/budget.types.ts¦¦¦	+-- index.ts¦¦¦¦¦+-- reports/¦¦¦	+-- screens/MonthlyReportScreen.tsx¦¦¦	+-- screens/YearlyReportScreen.tsx¦¦¦	+-- screens/CategoryDrilldownScreen.tsx
+¦¦¦+--components/¦¦¦¦+-- CategoryPieChart.tsx¦¦¦¦+-- MonthlyBarChart.tsx¦¦¦¦+-- DailyTrendLineChart.tsx¦¦¦+--hooks/useMonthlyAggregation.ts¦¦¦+--hooks/useYearlyAggregation.ts¦¦¦+--services/reportEngine.ts	# Pure business-logic calculations¦¦¦+--index.ts¦¦¦¦	¦	+-- settings/
+¦	¦	¦	+--  screens/SettingsScreen.tsx
+¦	¦	¦	+--  screens/CurrencySettingsScreen.tsx
+¦	¦	¦	+--    screens/NotificationSettingsScreen.tsx
+¦	¦	¦	+-- screens/AppLockSettingsScreen.tsx
+¦	¦	¦	+-- components/SettingsListItem.tsx
+¦	¦	¦	+--  services/settingsRepository.ts
+¦	¦	¦	+-- index.ts
+¦	¦	¦
+¦	¦	+-- export/
+¦	¦	¦	+--  screens/ExportScreen.tsx
+¦	¦	¦	+--  services/csvExportService.ts
+¦	¦	¦
+¦	¦	+-- backup-restore/
+¦	¦	¦	+-- screens/BackupScreen.tsx
+¦	¦	¦	+--  screens/RestoreScreen.tsx
+¦	¦	¦	+-- screens/RestorePreviewScreen.tsx
+¦	¦	¦	+--  services/backupService.ts
+¦	¦	¦
+¦	¦	+-- security/
+¦	¦	¦	+-- screens/AppLockScreen.tsx
+¦	¦	¦	+-- components/PinPad.tsx
+¦	¦	¦	+-- services/authService.ts	# PIN hashing, biometric check
+¦	¦	¦
+¦	¦	+-- notifications/
+¦	¦	¦	+--  services/notificationService.ts
+¦	¦	¦
+¦	¦	+-- onboarding/
+¦	¦	+-- screens/OnboardingScreen.tsx
+¦	¦	+-- components/OnboardingSlide.tsx
+¦	¦
+¦	+-- shared/	# Cross-feature reusable code
+¦	¦	+-- components/	# Truly generic UI: Button wrappers, EmptyState, ErrorBoundary, Load
+¦	¦	+-- hooks/	# useDebounce, useAsyncStorage, useCurrencyFormatter
+¦	¦	+-- utils/	# dateUtils, currencyUtils, csvUtils, validators
+¦	¦	+-- constants/	# defaultCategories, paymentMethods, appConfig
+¦	¦	+-- types/	# Shared TS types (Currency, PaymentMethod enums, etc.)
+¦	¦
+¦	+-- context/	# React Context providers (state management - see Part 3 §16)
+¦	¦	+-- TransactionContext.tsx
+¦	¦	+-- CategoryContext.tsx
+¦	¦	+-- BudgetContext.tsx
+¦	¦	+-- SettingsContext.tsx
+¦	¦	+-- ThemeContext.tsx
+
+¦	¦
+¦	+-- storage/	# Storage abstraction layer (see Part 3 §15)
+¦	¦	+-- asyncStorage/
+¦	¦	¦	+-- keys.ts
+¦	¦	¦	+--  asyncStorageClient.ts
+¦	¦	+-- sqlite/	# Optional/alternate backend
+¦	¦	¦	+-- schema.ts
+¦	¦	¦	+-- migrations/
+¦	¦	¦	+-- sqliteClient.ts
+¦	¦	+-- repositories/	# Repository pattern - feature services call these
+¦	¦	¦	+-- IRepository.ts	# Generic interface
+¦	¦	¦	+--  TransactionRepository.ts
+¦	¦	¦	+-- CategoryRepository.ts
+¦	¦	¦	+-- BudgetRepository.ts
+¦	¦	¦	+-- SettingsRepository.ts
+¦	¦	+-- StorageProvider.ts	# Chooses AsyncStorage vs SQLite implementation
+¦	¦
+¦	+-- sync/	# Reserved for future cloud sync (empty/stub in Phase 1)
+¦	¦	+-- ISyncService.ts
+¦	¦	+-- FirebaseSyncService.ts.future
+¦	¦
+¦	+-- assets/
+¦	+-- icons/
+¦	+-- images/
+¦	+-- fonts/
+¦
++--   tests  /	# Mirrors src/ structure for unit/integration tests
++-- e2e/	# Detox/Maestro end-to-end test specs
++-- docs/	# This documentation set
+
+11.1 Rationale per Top-Level Folder
+
+Folder	Why It Exists
+
+app/	Composition root - wires navigation, theme, and providers together without containing business logic itself, keeping App.tsx thin.
+features/	Each feature owns its
+screens/components/hooks/services, so a developer can work on "Budgets" without touching unrelated code - critical for scaling team size and codebase later.
+shared/		Prevents duplication of truly generic UI/logic (e.g., an EmptyState component used by 6 different features) without letting features
+become tangled with each other.
+context/	Centralizes global state providers separately from features, since state (e.g., TransactionContext) is consumed by multiple features (Dashboard, History, Reports, Budgets) and shouldn't live inside any single one.
+
+
+
+Folder	Why It Exists
+
+storage/		Isolates all persistence concerns behind repository interfaces - this is what makes swapping AsyncStorage ? SQLite ? cloud sync possible without touching feature code (Dependency Inversion Principle).
+sync/	Explicitly reserved (even if empty in Phase 1)
+so the future cloud-sync feature has an obvious, pre-agreed home and interface contract (ISyncService) that repositories can later call.
+assets/	Static resources, kept out of src/features to avoid bloating feature folders and to allow a single import path convention.
+ tests / & e2e/	Separated from src to keep production bundle analysis clean and allow different tooling/config (Jest vs Detox/Maestro) per folder.
+
+
+
+12. Component Architecture
+12.1 Component Layering
+1. Primitive/Design-System components (shared/components): thin wrappers around React Native Paper primitives, pre-themed - e.g., AppButton, AppCard, AppTextInput. Purpose: single point of change if the design system evolves.
+2. Composite/Feature components (features/*/components): built from primitives, feature-specific - e.g., TransactionListItem, BudgetProgressBar.
+3. Screens (features/*/screens): compose composite components + hooks into a full screen; contain minimal logic themselves (delegate to hooks/services).
+
+12.2 Reusable Components Catalog
+
+ComponentLocationResponsibilityAppButtonsharedThemed button wrapper(Filled/Outlined/Textvariants)AppCardsharedThemed card wrapper withconsistentelevation/radius/paddingAppTextInputsharedThemed text input withbuilt-in error/helper text slotEmptyStatesharedIcon + headline +description + optional CTA,used across 6+ screensLoadingSkeletonsharedShimmer placeholder shapesmatching each screen'slayout
+
+ComponentLocationResponsibilityErrorBoundarysharedCatches render errors,shows a friendly fallback +"Reload"ConfirmationDialogsharedStandardizeddestructive-actionconfirmation (title/body/2actions)Snackbar ProvidersharedGlobal snackbar queue soany feature can trigger atoastAmountInputtransactionsLarge numeric input withcurrency symbol prefix andformattingCategoryPickertransactions/categoriesIcon-grid selector, reused inAdd/Edit forms and FiltersheetPaymentMethodPickertransactionsSegmented/dropdownselectorTransactionFormtransactionsComposed form used by bothAdd and Edit screens (singlesource of truth for formlogic)TransactionListItemhistorySingle row: icon, title,amount, meta; used inHistory and Dashboard's"recent" listDateSectionHeaderhistorySticky date group headerFilterSheethistoryBottom sheet with all filtercontrolsBudgetProgressBarbudgetsColor-coded progress bar(green/amber/red) with labelCategoryPieChartreportsWraps Victory Native/ChartKit pie chart, theme-awareMonthlyBarChartreportsWraps bar chart formonth/year comparisonsDailyTrendLineChartreportsWraps line chart forwithin-month daily trendIconPickercategoriesGrid of selectable MaterialCommunity IconsPinPadsecurityNumeric keypad UI for PINentry/creationAppHeadersharedThemed Appbar.Headerwrapper withtitle/back/actions slotsMonthYearSelectorsharedReused arrow-based selectorfor Dashboard and ReportsSettingsListItemsettingsRow with label, currentvalue, chevron, usedthroughout Settings
+12.3 Modals, Bottom Sheets & Dialogs
+
+
+NameTypeUsed ByAddTransactionTypeSheetBottom sheetFAB tap ? chooseExpense/IncomeFilterSheetBottom sheetHistory screenCurrencyPickerSheetBottom sheetSettings ? CurrencyConfirmationDialogDialogDelete transaction/category,reset app, overwrite restoreRestorePreviewDialogDialog/ScreenRestore flowBudgetThresholdInfoDialogDialogTapping an info icon next toa budget progress bar
+12.4 Forms
+TransactionForm is the canonical example of the app's form pattern: a useTransactionForm hook manages field state, validation (via useTransactionValidation), and submission, while the screen component is purely presentational - this pattern (hook owns logic, screen owns layout) is repeated for useCategoryForm and useBudgetForm.
+
+12.5 Loading & Error Components
+• LoadingSkeleton variants: DashboardSkeleton, ListSkeleton, ChartSkeleton - each matches its target screen's layout so there's no content "jump" when real data replaces the skeleton.
+• ErrorBoundary wraps each tab's stack navigator individually (not just the whole app) so an error in Reports doesn't crash Dashboard/History.
+• Inline error components: FieldError (small red text under an input), ScreenError (full- screen fallback with retry button for catastrophic storage failures).
+
+
+13. Screen Documentation
+For each screen: Purpose, Inputs, Outputs, Navigation, State, Components Used, Validation, Business Logic, Error Handling.
+
+13.1 Dashboard Screen
+
+Aspect	Detail
+
+Purpose	Financial overview for the selected month
+Inputs	Selected month (local screen state, defaults to current month)
+Outputs	None (read-only); navigates elsewhere on interaction
+Navigation	? Add Transaction (FAB), ? Transaction Detail (recent item tap), ? History (See All),
+? Budgets (progress bar tap)
+State	selectedMonth (local), consumes
+TransactionContext, BudgetContext, CategoryContext
+
+
+
+Aspect	Detail
+
+Components		MonthYearSelector, AppCard ×2 (income/expense), balance banner, CategoryPieChart (mini), BudgetProgressBar list, TransactionListItem list (top 5), EmptyState
+Validation	N/A
+Business Logic	Calls
+reportEngine.getMonthlyTotals(month), re- portEngine.getCategoryBreakdown(month), bud-
+getEngine.getActiveBudgetsWithProgress(month)
+Error Handling	If storage read fails, show ScreenError with retry; never crash silently
+
+
+13.2 Add / Edit Transaction Screen
+
+Aspect	Detail
+
+Purpose	Create or modify an income/expense record
+Inputs	Amount, category, date, payment method, notes; (edit mode: existing record ID)
+Outputs	New/updated Transaction record persisted
+Navigation	Modal presentation; D dismisses without saving (with unsaved-changes confirmation if dirty); D/Save returns to previous screen
+State	useTransactionForm hook state (amount,
+categoryId, date, paymentMethod, notes, errors, isSubmitting)
+Components	AmountInput, CategoryPicker, DatePickerField, PaymentMethodPicker, AppTextInput (notes), AppButton (save)
+Validation	See Section 18
+Business Logic	On save: validate ? (optional) anomaly check
+?   TransactionRepository.create/update()
+? update TransactionContext ? trigger budget recalculation
+Error Handling		Storage write failure ? inline banner "Couldn't save - please try again," form data retained (not lost)
+
+
+13.3 Transaction Detail Screen
+
+Aspect	Detail
+
+Purpose	View full details of a single transaction before editing/deleting
+Inputs	Transaction ID (route param)
+Outputs	None directly; delegates to Edit/Delete
+
+
+
+Aspect	Detail
+
+Navigation	? Edit Transaction (Edit button), back on delete (with undo snackbar on previous screen)
+State	Fetched transaction object (from
+context/repository by ID)
+Components	AppCard detail rows, AppButton (Edit, Delete)
+Validation	N/A
+Business Logic	Delete action opens ConfirmationDialog ? on confirm, soft-delete with 5s undo window before permanent repository delete
+Error Handling	Transaction not found (e.g., deleted elsewhere) ? friendly "This transaction no longer exists" state with back navigation
+
+
+13.4 History Screen
+
+Aspect	Detail
+
+Purpose	Browse, search, and filter the full transaction ledger
+Inputs	Search text, active filters (category, date range, payment method, amount range, type)
+Outputs	None directly
+Navigation	? Transaction Detail (row tap), ? Filter Sheet, ? Add Transaction (FAB)
+State	useTransactionSearch,
+useTransactionFilters hooks; virtualization state managed by list component
+Components	FlashList/virtualized list, DateSectionHeader, TransactionListItem, FilterSheet, EmptyState
+Validation	Amount-range filter: min = max enforced in the Filter Sheet before applying
+Business Logic		Combines search + filters via a single derived-selector function (selectFilteredTransactions) run against context data, memoized
+Error Handling	Empty results ? EmptyState with "Clear filters"; storage errors bubble to ErrorBoundary
+
+
+13.5 Monthly / Yearly Report Screens
+
+Aspect	Detail
+
+Purpose	Aggregate financial analysis for a month or year
+Inputs	Selected month/year
+Outputs	None directly; ? Export CSV
+
+
+
+Aspect	Detail
+
+Navigation	? Category Drilldown (tap a category row), Monthly ? Yearly via segmented control
+State	useMonthlyAggregation(month)   /
+useYearlyAggregation(year) hooks (memoized against transaction context)
+Components	CategoryPieChart, MonthlyBarChart, DailyTrendLineChart, breakdown table
+Validation	N/A
+Business Logic	See Section 19 Business Logic for exact formulas
+Error Handling		Division-by-zero guarded (e.g., savings rate with zero income shows "N/A" not Infinity/NaN)
+
+
+13.6 Category Drilldown Screen
+
+Aspect	Detail
+
+Purpose	Deep-dive into a single category's spending for a period
+Inputs	Category ID, date range (inherited from Report screen)
+Outputs	None
+Navigation	? Transaction Detail; back to Report
+State	Derived filtered transaction list + trend data for last 6 months
+Components	Summary header, DailyTrendLineChart (or bar), TransactionListItem list
+Validation	N/A
+Business Logic	Reuses reportEngine category-sum function scoped to one category
+Error Handling	Category deleted mid-session ? graceful fallback to "Uncategorized" label
+
+
+13.7 Budgets Screen
+
+Aspect	Detail
+
+Purpose	View and manage all category + overall budgets
+Inputs	None (reads current month by default)
+Outputs	None directly; ? Add/Edit Budget
+Navigation	? Add/Edit Budget (FAB or row tap)
+State	Consumes BudgetContext +
+TransactionContext for progress calculation
+Components		Overall budget card, BudgetProgressBar list (grouped: Over Budget / On Track)
+Validation	N/A (validation lives in Add/Edit Budget)
+Business Logic	budgetEngine.getProgress(categoryId,  month) = spend / budgetAmount
+
+
+
+Aspect	Detail
+
+Error Handling	No budgets set ? EmptyState with CTA
+
+
+13.8 Add / Edit Budget Screen
+
+Aspect	Detail
+
+Purpose	Set or modify a monthly budget amount for a category (or overall)
+Inputs	Category (or "Overall"), amount, month scope
+Outputs	New/updated Budget record
+Navigation	Modal; save returns to Budgets screen
+State	useBudgetForm hook
+Components	CategoryPicker (or "Overall" toggle),
+AmountInput, AppButton
+Validation	Amount > 0; one active budget per category per month (duplicate attempt shows inline error offering to edit the existing one instead)
+Business Logic	On save ? BudgetRepository.upsert() ?
+triggers notification re-scheduling if thresholds are enabled
+Error Handling	Storage failure ? inline banner, data retained in form
+
+
+13.9 Category Management & Add/Edit Category Screens
+
+Aspect	Detail
+
+Purpose	CRUD for transaction categories
+Inputs	Name, icon, color, type (income/expense)
+Outputs	New/updated/archived Category record
+Navigation	Management screen ? Add/Edit modal ? back
+State	CategoryContext list; useCategoryForm for
+the modal
+Components	CategoryListItem, IconPicker, color swatch selector, AppTextInput (name)
+Validation		Name required, 1-30 chars, unique per type (case-insensitive)
+Business Logic	Delete with existing transactions ? prompt reassignment to "Uncategorized" system category before allowing delete
+Error Handling	Attempting to delete a system/default category ? action disabled with explanatory tooltip
+
+
+13.10 Settings Screen & Sub-Screens
+
+
+
+Aspect	Detail
+
+Purpose	Central configuration hub
+Inputs	Varies per sub-screen (currency selection, theme, PIN, notification toggles)
+Outputs	Updates to SettingsContext (persisted via
+SettingsRepository)
+Navigation		Settings Home ? each sub-screen (Currency, Theme stub, Category Mgmt, Export, Backup, Restore, App Lock, Notifications, About, Reset)
+State	SettingsContext (global)
+Components	SettingsListItem rows, various pickers/dialogs per sub-screen
+Validation	PIN: exactly 4 or 6 digits (configurable), confirmed twice on creation
+Business Logic	Theme change updates ThemeContext
+instantly; currency change updates display formatting only (no value conversion in Phase 1)
+Error Handling	Reset App Data requires typed "DELETE" confirmation to prevent accidental data loss
+
+
+13.11 Export / Backup / Restore Screens
+
+Aspect	Detail
+
+Purpose	Data portability and disaster recovery
+Inputs		Export: scope selection. Restore: file picked via OS picker
+Outputs		Export: CSV file via share sheet. Backup: JSON file via share sheet. Restore: data written to storage
+Navigation	Restore ? Restore Preview ? confirm ? Dashboard (refreshed)
+State	Local screen state (progress %, selected scope)
+Components	Scope selector (segmented buttons), progress indicator, ConfirmationDialog
+Validation		Restore file: schema version + checksum validated before any write (see Section 24)
+Business Logic	See Backup Strategy
+Error Handling	Corrupted file rejected pre-write; export failure (e.g., storage full) shows retry option
+
+
+13.12 App Lock Screen
+
+Aspect	Detail
+
+Purpose	Gate app access behind PIN/biometric
+Inputs	PIN digits or biometric prompt result
+Outputs	Unlock event ? navigate to Dashboard
+
+
+
+Aspect	Detail
+
+Navigation	Shown on cold start (if enabled) and on foreground-resume after timeout; no back navigation available
+State	PinPad local state, authService handles
+verification
+Components		PinPad, biometric prompt trigger, "Forgot PIN?" link (Phase 2: recovery flow; Phase 1: instructs reinstall as last resort, clearly warning of data loss)
+Validation	PIN compared against stored hash via
+expo-secure-store; 5 failed attempts ? 30s lockout
+Business Logic	Biometric attempted first if enabled and enrolled; falls back to PIN pad
+Error Handling	Biometric hardware/enrollment failure ? silently falls back to PIN, no dead-end
+
+
+
+
+(Continue to Part 3 - Data Models, Storage, State Management & Navigation) -e
+
+Expense Tracker - Software Design Document
+Part 3 of 5: Data Models, Storage Design, State Management, Naviga- tion, Validation & Business Logic
+
+
+Table of Contents (Part 3)
+14. Data Models
+15. Storage Design
+16. State Management
+17. Navigation Architecture
+18. Validation Rules
+19. Business Logic
+
+
+14. Data Models
+All models are defined as TypeScript interfaces in shared/types and per-feature types folders. Every entity has an id (UUID v4, generated client-side via expo-crypto or react-native-uuid), createdAt, and updatedAt (ISO 8601 strings) to support future sync (last-write-wins conflict resolution).
+
+14.1 Transaction (Expense / Income)
+
+Field	Type	Required	Description
+
+id	string (UUID)	Yes	Unique identifier
+
+type	'expense' \|
+'income'
+
+Yes	Distinguishes the two transaction kinds sharing one model
+
+amount	number	Yes	Positive value, stored
+in the currency's smallest sensible unit as a decimal (e.g., 450.00)
+categoryId	string (UUID)	Yes	FK to Category.id
+categoryNameSnapshot string	Yes	Denormalized category name at time of entry - preserves history if category is later renamed/deleted
+
+date	string (ISO date,
+YYYY-MM-DD)
+
+Yes		The transaction's effective date (user-editable, not
+necessarily creation date)
+
+
+FieldTypeRequiredDescriptionpaymentMethod'cash' \| 'card' \| 'upi' \|YesHow the transaction was paid/received'bank_transfer' \|
+notes'other'
+string
+No
+Max 500 charsisRecurring
+
+
+attachmentUriboolean
+
+
+string | nullNo (default false)
+
+
+NoReserved for Phase 2 recurring-expense feature
+Reserved for Phase 2
+createdAt
+string (ISO datetime)
+Yesreceipt photo
+Record creation
+updatedAt
+string (ISO datetime)
+Yestimestamp
+Last modification
+deletedAt
+string | null
+Notimestamp
+Soft-delete marker
+
+
+syncStatus
+
+
+'local' \| 'synced'
+
+
+No (default 'local')(used for the 5s undo window; permanently purged after)
+Reserved for Phase 2\| 'pending'cloud sync
+14.2 CategoryFieldTypeRequiredDescriptionidstring (UUID)YesUnique identifiernamestringYes1-30 chars, unique
+type
+'expense' \|
+Yesper type
+Which transaction
+
+icon'income'
+
+string
+
+Yestype this category applies to
+Material Community
+color
+string (hex)
+YesIcon name
+e.g., #00695CisSystem
+
+
+
+isArchivedboolean
+
+
+
+booleanYes
+
+
+
+Yes (default false)true for the 12
+pre-seeded default categories (cannot be deleted, only archived)
+Hidden from entry
+
+sortOrder
+
+number
+
+Yespickers but retained
+for historical display User-customizable
+createdAt
+string (ISO datetime)
+Yesdisplay orderupdatedAtstring (ISO datetime)Yes
+14.3 Budget
+
+FieldTypeRequiredDescriptionidstring (UUID)YesUnique identifiercategoryIdstring | nullYesnull represents the"Overall" monthlybudgetamountnumberYes> 0monthstring (YYYY-MM)YesThe month thisbudget applies tonotifyAt70booleanYes (default true)Thresholdnotification togglesnotifyAt90booleanYes (default true)notifyAt100booleanYes (default true)carryForwardbooleanYes (default true)Whether this amountauto-applies tofuture months untilchangedcreatedAtstring (ISO datetime)YesupdatedAtstring (ISO datetime)Yes
+14.4 Settings (App Preferences)
+
+Field	Type	Required	Description
+
+currencyCode	string (ISO 4217, e.g., INR)
+
+Yes	Default from device locale at first launch
+
+currencySymbol	string	Yes	Derived from currencyCode, cached for display
+
+themeMode	'light'  \|  'dark'
+\| 'system'
+
+Yes (default
+'system')
+
+language	string (locale code)	Yes (default 'en')	Stub in Phase 1
+appLockEnabled	boolean	Yes (default false)
+appLockMethod	'pin' \|	No
+'biometric' \| 'both'
+appLockTimeoutMinutesnumber	Yes (default 1)	0 = immediate
+budgetNotificationsEnabboloeledan	Yes (default true)
+dailyReminderEnabled boolean	Yes (default false) dailyReminderTime	string (HH:mm)	No quietHoursStart	string (HH:mm)	Yes (default 22:00) quietHoursEnd	string (HH:mm)	Yes (default 07:00) allowFutureDatedEntriebsoolean	Yes (default false)
+onboardingCompleted	boolean	Yes (default false)
+schemaVersion	number	Yes	For migration tracking
+
+
+14.5 Currency (Reference Data - bundled, not user-editable)
+
+FieldTypeDescriptioncodestringISO 4217 code (e.g., INR, USD)
+
+FieldTypeDescriptionsymbolstringDisplay symbol (?, $, €)namestringFull name ("Indian Rupee")decimalDigits	number	Typically 2 (0 for currencies like JPY)
+
+
+14.6 User Preferences vs. Settings
+Settings (above) covers app-behavior configuration. A separate, lightweight UserPrefer- ences concept covers display-only preferences that don't warrant their own screens, stored as part of the same Settings record to avoid overengineering:
+
+FieldTypeDescriptiondefaultTransactionType
+
+
+lastUsedPaymentMethod'expense' \| 'income'
+
+
+stringWhich tab is pre-selected when opening Add Transaction
+Auto-selected on next entryfor speedhistoryDefaultSort'date_desc' \| 'date_asc'\| 'amount_desc' \|'amount_asc'
+14.7 Statistics (Derived - Not Persisted)
+Statistics/aggregation results are computed on-demand from Transaction/Budget/Category data via the reportEngine - they are never stored as a separate persisted entity in Phase 1, to avoid data-consistency bugs (stale cached aggregates). The shape used to pass computed data between the engine and UI:
+
+Field	Type	Description
+
+period	string	YYYY-MM or YYYY
+totalIncome	number	Sum for the period
+totalExpense	number	Sum for the period
+netBalance	number	totalIncome - totalExpense
+savingsRate	number | null	netBalance / totalIncome; null if totalIncome === 0
+
+categoryBreakdown	{ categoryId, categoryName, amount, percentage }[]
+
+Sorted descending by amount
+
+dailyTrend	{ date, amount }[]	For line/bar charts within a
+month
+comparisonToPreviousPeriod	{ incomeChangePercent,
+expenseChangePercent }
+
+
+14.8 Entity Relationship Diagram
+
+
+
+
+
+Figure 4: Diagram
+
+15. Storage Design
+15.1 Phase 1 Default: AsyncStorage Structure
+AsyncStorage is a flat key-value store; the app organizes it with namespaced, predictable keys and JSON-serialized arrays/objects. A StorageProvider abstraction (see folder structure
+§11) means every feature interacts only with a Repository, never with AsyncStorage directly
+- this is what enables the SQLite/cloud swap later without touching feature code.
+
+Key	Value Shape	Notes
+
+@expense_tracker/transactionsTransaction[]  (JSON  array)	All transactions in one array;
+acceptable for Phase 1 scale (< ~5,000 records); see
+§15.4 for the SQLite migration trigger
+@expense_tracker/categories  Category[]	Seeded with 12 defaults on
+first launch
+@expense_tracker/budgets	Budget[] @expense_tracker/settings	Settings (single object)
+@expense_tracker/schema_versinounmber	Used by the migration runner
+@expense_tracker/onboarding_fbloaoglean
+
+
+Design rationale: storing each entity type as a single serialized array under one key (rather than one key per record) trades a small read/write cost (must re-serialize the whole array on every write) for simplicity and atomicity - writes can't partially fail leaving orphaned keys. This tradeoff is explicitly revisited in §15.4 as the app scales.
+
+15.2 SQLite Structure (Optional/Recommended Path for Scale)
+For users with heavy transaction volume, expo-sqlite provides indexed, queryable storage. Schema (see also Section 32 Database Schema for the full relational design used identically here and in the future backend):
+
+
+
+
+15.3 Indexes
+
+
+Rationale: date is indexed because every report/dashboard query filters by a date range; category_id because filtering/drilldown by category is a core interaction; deleted_at so soft- deleted rows can be cheaply excluded from all default queries (WHERE deleted_at IS NULL).
+
+15.4 AsyncStorage ? SQLite Migration Trigger
+The app monitors transactions.length on each read. When it exceeds 5,000 records (a conservative threshold well under AsyncStorage's practical ~6MB Android ceiling), Settings surfaces a one-time prompt: "You have a lot of transactions - switch to a faster storage en- gine?" Accepting runs a one-time migration (read all AsyncStorage arrays ? bulk-insert into SQLite tables ? flip a storageEngine: 'sqlite' flag in Settings) via the shared Repository interface, so feature code is entirely unaware of which engine is active.
+
+15.5 Caching
+• In-memory cache lives in the relevant Context (e.g., TransactionContext holds the full in-memory array after first load) - this is the cache; repositories are only re-read from disk on app cold start or explicit invalidation (e.g., after Restore).
+• Computed aggregates (dashboard totals, report breakdowns) are not cached beyond Re- act's own memoization (useMemo) - recomputing from the in-memory transaction array is fast enough (see performance targets in NFRs) that a separate cache layer would add complexity without measurable benefit at Phase-1 scale.
+
+15.6 Backup & Restore Strategy Backup file format (.json):
+
+
+
+
+
+
+
+}
+
+
+
+• Checksum: SHA-256 hash of the serialized data object, computed at export time and verified before any import write - protects against corrupted or tampered files.
+• Schema version: every backup embeds the schema version it was created under. On restore, if backupSchemaVersion < currentSchemaVersion, the same migration runner used for in-place app updates (§15.7) is applied to the backup's data before import, so old backups remain restorable indefinitely.
+• Merge vs. Overwrite: Merge deduplicates by id (backup records with an id not present locally are added; conflicting ids keep whichever has the later updatedAt - last-write- wins, the same rule reserved for future cloud sync). Overwrite wipes local data first, then imports, behind a double confirmation.
+• Atomicity: the entire restore is staged in memory and validated fully before a single write batch is committed - a failure partway through never leaves the app in a half- restored state.
+
+15.7 Migration Strategy (Schema Evolution)
+• Every stored entity set is versioned via the single @expense_tracker/schema_version key.
+• On app start, a MigrationRunner compares stored version to the app's current ex- pected version and applies an ordered list of migration functions (migrateV1toV2, migrateV2toV3, ...), each a pure function transforming the old shape to the new one.
+• Migrations are additive-first (new optional fields default safely) to minimize breaking changes; destructive migrations (field removal/rename) always ship with a data- preserving transform, never a silent drop.
+• Migration runs are logged (development builds) and covered by dedicated unit tests per migration step (see Testing Strategy).
+
+
+16. State Management
+16.1 Context API Architecture (Phase 1 Default)
+Five top-level providers (composed in AppProviders.tsx, wrapping the navigation tree in
+App.tsx):
+Why this order: Budget depends on Transaction (to compute spend) and Category (to label budgets), so it's nested innermost among the data providers; Settings/Theme wrap everything since almost every screen needs theme/currency formatting.
+
+Context	Global State	Provides
+
+SettingsContext	Full Settings object	settings, updateSetting(key, value)
+
+ThemeContext		Resolved theme object (light/dark based on settings.themeMode + OS)
+
+theme, isDark
+
+CategoryContext	Category[]	categories, addCategory, updateCategory, archiveCategory, deleteCategory
+
+TransactionContext	Transaction[] (in-memory,
+excludes soft-deleted after purge)
+
+transactions,
+addTransaction, updateTransaction, deleteTransaction (soft), restoreTransaction (undo)
+
+BudgetContext	Budget[]	budgets, upsertBudget, deleteBudget, getProgress(categoryId, month)
+
+
+16.2 Local State
+Kept local (via useState/useReducer inside a screen or its dedicated hook) whenever the state doesn't need to be shared across screens: form field values (useTransactionForm), search text/filter selections (useTransactionFilters), selected month/year on Dashboard/Reports (each screen owns its own selection - not global, since Dashboard and Reports can show different months simultaneously), modal/sheet open state.
+
+16.3 Reducers
+TransactionContext uses useReducer internally (rather than multiple useState calls) because transaction state has several related actions (add/update/soft-delete/restore/bulk-delete) that benefit from a single, testable reducer function:
+
+Action	Effect
+
+ADD_TRANSACTION	Appends new record, persists via repository
+UPDATE_TRANSACTION	Replaces record by id, persists
+SOFT_DELETE_TRANSACTION	Sets deletedAt, starts 5s undo timer
+RESTORE_TRANSACTION	Clears deletedAt (undo triggered)
+PURGE_DELETED	Removes soft-deleted records permanently after undo window expires
+BULK_DELETE	Soft-deletes multiple by id[]
+
+
+
+Action	Effect
+
+HYDRATE	Replaces entire state on initial load / after restore
+
+
+16.4 Actions & Hooks
+Each Context exposes action-creator functions (not raw dispatch) as its public API, so con- suming components never need to know reducer internals - this keeps the reducer free to change shape without breaking feature code (encapsulation).
+Custom hooks built on top of Contexts (feature-level, in features/*/hooks):
+
+Hook	Purpose
+
+useDashboardData(month)	Combines Transaction+Category+Budget context data into the shape Dashboard needs, memoized
+useMonthlyAggregation(month)	Wraps reportEngine calls, memoized against
+transactions reference
+useYearlyAggregation(year)	Same, for yearly scope
+useBudgetCalculations(month)	Progress % per budget, sorted into
+over-budget/on-track groups
+useTransactionForm(initialValues?)	Form state + validation + submit handler for
+Add/Edit
+useTransactionFilters()	Filter state + derived filtered list useTransactionSearch(list, query)	Debounced search over a list useCurrencyFormatter()	Reads settings.currencyCode, returns a
+format(amount) function
+
+
+16.5 Redux Toolkit - Explained as an Alternative
+While Context API is sufficient for Phase 1's state complexity (a handful of entity collections, no deeply nested or high-frequency updates), Redux Toolkit (RTK) is documented here as the recommended alternative if the app's state grows significantly (e.g., after adding cloud sync with optimistic updates, offline queues, and complex conflict resolution).
+When to migrate to RTK: - State updates become frequent enough that Context's "any consumer re-renders on any state change" behavior causes measurable performance issues (Context does not support selective subscriptions the way Redux + useSelector does). - Sync/offline-queue logic needs robust, testable, time-travel-debuggable state transitions. - The team wants strong DevTools support for debugging complex state interactions.
+How it would map:
+
+Context (Phase 1)	RTK Equivalent
+
+TransactionContext + reducer	transactionsSlice (createSlice)
+CategoryContext	categoriesSlice
+BudgetContext	budgetsSlice
+Repository calls inside context actions	RTK Query endpoints or createAsyncThunk
+wrapping the same Repository classes (repositories stay unchanged - only the state-management layer above them swaps out)
+
+
+
+Context (Phase 1)	RTK Equivalent
+
+Manual useMemo selectors	createSelector (Reselect, bundled with RTK) for memoized derived data (e.g., monthly totals) with fine-grained re-render control
+
+
+Design rationale for deferring RTK: introducing Redux's boilerplate (slices, store setup, provider) for an app whose Phase-1 state is five flat collections would be premature complexity. The Repository abstraction (§15) means this is a state-management-layer-only swap later
+- business logic in reportEngine, budgetEngine, and all repositories remains 100% reusable regardless of which state library sits above them.
+
+
+17. Navigation Architecture
+Built with React Navigation (@react-navigation/native, native-stack, bottom-tabs).
+
+17.1 Stack Navigation
+• Root Stack (RootNavigator): Splash ? Onboarding | AppLock | MainTabs, plus modal- presented screens available from anywhere (Add/Edit Transaction, Add/Edit Category, Add/Edit Budget) registered at the root so they can be pushed from multiple tabs without duplicating routes.
+• Nested Stacks per tab (History, Reports, Settings) so each tab maintains its own back- stack independent of the others (switching tabs preserves each tab's navigation state - a native app UX expectation).
+
+17.2 Bottom Tabs
+MainTabNavigator - 5 tabs: Dashboard, History, (center FAB - not a real tab route, inter- cepted via tabBarButton to open the Add Transaction sheet instead of navigating), Reports, Budgets, Settings. (Per the finalized IA in Part 1 §7.2, Budgets and Reports are both first- class tabs; the FAB is visually centered but functionally a modal trigger, a common React Navigation pattern via a custom tabBarButton.)
+
+17.3 Nested Navigation
+17.4 Deep Linking
+Configured via linking.ts for future use (local notifications tapping into specific screens today; universal links reserved for Phase 2 web/cloud features):
+
+Path	Screen
+
+expensetracker://dashboard	Dashboard   expensetracker://transaction/:id	Transaction Detail expensetracker://report/monthly/:yyyyMM	Monthly Report (used by "monthly summary
+ready" notification)
+expensetracker://budgets	Budgets (used by threshold-alert notifications)
+expensetracker://backup/restore	Restore screen
+
+
+
+
+
+
+Figure 5: Diagram
+
+
+
+Figure 6: Diagram
+
+17.5 Navigation Guards
+• App Lock Guard: a top-level check in RootNavigator intercepts navigation to MainTabs whenever settings.appLockEnabled is true and the lock timeout has elapsed since last unlock - implemented via AppState listener (foreground/background transitions) rather than per-screen checks, keeping the guard in exactly one place.
+• Onboarding Guard: Splash reads settings.onboardingCompleted once and routes ac- cordingly; no other screen re-checks this flag.
+• Unsaved-Changes Guard: Add/Edit Transaction and Category forms use React Navi- gation's beforeRemove event to intercept back/dismiss gestures when the form is "dirty," prompting a confirmation dialog rather than silently discarding input.
+• Restore Guard: the Restore flow cannot be exited mid-write (back gesture disabled) once the final import has started, to prevent partial-write states - re-enabled immedi- ately on completion or validation failure.
+
+
+18. Validation Rules
+
+Field	Rule	Error Message (example)
+
+Amount	Required; numeric; > 0; = 999,999,999.99; max 2
+decimal places
+Date	Required; valid calendar date; not more than 1 day in the future unless allowFutureDatedEntries is enabled
+Category	Required; must reference an existing, non-archived category ID (archived categories remain valid only for already-existing historical records, not new entries)
+
+"Enter an amount greater than 0"
+
+"Date can't be in the future"
+
+
+
+"Please select a category"
+
+
+
+Field	Rule	Error Message (example)
+
+Notes	Optional; max 500
+characters
+Budget Amount	Required; > 0; = 999,999,999.99; only one active budget per (categoryId, month) pair
+Category Name	Required; 1-30 characters; unique per type
+(case-insensitive); no leading/trailing whitespace (auto-trimmed)
+Duplicate Entries	Not blocked - soft, non-blocking warning if
+amount+category+date match an existing record created within the last 60 seconds
+Future Dates	Blocked by default (see Date rule above);
+user-configurable override in Settings for legitimate
+post-dated planning entries
+Negative Values	Rejected at the input level -
+AmountInput strips non-numeric/negative
+characters as typed, so a negative value is never submittable
+Empty Required Fields	Submit button disabled until
+all required fields are valid; on attempted submit with invalid state, first invalid field is focused and its error shown
+PIN		Exactly 4 or 6 digits (user choice at setup); confirmed twice on creation; must not be a trivially weak sequence (0000, 1234) - soft warning, not a hard block
+Restore File		Must be valid JSON; must match expected top-level shape; checksum must match; schemaVersion must be a recognized, migratable version
+
+"Notes can't exceed 500 characters"
+"A budget already exists for this category this month"
+
+
+"A category with this name already exists"
+
+
+
+"This looks similar to a transaction you just added - save anyway?"
+
+
+
+-
+
+
+
+-
+
+
+
+
+"This field is required"
+
+
+
+
+"Consider a less predictable PIN"
+
+
+
+"This backup file appears to be invalid or corrupted"
+
+
+
+
+
+
+19. Business Logic
+All formulas live in pure, unit-tested functions in reportEngine.ts and budgetEngine.ts (fea- ture services/ folders), decoupled from React so they're trivially testable and reusable if the state-management layer changes (§16.5).
+
+19.1 Monthly Totals
+totalIncome(month) = S amount WHERE type='income' AND date in month AND deletedAt IS NULL totalExpense(month) = S amount WHERE type='expense' AND date in month AND deletedAt IS NULL netBalance(month)	= totalIncome(month) - totalExpense(month)
+
+19.2 Yearly Totals
+totalIncome(year)	= S totalIncome(month)	for month in year's 12 months totalExpense(year) = S totalExpense(month) for month in year's 12 months
+Computed by re-using the monthly function across 12 iterations rather than a separate yearly query path - guarantees monthly and yearly figures can never drift out of sync.
+
+19.3 Category Totals
+categoryTotal(categoryId, period) = S amount WHERE categoryId = categoryId AND date in period AND categoryPercentage(categoryId, period) = categoryTotal(categoryId, period) / totalExpense(period)
+Guard: if totalExpense(period) === 0, all percentages are reported as 0, not NaN.
+
+19.4 Budget Calculations
+budgetProgress(budget) = categoryTotal(budget.categoryId, budget.month) / budget.amount * 100 status(progress) =
+progress < 70	-> "safe"	(green)
+70 <= progress < 100 -> "warning" (amber) progress >= 100 -> "danger"	(red)
+Overall budget uses totalExpense(month) in place of categoryTotal.
+
+19.5 Remaining Balance
+remainingBalance(month) = netBalance(month)	// equivalent, exposed under a user- facing label
+remainingBudget(budget) = budget.amount - categoryTotal(budget.categoryId, budget.month)  // can g
+
+19.6 Average Spending
+averageDailySpend(month) = totalExpense(month) / daysElapsedInMonth
+ where daysElapsedInMonth = min(today's day-of-month, days in month) if month is current month, els in-month
+averageMonthlySpend(year)  =  totalExpense(year)  /  numberOfMonthsWithData
+
+19.7 Daily Spending (Trend Data)
+dailySpend(date) = S amount WHERE type='expense' AND date = date AND deletedAt IS NULL dailyTrend(month) = [ { date, amount: dailySpend(date) } for each date in month ]
+
+Used directly by DailyTrendLineChart; zero-value days are included (not omitted) so the chart's x-axis remains continuous.
+
+19.8 Recurring Expenses (Data Model Reserved, Logic Deferred to Phase 2)
+The isRecurring flag exists on Transaction today so historical data is forward-compatible, but automatic recurrence generation (e.g., auto-creating next month's "Rent" entry) is explicitly out of scope for Phase 1 - documented fully under Future Roadmap.
+
+19.9 Future Predictions (Reserved)
+Phase 2+ concept: a simple linear projection - projectedMonthEndSpend = averageDai- lySpend(month) × daysInMonth - is the planned baseline algorithm before any ML-based approach is considered; documented in the roadmap, not implemented in Phase 1.
+
+19.10 Savings Rate
+savingsRate(period) = netBalance(period) / totalIncome(period)
+-> null / "N/A" if totalIncome(period) === 0	(avoids divide-by-zero)
+
+19.11 Comparison to Previous Period
+percentChange(current,  previous)  =
+previous === 0 ? (current === 0 ? 0 : null /* "N/A", can't compute % from zero base */)
+: (current - previous) / previous * 100
+Applied identically to income and expense comparisons (month-over-month and year-over- year).
+
+
+(Continue to Part 4 - Reports, Charts, Search, Settings, Error Handling, Security, Testing & Deployment) -e
+
+Expense Tracker - Software Design Document
+Part 4 of 5: Reports, Charts, Search & Filters, Settings, Error Han- dling, Security, Testing & Deployment
+
+
+Table of Contents (Part 4)
+20. Reports Module
+21. Charts
+22. Search and Filters
+23. Settings Module
+24. Error Handling Strategy
+25. Security
+26. Testing Strategy
+27. Deployment
+
+
+20. Reports Module
+
+Report	Scope	Key Metrics Shown	Notes
+
+Monthly	1 calendar month	Income, Expense, Net, Savings Rate, Category Breakdown, Daily Trend
+
+Default landing report
+
+Weekly	1 ISO week (Phase 2 toggle within Monthly view)
+
+Same metrics scoped to 7 days
+
+Deferred to Phase 2 as a view toggle, not a separate screen
+
+Yearly	1 calendar year	12-month bar comparison, yearly category breakdown, best/worst month
+Category-wise	Any period	Total, % of period,
+trend over last 6 months
+Payment Method	Any period	Total spent per method
+
+
+
+
+Reached via drilldown from Monthly/Yearly Surfaced as a secondary
+
+(Cash/Card/UPI/Bank/Otbhrea)kdown tab on
+Monthly Report
+
+Custom Date Range
+
+User-defined start/end
+
+All Monthly-report metrics, recomputed for the custom range
+
+Reuses reportEngine with an arbitrary date range instead of a fixed month
+
+Top Spending	Any period	Top 5 categories, top
+5 individual transactions
+Average Spending	Any period		Daily average, monthly average (yearly view)
+
+Surfaced within Monthly Report as a "Highlights" section See formulas in Part 3 §19.6
+
+
+
+Report	Scope	Key Metrics Shown	Notes
+
+Savings	Any period		Savings rate %, net saved amount, trend vs previous period
+
+See formula in Part 3
+§19.10
+
+
+
+
+Design rationale: rather than building each report type as a separate screen, all reports are powered by one reportEngine taking a { start, end } date range - "Monthly," "Yearly," and "Custom Range" are just different UI wrappers supplying different ranges to the same engine, keeping business logic single-sourced and eliminating a whole class of "monthly total doesn't match yearly total" bugs.
+
+
+21. Charts
+
+Chart Type	Used For	Library Component
+
+Pie Chart	Category-wise spending share (Dashboard mini, Monthly/Yearly Report)
+Bar Chart	Monthly comparison (Yearly Report: income vs expense per month), Payment Method breakdown
+Line Chart	Daily spending trend within a month, category trend over 6 months
+Area Chart		Cumulative spend-to-date within a month (visualizing pace toward month-end)
+Monthly Comparison	This month vs last month
+(income/expense side-by-side)
+Category Comparison	Two periods' category
+breakdown side-by-side (Phase 2)
+Budget Progress	Category/overall budget usage
+
+Victory Native VictoryPie
+(or Chart Kit PieChart) VictoryBar
+VictoryLine VictoryArea Grouped VictoryBar Grouped VictoryBar
+(deferred)
+
+Custom BudgetProgressBar (linear) - not a chart-library component, built directly for precise MD3 styling control
+
+
+
+
+When each is used: - Pie answers "where does my money go" (composition). - Bar answers "how does X compare to Y" (discrete comparison). - Line answers "how is this trending over time" (continuous trend). - Area answers "am I pacing toward overspending this month" (cumulative progress). - Budget Progress bar answers "how close am I to a limit" (single- value-vs-target), intentionally not a chart-library pie/gauge for scannability at a glance in a list.
+Implementation notes: all chart components are theme-aware wrappers (CategoryPieChart, MonthlyBarChart, DailyTrendLineChart) accepting only data + minimal config props - col- ors, fonts, and gridlines are pulled from the active MD3 theme internally so charts never hardcode colors and automatically adapt to Dark Mode.
+
+
+
+22. Search and Filters
+22.1 Search
+• Full-text-ish match across: notes, categoryNameSnapshot, and amount (formatted as string, supports partial/prefix match, e.g., "45" matches ?450.00).
+• Debounced at 300ms to avoid re-filtering on every keystroke.
+• Case-insensitive, diacritic-insensitive (basic normalization).
+
+22.2 Filters (combinable via AND logic)
+
+Filter	Options
+
+Category	Multi-select from active (non-archived) categories, plus archived ones if they appear in the currently-filtered date range
+Date		Presets: Today, This Week, This Month, This Year, Last Month; Custom range picker
+Payment Method	Multi-select: Cash, Card, UPI, Bank Transfer, Other
+Amount	Min/Max numeric range
+Notes	Covered by Search (not a separate filter)
+Month / Year	Subset of Date filter - single-month or single-year quick-select
+Transaction Type	Expense / Income / All
+
+
+22.3 Sort Options
+
+Sort	Direction
+
+Date	 Newest first (default) / Oldest first Amount	Highest first / Lowest first
+
+
+22.4 Filter Application Logic
+result = transactions
+.filter(t => !t.deletedAt)
+.filter(t => activeTypeFilter === 'all' || t.type === activeTypeFilter)
+.filter(t => selectedCategoryIds.length === 0 || selectedCategoryIds.includes(t.categoryId))
+.filter(t => t.date >= rangeStart && t.date <= rangeEnd)
+.filter(t => selectedPaymentMethods.length === 0 || selectedPaymentMethods.includes(t.paymentMet
+.filter(t => t.amount >= minAmount && t.amount <= maxAmount)
+.filter(t => matchesSearch(t, debouncedQuery))
+.sort(sortComparator)
+This single derived-selector function is memoized against [transactions, filters, sortOp- tion] so re-renders don't re-run the full filter pipeline unnecessarily.
+
+
+23. Settings Module
+
+Setting	Type	Default	Notes
+
+Currency	Picker (searchable list of ISO 4217 currencies)
+
+Device locale currency
+
+Display-only formatting change; no historical value conversion in Phase 1
+
+Theme	Light / Dark / System	System	Instant apply, no
+restart
+Language	Picker	English	Stub - UI wired for
+i18n but only en strings shipped in Phase 1
+
+Export	Action ? scope selector ? share sheet
+
+-	See Section 2.14
+
+Backup	Action ? share sheet	-	See Section 2.15
+
+Restore	Action ? file picker
+? preview ? confirm
+
+-	See Section 2.16
+
+Notifications		Toggles: Budget Alerts, Daily Reminder (+time), Monthly Summary
+
+Budget Alerts ON, others OFF
+
+Quiet hours configurable
+
+App Lock	Off / PIN / Biometric
+/ Both
+
+Biometrics	Toggle (only shown if device supports + has enrolled biometrics)
+Privacy	"Hide app content in recents" toggle
+
+Reset App Data	Destructive action,
+typed confirmation
+
+Off		Timeout configurable (Immediate/1/5 min/Never)
+Off	Falls back to PIN
+automatically
+
+
+On	Uses a privacy
+overlay when app is backgrounded
+-	Wipes all storage,
+returns to Onboarding
+
+About	Read-only: version,	- build number,
+licenses
+
+
+
+
+24. Error Handling Strategy
+24.1 Storage Errors
+• Every Repository method wraps its AsyncStorage/SQLite call in try/catch, throwing a typed StorageError ({ code, message, cause }) rather than letting raw native errors bubble up.
+• UI layer catches StorageError and shows a generic, non-technical Snackbar ("Couldn't save your changes - please try again"), while the raw error is logged (dev builds: con- sole; production: reserved hook for Sentry/Crashlytics, see §24.6).
+
+• Read failures on app start (corrupted key) trigger a ScreenError fallback with a "Retry" button before assuming full data loss; only after repeated failure does the app offer "Reset this data" as a last resort, never automatically.
+
+24.2 Invalid Input
+Handled entirely at the form layer (see Validation Rules) - invalid input never reaches the storage layer; Repository.create()/update() also re-validate defensively (defense in depth) and reject with a clear error if somehow called with invalid data (e.g., from a future automated import feature).
+
+24.3 Data Corruption
+• Each stored JSON blob is wrapped with a lightweight envelope ({ version, data }); on parse failure, the app does not silently reset that key - it flags the key as cor- rupted, keeps other keys intact, and surfaces a targeted recovery screen: "Your [Trans- actions/Categories/Budgets] data couldn't be read - restore from a backup or start fresh for this data only?"
+• This per-key isolation means, e.g., corrupted Budgets data never takes down Transac- tions or Categories.
+
+24.4 Backup Failures
+• Failure to generate the export file (e.g., serialization error, disk full) ? Snackbar with "Couldn't create backup - please try again," no partial file left behind (write to a temp path, only move/share on full success).
+
+24.5 Import Failures
+• Checksum mismatch, unrecognized schema version, or malformed JSON ? rejected be- fore any write, with a specific, honest message (not a generic "something went wrong")
+- see Section 2.16 and Backup Strategy.
+• Partial-import prevention: the entire restore is staged and validated in memory; the actual storage write is a single atomic batch operation.
+
+24.6 App Crashes
+• A root-level ErrorBoundary (React) catches render-time errors app-wide as a last resort, showing a "Something went wrong" screen with "Reload App" - but per-tab Error- Boundarys (see Component Architecture) catch most errors before they reach the root, so one broken screen doesn't take down the whole app.
+• Native crashes (outside JS's ErrorBoundary reach, e.g., a native module fault) are out of JS's control; the architecture reserves a hook for Sentry/Crashlytics SDK integration (not included in Phase 1 to keep the app fully offline/zero-third-party by default, but the interface - a single crashReporter.logError() call site used throughout the error- handling code - is already in place so enabling it later is a one-line config change, not a refactor).
+
+24.7 Recovery Methods
+
+
+
+Failure	Recovery Path
+
+Corrupted single data key	Targeted per-key recovery screen ? restore from backup or reset that key only
+Failed restore	Rejected pre-write; user retains their existing data untouched
+Repeated storage read failure	"Reset this data" as an explicit,
+clearly-labeled last resort (never automatic)
+Render crash in one tab	Per-tab ErrorBoundary isolates the failure; other tabs remain usable
+Total app crash		Root ErrorBoundary + "Reload App"; on next launch, MigrationRunner and per-key validation run again as a safety net
+
+
+
+25. Security
+25.1 Data Encryption
+• Phase 1 does not encrypt the bulk transaction/category/budget data at rest beyond what the OS provides by default (Android's app-sandboxed storage), since this is a local-only, single-user app with no data leaving the device - full at-rest encryption of AsyncStor- age/SQLite is documented as a Phase 2 hardening step (e.g., via expo-sqlite with SQL- Cipher or react-native-encrypted-storage) once cloud sync introduces higher stakes for data-at-rest protection.
+• Secrets are the exception: the App Lock PIN (hashed, never plaintext) is stored via expo-secure-store, which uses the OS Keychain (iOS) / Keystore (Android) - hardware- backed encryption, isolated from the general app storage.
+
+25.2 Secure Storage
+expo-secure-store is used exclusively for: PIN hash, biometric-enabled flag salt (if needed by the hashing scheme). General app data (transactions, categories, budgets, settings) stays in AsyncStorage/SQLite since it doesn't warrant Keychain-level storage overhead and volume limits.
+
+25.3 Backup Security
+• Backup JSON files explicitly exclude anything from SecureStore (PIN hash) - a shared/lost backup file can never expose the App Lock secret.
+• Backup files are not encrypted by default in Phase 1 (since they may be intentionally shared/emailed by the user for migration) - documented as a Phase 2 option: "Encrypt backup with a passphrase."
+
+25.4 PIN Lock
+• 4 or 6-digit PIN, hashed (not reversibly encrypted) using a standard hashing approach suitable for React Native (e.g., SHA-256 with a device-generated salt, both stored in SecureStore).
+• 5 consecutive failed attempts ? 30-second lockout, escalating on repeated failure sets, to deter brute-force without permanently locking a legitimate user out.
+
+25.5 Biometric Authentication
+• expo-local-authentication used to trigger Face ID / Fingerprint / device biometric prompt.
+• Biometric is always an alternative unlock method layered on top of the PIN (the PIN re- mains the recoverable fallback) - never the sole credential, since biometric enrollment can change or fail on some devices.
+
+25.6 Privacy
+• "Hide content in app switcher" - a privacy overlay (blurred logo screen) shown when the app is backgrounded, so financial figures aren't visible in the OS recents/app-switcher preview.
+• No analytics, ads, or third-party SDKs are included in Phase 1 by design (see Project Overview §1.6/1.7) - nothing to configure for privacy compliance because nothing is collected.
+
+
+26. Testing Strategy
+26.1 Unit Tests (Jest)
+Target: all pure business logic - reportEngine, budgetEngine, validators, csvExportService, MigrationRunner steps, and repository classes (with a mocked storage backend). Target cov- erage: = 70% on src/features/*/services, src/shared/utils, src/storage/repositories.
+
+26.2 Integration Tests
+Test hooks + Context providers together (React Testing Library + renderHook) - e.g., "adding a transaction via TransactionContext updates useDashboardData's totals correctly," "restor- ing a backup correctly rehydrates all four contexts."
+
+26.3 UI Tests (Component-level)
+React Testing Library for component render + interaction tests - form validation error dis- play, filter sheet applying correctly, empty states rendering when expected.
+
+26.4 Manual Testing
+A structured manual pass before each release covering: full offline mode (airplane mode), Dark Mode on every screen, accessibility (TalkBack/VoiceOver spot-check), large dataset per- formance (seed 10,000 transactions), low-end device performance pass.
+
+26.5 Edge Cases (Test Matrix Highlights)
+• Zero transactions / zero income / zero expense states across Dashboard, Reports, Bud- gets.
+• Transaction dated on month/year boundary (e.g., 31 Jan vs 1 Feb correctly bucketed).
+• Deleting a category with 500+ linked transactions (reassignment performance).
+• Restoring a backup with a schema version 2 major versions behind current.
+• PIN lockout after 5 failed attempts, then successful unlock after cooldown.
+• CSV export with notes containing commas, quotes, and emoji.
+
+26.6 Performance Testing
+• Seed script generating 1,000 / 5,000 / 10,000 synthetic transactions; measure Dashboard load time, History scroll FPS, CSV export duration, and SQLite migration duration (if applicable) against the targets in Non-Functional Requirements.
+
+26.7 Acceptance Testing
+Each user story in Section 5 has an explicit Acceptance Criterion; acceptance testing is the process of manually (or via E2E script) verifying each AC before a feature is marked "done."
+
+26.8 Testing Checklist (Pre-Release)
+? All unit tests passing, coverage threshold met
+? All integration tests passing
+? Manual offline-mode pass complete
+? Dark Mode visual pass complete on all screens
+? Accessibility spot-check complete (TalkBack + font-scaling 130%)
+? Performance pass complete on a low/mid-range test device
+? Backup ? Restore round-trip verified (data-identical)
+? Migration tests passing for every historical schema version
+? CSV export verified in Excel and Google Sheets
+? PIN lock + biometric fallback verified on at least 2 physical devices
+? No console errors/warnings in a full manual click-through
+
+
+27. Deployment
+27.1 Environments
+
+Environment	Purpose	Config
+
+Development	Local Expo Go / dev client, hot reload
+
+Testing/Staging	Internal QA builds (Expo EAS internal distribution)
+
+.env.development, verbose logging, dev-only debug menu
+.env.staging, crash reporting hook enabled if configured
+
+Production	Play Store release build	.env.production,  logging
+minimized, crash reporting hook enabled
+
+
+27.2 Build Pipeline (Expo Application Services - EAS)
+
+
+Figure 7: Diagram
+
+27.3 APK / AAB Generation
+• eas build --platform android --profile production generates a signed AAB (Android App Bundle, Play Store's required format) using EAS-managed or user-provided signing credentials.
+
+• A .apk build profile is kept for direct-install QA/sideloading distribution outside the Play Store.
+
+27.4 Play Store Release
+• Store listing prepared with: app icon (adaptive icon per Android spec), feature graphic, 4-8 screenshots (Light + Dark mode), short/full description, privacy policy URL (required
+- must accurately state "no data collected, fully offline" for Phase 1).
+• Staged rollout recommended for first release (e.g., 20% ? 50% ? 100% over a week) to catch device-specific issues early.
+• Data Safety form on Play Console filled to reflect Phase 1's actual behavior: no data collected or shared.
+
+27.5 Versioning
+Semantic Versioning (MAJOR.MINOR.PATCH) for the app version string; Android versionCode incremented on every submitted build (monotonic integer, independent of semantic version) per Play Store requirement.
+
+27.6 CI/CD
+• GitHub Actions (or equivalent): on every PR - ESLint, TypeScript type-check (tsc -- noEmit), Jest unit tests. On merge to main - trigger an EAS staging build automatically. Production builds/submissions remain a manual, deliberate trigger (not auto-deployed) given the sensitivity of a finance app.
+
+27.7 Environment Configuration
+• app.config.ts (dynamic Expo config) reads EXPO_PUBLIC_* env vars to toggle environment-specific values (e.g., app name suffix "(Staging)" for internal builds, feature flags for in-progress Phase 2 work behind a flag rather than a separate branch).
+
+
+(Continue to Part 5 - Future Roadmap, Timeline, Checklist, API Design, Database Schema, Diagrams, Risk & Standards) -e
+
+Expense Tracker - Software Design Document
+Part 5 of 5: Future Roadmap, Timeline, Checklist, API Readiness, Database Schema, Diagrams, Risk, Standards, Documentation & Appendix
+
+
+Table of Contents (Part 5)
+28. Future Roadmap
+29. Project Timeline
+30. Development Checklist
+31. API Readiness
+32. Database Schema
+33. Sequence Diagrams
+34. Class Diagrams
+35. Activity Diagrams
+36. Risk Analysis
+37. Coding Standards
+38. Documentation
+39. Appendix
+
+
+28. Future Roadmap
+
+
+
+
+Feature	Description
+Cloud Sync	Sync local data across devices via a backend
+
+
+
+
+
+Firebase Integration	Firestore as the sync
+backend, Firebase Auth for accounts
+OCR Receipt Scanner	Photo ? auto-extracted
+amount/merchant/date
+
+
+Voice Input	"Add ?200 for lunch" spoken
+? parsed transaction
+
+Architectural Hook Already in Place
+ISyncService interface reserved in src/sync/; Transaction.syncStatus   field already in the data model; repository pattern means sync can be added as a background process calling the same repositories
+FirebaseSyncService.ts.future
+stub reserved; would implement ISyncService Transaction.attachmentUri field already reserved; would use expo-camera + an
+on-device or cloud OCR API Would feed into the same useTransactionForm validation pipeline as manual entry - no new validation logic needed
+
+
+Feature	Description
+AI Spending Analysis	Natural-language insights
+("You spent 20% more on dining this month")
+
+
+Savings Goals	Target amount + deadline, progress tracking
+
+Investments Tracking	Track investment accounts
+alongside spending
+
+Architectural Hook Already in Place
+Would consume the same reportEngine output already computed for charts - an LLM-powered narrative layer on top of existing aggregates New SavingsGoal entity, same repository/context pattern as Budget
+New feature module, would NOT alter the expense/income core
+
+Bank Integration	Direct bank feed import	Would land as a new
+ImportService producing standard Transaction records - reuses existing validation/dedup logic
+
+UPI Import		Parse UPI transaction SMS/notifications (India-specific)
+Multi-device Sync	Same account, multiple phones
+
+
+
+Widgets	Home-screen widget showing balance/budget
+
+
+Wear OS	Quick-add expense from a smartwatch
+
+Same ImportService pattern as Bank Integration
+
+Depends on Cloud Sync; last-write-wins conflict strategy already established in Backup/Restore merge logic (§15.6)
+Android widget reading a lightweight cached summary written by the app on each transaction change
+Would call the same Trans- actionRepository.create() via a companion app data
+layer
+
+
+
+
+Design rationale for the roadmap ordering: Cloud Sync is the foundational unlock for almost everything else in this list (Multi-device Sync, and arguably a prerequisite for meaningfully valuable AI Analysis across devices) - it's deliberately the first-listed and most architecturally-prepared-for feature.
+
+
+29. Project Timeline
+29.1 Four-Week Plan (Aggressive MVP - Core Only)
+
+Week	Milestone
+
+1	Project setup, design system, navigation
+skeleton, storage layer (Repository + AsyncStorage), Category + Transaction data models, seed default categories
+
+
+
+Week	Milestone
+
+2	Add/Edit/Delete Expense & Income,
+Transaction History (list, search, filter), Dashboard v1
+3	Budgets, Monthly/Yearly Reports, Charts
+(pie/bar/line), Settings (currency/theme)
+4	Export CSV, Backup/Restore, App Lock
+(PIN), polish, bug bash, internal QA build
+
+
+29.2 Eight-Week Plan (Recommended - Full Phase 1 Scope, Higher Quality Bar)
+
+Week	Milestone
+
+1	Project scaffolding (Expo + TS strict), design tokens/theme, ESLint/Prettier/CI setup, navigation skeleton
+2	Storage layer (Repository interfaces +
+AsyncStorage implementation), Category & Transaction data models + migrations scaffold
+3	Add/Edit/Delete Transaction flow (full
+validation), Category Management
+4	Transaction History (virtualized list, search,
+filters, sort), Dashboard v1
+5	Budgets module (CRUD + progress
+calculation), Notifications (local, threshold + reminders)
+6	Reports (Monthly/Yearly) + Charts (all 4
+types) + Category Drilldown
+7	Settings (currency/theme/app
+lock/biometrics), Export CSV, Backup/Restore
+8	Accessibility pass, Dark Mode QA,
+performance testing (10k-record seed), bug bash, Play Store listing prep, staged rollout build
+
+
+29.3 Twelve-Week Plan (Full Polish + Buffer + Beta)
+
+Week	Milestone
+
+1-2	Setup, design system, navigation, storage layer, data models
+3-4		Transaction CRUD, Category Management, Transaction History
+5	Dashboard v1, Budgets module
+6	Notifications (local), Reports
+(Monthly/Yearly)
+7	Charts (all types), Category Drilldown,
+Search/Filter polish
+
+
+
+Week	Milestone
+
+8	Settings, App Lock, Biometrics, Privacy
+overlay
+9	Export CSV, Backup/Restore (incl. schema
+migration test coverage)
+10	Accessibility pass, Dark Mode QA,
+performance/load testing, SQLite migration path validated
+11	Closed beta (internal + a small external
+tester group via EAS internal distribution), bug triage
+12	Bug fixes from beta feedback, Play Store
+listing finalization, staged production rollout
+
+
+
+
+30. Development Checklist
+Project Setup - [ ] Expo project initialized with TypeScript strict mode - [ ] ESLint + Prettier configured and enforced via pre-commit hook - [ ] Folder structure scaffolded per Section 11
+- [ ] React Navigation installed and root/tab/stack navigators stubbed - [ ] React Native Paper installed, MD3 theme (light + dark) configured - [ ] CI pipeline (lint, type-check, test) running on every PR
+Storage & Data - [ ] Repository interfaces defined for Transaction, Category, Budget, Set- tings - [ ] AsyncStorage implementation of each repository - [ ] Default categories seed script - [ ] MigrationRunner scaffolded with version-1 baseline - [ ] SQLite implementation (if pursuing optional path) + migration trigger logic
+Core Features - [ ] Add/Edit/Delete Expense - [ ] Add/Edit/Delete Income - [ ] Transaction History (virtualized, search, filter, sort) - [ ] Category Management (CRUD, archive, reorder)
+- [ ] Dashboard (totals, mini chart, budget progress, recent list) - [ ] Budgets (CRUD, progress calculation, notifications) - [ ] Monthly Report - [ ] Yearly Report - [ ] Category Drilldown - [ ] Charts (pie, bar, line, area) - theme-aware - [ ] Settings (currency, theme, notifications, app lock, biometrics, privacy) - [ ] Export CSV - [ ] Backup (JSON export) - [ ] Restore (validate, preview, merge/overwrite) - [ ] Local Notifications (budget thresholds, daily reminder, monthly summary)
+Quality - [ ] Unit tests for all business-logic modules (=70% coverage) - [ ] Integration tests for Context + hooks - [ ] Accessibility audit (labels, contrast, font scaling, TalkBack) - [ ] Dark Mode visual QA on every screen - [ ] Performance test with 10,000 seeded transactions - [ ] Full offline-mode manual QA pass - [ ] Error handling verified for every storage operation
+Release - [ ] App icon, splash screen, adaptive icon assets finalized - [ ] Play Store listing (screenshots, description, privacy policy) prepared - [ ] Data Safety form completed accurately
+- [ ] Signed AAB built via EAS - [ ] Internal QA distribution completed and signed off - [ ] Staged rollout configured - [ ] Versioning scheme (versionCode/versionName) confirmed - [ ] Post-launch monitoring plan (crash reporting hook, if enabled) documented
+
+
+31. API Readiness
+Even though Phase 1 is fully offline, the following REST API is designed now so that a backend can be introduced later without changing the client's Repository interfaces - reposito-
+
+ries would simply gain a network-backed implementation alongside the existing local one, coordinated by a future SyncService.
+
+31.1 AuthenticationMethodEndpointDescriptionPOST/api/v1/auth/registerCreate account(email/password or OAuth)POST/api/v1/auth/loginReturns access + refreshtokenPOST/api/v1/auth/refreshExchange refresh token fornew access tokenPOST/api/v1/auth/logoutInvalidate refresh tokenDELETE/api/v1/auth/accountDelete account and allassociated data
+31.2 Expenses / Income (unified under /transactions)
+
+MethodEndpointDescriptionGET/api/v1/transactionsList, paginated, filterable viaquery params (type,category_id, date_from,date_to, payment_method)POST/api/v1/transactionsCreate a transactionGET/api/v1/transactions/:idGet one transactionPUT/api/v1/transactions/:idUpdate a transactionDELETE/api/v1/transactions/:idSoft-delete a transactionPOST/api/v1/transactions/bulkBulk create (used for initialsync upload)POST/api/v1/transactions/syncDelta sync - client sends itslocal changes sincelastSyncedAt, server returnsits changes since the samepoint, using updatedAt forlast-write-wins conflictresolution
+31.3 CategoriesMethodEndpointDescriptionGET/api/v1/categoriesList all (including archived,with a filter flag)POST/api/v1/categoriesCreatePUT/api/v1/categories/:idUpdateDELETE/api/v1/categories/:idArchive (soft) or delete ifunused
+31.4 Budgets
+
+Method	Endpoint	Description
+
+GET	/api/v1/budgets?month=YYYY-MM	List budgets for a month POST	/api/v1/budgets	Create/upsert a budget
+PUT	/api/v1/budgets/:id	Update
+DELETE	/api/v1/budgets/:id	Remove
+
+
+31.5 Reports / Analytics
+
+Method	Endpoint	Description
+
+GET	/api/v1/reports/monthly?monthS=eYrYvYeYr--computed monthly
+MM	aggregate  (mirrors
+reportEngine output shape exactly, so client rendering code is identical whether data comes from local computation or this endpoint)
+GET	/api/v1/reports/yearly?year=YYYeYaYrly aggregate
+GET	/api/v1/reports/custom?start=CYuYsYtYo-m range aggregate
+MM-DD&end=YYYY-MM-DD
+GET	/api/v1/analytics/insights	(Future AI feature)
+Natural-language spending insights
+
+
+31.6 Notifications
+
+Method	Endpoint	Description
+
+GET	/api/v1/notifications/prefereGnectesserver-side notification preferences (for push, once introduced)
+PUT	/api/v1/notifications/prefereUnpcdeaste
+POST	/api/v1/notifications/device-Register a push token (Phase
+
+token
+
+2, once push notifications supplement local ones)
+
+
+
+
+31.7 Design Notes
+• All endpoints return updatedAt/createdAt in ISO 8601 and an id matching the client's UUID scheme (client-generated IDs, not server auto-increment) - this is essential for offline-first sync, since a transaction must be creatable locally with a permanent ID be- fore any network round-trip.
+• Standard envelope: { data, meta: { page, pageSize, totalCount }, error: null } for lists; { data, error: null } for single-resource responses; errors follow { data: null, error: { code, message } }.
+• Versioned under /api/v1/ from day one to allow non-breaking evolution.
+
+
+32. Database Schema
+The relational schema mirrors the SQLite schema in Storage Design §15.2 so that a future backend (PostgreSQL, for example) can reuse the same shape, easing the sync layer's mental model. Backend-specific additions below (multi-user support):
+-- Backend adds a users table and a user_id FK absent from the local-only schema
+CREATE TABLE users (
+id UUID PRIMARY KEY,
+email TEXT UNIQUE NOT NULL,
+password_hash TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL, updated_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE categories (
+id UUID PRIMARY KEY,
+user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, name TEXT NOT NULL,
+type TEXT NOT NULL CHECK (type IN ('expense','income')), icon TEXT NOT NULL,
+color TEXT NOT NULL,
+is_system BOOLEAN NOT NULL DEFAULT FALSE, is_archived BOOLEAN NOT NULL DEFAULT FALSE,
+sort_order INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL, updated_at TIMESTAMPTZ NOT NULL, UNIQUE (user_id, name, type)
+);
+
+CREATE TABLE transactions (
+id UUID PRIMARY KEY,
+user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+type TEXT NOT NULL CHECK (type IN ('expense','income')), amount NUMERIC(12,2) NOT NULL CHECK (amount > 0),
+category_id UUID NOT NULL REFERENCES categories(id), category_name_snapshot TEXT NOT NULL,
+date DATE NOT NULL,
+payment_method TEXT NOT NULL, notes TEXT,
+is_recurring BOOLEAN NOT NULL DEFAULT FALSE, attachment_uri TEXT,
+deleted_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL, updated_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE budgets (
+id UUID PRIMARY KEY,
+user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+category_id UUID REFERENCES categories(id), amount NUMERIC(12,2) NOT NULL CHECK (amount > 0), month CHAR(7) NOT NULL, -- 'YYYY-MM'
+notify_at_70 BOOLEAN NOT NULL DEFAULT TRUE, notify_at_90 BOOLEAN NOT NULL DEFAULT TRUE,
+
+
+
+32.1 Relationships
+
+
+
+
+Figure 8: Diagram
+
+32.2 Indexing Strategy
+
+
+Every index is prefixed with user_id (multi-tenant composite index) since virtually every query is scoped to the authenticated user first - this ordering lets the database use a single index for both the tenant filter and the secondary filter/sort column.
+
+
+33. Sequence Diagrams
+33.1 Add Expense
+
+
+Figure 9: Diagram
+
+
+
+
+
+Figure 10: Diagram
+
+
+
+
+
+
+
+
+Figure 11: Diagram
+
+
+
+Figure 12: Diagram
+
+
+
+
+Figure 13: Diagram
+
+33.2 Delete Expense (with Undo)
+33.3 Monthly Report Generation
+33.4 Backup
+33.5 Restore
+33.6 Search
+
+
+Figure 14: Diagram
+
+
+
+34. Class Diagrams
+
+
+35. Activity Diagrams
+35.1 Add Transaction - Major Flow
+35.2 Restore Backup - Major Flow
+35.3 Budget Threshold Notification - Major Flow
+
+
+36. Risk Analysis
+
+RiskTypeLikelihoodImpactMitigationAsyncStorageTechnicalMediumHighMigration-to-performanceSQLite pathdegrades atdesigned andhigh transactionthreshold-volumetriggered fromday one (§15.4)
+
+RiskTypeLikelihoodImpactMitigationData loss fromTechnicalLow-MediumVery HighPer-keycorruptedcorruptionstorage / failedisolation,migrationchecksum-verifiedbackups,extensivemigration testcoverageUsers don'tBusinessMediumMediumNo third-partytrust an appSDKs in Phaseclaiming "offline1; transparent,& private"accurate Playwithout proofStore DataSafetydisclosure; openaboutarchitecturein-app (Aboutscreen)Low retentionBusinessMediumHighUX explicitlydue to entryoptimized forfriction<10s entry(§1.3); defaultcategories,last-usedpaymentmethod pre-fillScope creepBusiness/ProcessMediumMediumStrict Phase 1delaying MVPscope boundary(e.g., pulling indocumented inPhase 2§1.8; roadmapfeatures early)items explicitlydeferred withrationaleReactTechnicalLow-MediumMediumPin Expo SDKNative/Expoversion;SDK breakingupgradechanges duringdeliberatelydevelopmentbetweenmilestones, notmid-sprintChart libraryTechnicalMediumMediumPerformanceperformancetesting passissues on(§26.6)low-end Androidspecificallydevicestargetslow/mid-rangedevices beforerelease
+
+RiskTypeLikelihoodImpactMitigationApp Lock /TechnicalMediumMediumPIN alwaysbiometric edgeavailable ascases (devicefallback;withoutbiometricbiometricavailabilityhardware,checked atenrollmentruntime, neverchanges)assumedPlay StoreBusinessLow-MediumMediumAccurate Datareview delays orSafety form,rejectioncompleteprivacy policy,staged rolloutbuffer built into12-weektimelineBackup/RestoreProduct/UXMediumHighDoublemisuse leadingconfirmation onto accidentalOverwrite;data losspreview screen(Overwrite)before anydestructiverestore action
+
+
+37. Coding Standards
+37.1 TypeScript Guidelines
+• strict: true in tsconfig.json; no implicit any.
+• Prefer interface for object shapes (data models), type for unions/utility compositions.
+• No // @ts-ignore without an inline comment explaining why; prefer proper typing or a narrow, documented exception.
+• All async functions have explicit return types (Promise<Transaction>, not inferred).
+
+37.2 Naming Conventions
+
+Element	Convention	Example
+
+Components	PascalCase	TransactionListItem.tsx
+Hooks	camelCase, use prefix	useTransactionForm.ts Services/Repositories	PascalCase (classes)	TransactionRepository.ts Utility functions	camelCase	formatCurrency.ts
+Types/Interfaces	PascalCase	Transaction, IRepository
+
+Constants	SCREAMING_SNAKE_CASE for true constants
+
+DEFAULT_CATEGORIES, MAX_NOTES_LENGTH
+
+Context	PascalCase, Context suffix	TransactionContext.tsx
+
+
+
+
+
+
+
+
+
+
+
+
+
+Figure 15: Diagram
+
+
+Figure 16: Diagram
+
+
+
+Figure 17: Diagram
+
+
+
+
+Figure 18: Diagram
+
+37.3 Folder Naming
+All lowercase, kebab-case for multi-word folders (backup-restore/), matching the structure in Section 11.
+
+37.4 File Naming
+Component files match their default export name exactly (DashboardScreen.tsx exports Dash- boardScreen); one primary component per file; co-located *.styles.ts only if styles exceed
+~40 lines (otherwise inline StyleSheet.create).
+
+37.5 Component Naming
+Screens end in Screen (AddTransactionScreen), reusable UI components are noun-based with- out a suffix (AmountInput, BudgetProgressBar), wrapper/provider components end in Provider (TransactionProvider if extracted separately from TransactionContext).
+
+37.6 Hooks
+One responsibility per hook; hooks that wrap Context consumption are named use<Feature> (useTransactions() reading TransactionContext), while computation-heavy hooks are named for what they compute (useMonthlyAggregation), not what they consume.
+
+37.7 Testing
+Test files co-located under  tests / mirroring src/ paths; naming: <subject>.test.ts. Ev- ery service/repository/utils file has a corresponding test file before being marked complete (enforced via PR review checklist, not tooling, in Phase 1).
+
+37.8 Linting & Formatting
+ESLint (with @typescript-eslint,  eslint-plugin-react-hooks,  eslint-plugin-react- native) + Prettier, run via a pre-commit hook (husky + lint-staged) so formatting/lint issues never reach CI in the first place.
+
+37.9 Git Workflow
+• Trunk-based-ish with short-lived feature branches:	feature/<short-description>, fix/<short-description>, chore/<short-description>.
+• PRs require: passing CI, at least one review, no unresolved conversations.
+• main is always deployable (staging build triggers automatically per §27.6).
+
+37.10 Commit Messages
+Conventional Commits format: type(scope): summary, e.g., feat(budgets): add threshold notification scheduling, fix(history): correct filter AND logic for amount range. Types: feat, fix, refactor, test, docs, chore, perf.
+
+
+38. Documentation
+38.1 Maintaining This Documentation
+• This SDD (Parts 1-5) is the baseline architecture reference - updated whenever a structural decision changes (new feature module, data model change, navigation restruc- ture), not for every code change.
+• Each Part's Table of Contents links should be kept in sync if headings change; cross- file links (e.g., ./03-data-storage-state-navigation.md#18-validation-rules) must be updated together if a section is renamed or moved.
+• Screen-level and API-level details that change frequently (exact prop names, minor copy tweaks) belong in code comments / inline JSDoc, not in this document, to avoid the SDD going stale on every PR.
+
+38.2 README Structure (Recommended)
+README.md
++-- Project Title + one-line description
++-- Screenshots (Light + Dark mode, 2-3 key screens)
++-- Features (bullet summary, links to this docs/ folder for detail)
++-- Tech Stack (Expo, TypeScript, React Navigation, React Native Paper, Victory Native)
++-- Getting Started
+¦	+-- Prerequisites (Node version, Expo CLI)
+¦	+-- Installation (`npm install`)
+¦	+-- Running (`npx expo start`)
++-- Project Structure (brief, links to docs/ Part 2 §11 for full detail)
++-- Scripts (test, lint, build)
++-- Environment Variables (.env.example reference)
++-- Contributing (branch naming, commit convention, PR checklist - links to docs/ Part 5 §37)
++-- Testing (how to run unit/integration tests)
++-- Deployment (link to docs/ Part 4 §27)
++-- License
+
+
+39. Appendix
+39.1 Glossary
+
+Term	Definition
+
+Offline-first	An architecture where the local device is the primary source of truth, and network sync (if present) is an enhancement, not a requirement, for core functionality
+Repository Pattern	A design pattern abstracting data access behind an interface, decoupling business/UI logic from the specific storage technology used
+Last-write-wins	A conflict-resolution strategy where, on a sync conflict, the record with the most recent updatedAt timestamp is kept
+Soft delete	Marking a record as deleted (via a deletedAt field) without immediately removing it, enabling undo functionality
+
+
+
+Term	Definition
+
+Denormalization		Storing a redundant copy of related data (e.g., categoryNameSnapshot on a Transaction) to preserve historical accuracy even if the source record later changes
+Feature-based architecture	Organizing code by product feature (e.g.,
+budgets/, history/) rather than by technical layer (e.g., components/, screens/)
+MD3	Material Design 3, Google's current design system specification
+
+
+39.2 Abbreviations
+
+Abbreviation	Meaning
+
+SDD	Software Design Document
+SRS	Software Requirements Specification
+MVP	Minimum Viable Product
+CRUD	Create, Read, Update, Delete
+FAB	Floating Action Button
+AC	Acceptance Criteria
+NFR	Non-Functional Requirement
+ERD	Entity Relationship Diagram
+WCAG	Web Content Accessibility Guidelines AAB	Android App Bundle
+EAS	Expo Application Services
+CI/CD	Continuous Integration / Continuous Deployment
+
+
+39.3 References & Useful Resources
+• Expo Documentation - https://docs.expo.dev
+• React Navigation Documentation - https://reactnavigation.org
+• React Native Paper (MD3) - https://callstack.github.io/react-native-paper
+• Material Design 3 Guidelines - https://m3.material.io
+• Victory Native (Charts) - https://commerce.nearform.com/open-source/victory-native
+• React Native Chart Kit (alternative) - GitHub: indiespirit/react-native-chart-kit
+• Redux Toolkit - https://redux-toolkit.js.org
+• WCAG 2.1 Guidelines - https://www.w3.org/WAI/WCAG21/quickref
+
+39.4 Core Libraries Summary
+
+Library	Purpose
+
+expo	Managed React Native framework
+typescript	Static typing
+
+@react-navigation/native, native-stack, bottom-tabs
+
+Navigation
+
+react-native-paper	Material Design 3 UI components
+
+@react-native-async-storage/async- storage
+
+Phase 1 local storage
+
+expo-sqlite	Optional relational local storage
+
+
+
+Library	Purpose
+
+expo-secure-store	Secure secret storage (PIN hash)
+expo-local-authentication	Biometric authentication
+expo-notifications	Local notifications
+expo-file-system +  expo-sharing	Export/Backup file handling and share sheet
+
+victory-native  (or
+react-native-chart-kit)
+
+Charts
+
+@gorhom/bottom-sheet	Bottom sheet UI (filters, add-transaction chooser)
+react-native-uuid /  expo-crypto	Client-side UUID generation
+jest,  @testing-library/react-native	Testing
+eslint, prettier, husky, lint-staged	Code quality tooling
+
+
+
+
+End of Software Design Document. This concludes Parts 1-5, covering the complete end-to- end specification for building the Expense Tracker application from scratch.
+
+

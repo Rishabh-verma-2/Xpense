@@ -1,56 +1,97 @@
-# Welcome to your Expo app 👋
+# 💸 Xpense - Modern Expense & Income Tracker
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A sleek, feature-packed React Native (Expo) personal finance app featuring a modern glassmorphism design system, dark mode aesthetics, interactive reports, budget tracking, and offline storage.
 
-## Get started
+---
 
-1. Install dependencies
+## ✨ Features
 
+- 📊 **Dynamic Dashboard**: Real-time spending overview, balance tracking, budget status, and recent activity.
+- 💳 **Transaction Management**: Easily add, edit, search, and filter expenses and income.
+- 📈 **Visual Reports & Analytics**: Monthly and yearly breakdown charts powered by `react-native-gifted-charts`.
+- 🎯 **Budgets & Goals**: Set category spending limits and monitor budget health with interactive progress indicators.
+- ⚙️ **Customization & Settings**: Multi-currency support, custom category management, export data (CSV/JSON), and theme preferences.
+- 🔒 **Privacy-First Storage**: Local persistence using `@react-native-async-storage/async-storage` and `expo-secure-store`.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Framework**: [Expo](https://expo.dev/) (React Native 0.81)
+- **Language**: TypeScript
+- **Navigation**: React Navigation 7 (Native Stack & Bottom Tabs)
+- **Charts & Data Viz**: `react-native-gifted-charts` & `react-native-svg`
+- **UI & Icons**: Vanilla React Native Stylesheet, `expo-linear-gradient`, `@expo/vector-icons`
+- **State Management**: React Context API
+
+---
+
+## 📁 Project Structure
+
+```
+src/
+├── context/              # Global React Contexts (Transactions, Categories, Settings)
+├── core/
+│   ├── navigation/       # Navigation Stack & Tab definitions
+│   └── theme/            # Design system, colors, spacing, typography
+├── features/
+│   ├── budgets/          # Budget management screens
+│   ├── categories/       # Category management screens
+│   ├── dashboard/        # Home dashboard screen
+│   ├── export/           # Data export functionality
+│   ├── history/          # Transaction history list & search
+│   ├── reports/          # Monthly, yearly & drilldown charts
+│   ├── settings/         # App settings & preferences
+│   └── transactions/     # Add/Edit/Detail transaction screens
+├── shared/
+│   ├── components/       # Reusable UI components (AppButton, ScreenHeader, etc.)
+│   ├── constants/        # App constants
+│   ├── types/            # TypeScript type declarations
+│   └── utils/            # Helper utilities (currency, date formatters, validators)
+└── storage/              # Local storage helpers (AsyncStorage & SecureStore)
+```
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js (v18+)
+- npm / yarn / pnpm
+- Expo Go app on iOS/Android or an emulator
+
+### Installation
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/Rishabh-verma-2/Xpense.git
+   cd Xpense
+   ```
+
+2. **Install dependencies**:
    ```bash
    npm install
    ```
 
-2. Start the app
-
+3. **Start the development server**:
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+---
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 📜 Scripts
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+| Script | Command | Description |
+| :--- | :--- | :--- |
+| **Start** | `npm start` | Run Expo bundler |
+| **Android** | `npm run android` | Open app in Android emulator |
+| **iOS** | `npm run ios` | Open app in iOS simulator |
+| **Web** | `npm run web` | Run web preview |
 
-## Get a fresh project
+---
 
-When you're ready, run:
+## 📄 License
 
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+This project is open-source and available under the [MIT License](LICENSE).

@@ -74,7 +74,11 @@ export default function AddEditCategoryScreen({ navigation, route }: Props) {
           sortOrder: categories.length,
         });
       }
-      navigation.goBack();
+      Alert.alert(
+        'Success',
+        existingCat ? 'Category updated successfully!' : 'Category created successfully!',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
     } catch {
       Alert.alert('Error', 'Failed to save category');
     }

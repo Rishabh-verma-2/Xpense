@@ -8,6 +8,8 @@ import React, {
 } from 'react';
 import { Category } from '../shared/types/category.types';
 import { CategoryRepository } from '../storage/repositories/CategoryRepository';
+import { categoriesApi } from '../services/api';
+import { useAuth } from './AuthContext';
 
 interface CategoryState {
   categories: Category[];
@@ -66,24 +68,55 @@ interface CategoryContextValue {
 const CategoryContext = createContext<CategoryContextValue | null>(null);
 
 export function CategoryProvider({ children }: { children: ReactNode }) {
+  const { token } = useAuth();
   const [state, dispatch] = useReducer(reducer, {
     categories: [],
     loading: true,
     error: null,
   });
 
-  useEffect(() => {
-    (async () => {
-      dispatch({ type: 'SET_LOADING' });
-      try {
-        await CategoryRepository.seed();
-        const all = await CategoryRepository.getAll();
-        dispatch({ type: 'SET_CATEGORIES', payload: all });
-      } catch {
-        dispatch({ type: 'SET_ERROR', payload: "Couldn't load categories" });
+  const reload = useCallback(async () => {
+    dispatch({ type: 'SET_LOADING' });
+    try {
+      await CategoryRepository.seed();
+      const localCats = await CategoryRepository.getAll();
+
+      if (token) {
+        try {
+          const res = await categoriesApi.list();
+          if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+            const remoteCats: Category[] = res.data.map((c: any) => ({
+              id: c.id || c._id,
+              name: c.name,
+              icon: c.icon,
+              color: c.color,
+              type: c.type,
+              isSystem: c.isSystem ?? false,
+              isArchived: false,
+              sortOrder: 0,
+              createdAt: c.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            }));
+            // Merge system local cats with remote custom cats
+            const mergedMap = new Map<string, Category>();
+            localCats.forEach((c) => mergedMap.set(c.id, c));
+            remoteCats.forEach((c) => mergedMap.set(c.id, c));
+            dispatch({ type: 'SET_CATEGORIES', payload: Array.from(mergedMap.values()) });
+            return;
+          }
+        } catch (e) {
+          console.warn('⚠️ Category API fetch warning, using local repository:', e);
+        }
       }
-    })();
-  }, []);
+      dispatch({ type: 'SET_CATEGORIES', payload: localCats });
+    } catch {
+      dispatch({ type: 'SET_ERROR', payload: "Couldn't load categories" });
+    }
+  }, [token]);
+
+  useEffect(() => {
+    reload();
+  }, [reload, token]);
 
   const getById = useCallback(
     (id: string) => state.categories.find((c) => c.id === id),
@@ -102,36 +135,67 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
     async (data: Omit<Category, 'id' | 'isSystem' | 'createdAt' | 'updatedAt'>) => {
       const category = await CategoryRepository.create(data);
       dispatch({ type: 'ADD_CATEGORY', payload: category });
+
+      if (token) {
+        try {
+          await categoriesApi.create({
+            name: data.name,
+            type: data.type,
+            icon: data.icon,
+            color: data.color,
+          });
+          console.log('✅ Category saved to MongoDB Atlas:', data.name);
+        } catch (e) {
+          console.warn('⚠️ Category backend save warning:', e);
+        }
+      }
       return category;
     },
-    [],
+    [token],
   );
 
   const updateCategory = useCallback(
     async (id: string, changes: Partial<Omit<Category, 'id' | 'isSystem' | 'createdAt'>>) => {
       const updated = await CategoryRepository.update(id, changes);
       dispatch({ type: 'UPDATE_CATEGORY', payload: updated });
+
+      if (token) {
+        try {
+          await categoriesApi.update(id, changes as any);
+        } catch (e) {
+          console.warn('⚠️ Category backend update warning:', e);
+        }
+      }
       return updated;
     },
-    [],
+    [token],
   );
 
   const archiveCategory = useCallback(async (id: string) => {
     await CategoryRepository.archive(id);
-    const updated = await CategoryRepository.getAll();
-    dispatch({ type: 'SET_CATEGORIES', payload: updated });
-  }, []);
+    await reload();
+  }, [reload]);
 
   const unarchiveCategory = useCallback(async (id: string) => {
     await CategoryRepository.unarchive(id);
-    const updated = await CategoryRepository.getAll();
-    dispatch({ type: 'SET_CATEGORIES', payload: updated });
-  }, []);
+    await reload();
+  }, [reload]);
 
-  const removeCategory = useCallback(async (id: string) => {
-    await CategoryRepository.remove(id);
-    dispatch({ type: 'REMOVE_CATEGORY', payload: id });
-  }, []);
+  const removeCategory = useCallback(
+    async (id: string) => {
+      await CategoryRepository.remove(id);
+      dispatch({ type: 'REMOVE_CATEGORY', payload: id });
+
+      if (token) {
+        try {
+          await categoriesApi.remove(id);
+        } catch (e) {
+          console.warn('⚠️ Category backend delete warning:', e);
+        }
+      }
+    },
+    [token],
+  );
 
   return (
     <CategoryContext.Provider

@@ -8,6 +8,8 @@ import React, {
 } from 'react';
 import { Budget } from '../shared/types/budget.types';
 import { BudgetRepository } from '../storage/repositories/BudgetRepository';
+import { budgetsApi } from '../services/api';
+import { useAuth } from './AuthContext';
 
 interface BudgetState {
   budgets: Budget[];
@@ -56,15 +58,43 @@ interface BudgetContextValue {
 const BudgetContext = createContext<BudgetContextValue | null>(null);
 
 export function BudgetProvider({ children }: { children: ReactNode }) {
+  const { token } = useAuth();
   const [state, dispatch] = useReducer(reducer, { budgets: [], loading: true });
 
-  useEffect(() => {
-    (async () => {
-      dispatch({ type: 'SET_LOADING' });
+  const reload = useCallback(async () => {
+    dispatch({ type: 'SET_LOADING' });
+    try {
+      if (token) {
+        try {
+          const res = await budgetsApi.list();
+          if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+            const remoteBudgets: Budget[] = res.data.map((b: any) => ({
+              id: b.id || b._id,
+              categoryId: typeof b.categoryId === 'object' ? (b.categoryId.id || b.categoryId._id) : b.categoryId,
+              amount: b.limit,
+              period: b.period || 'monthly',
+              month: `${b.year}-${String(b.month).padStart(2, '0')}`,
+              createdAt: b.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            }));
+            dispatch({ type: 'SET_BUDGETS', payload: remoteBudgets });
+            return;
+          }
+        } catch (e) {
+          console.warn('⚠️ Budget API fetch warning:', e);
+        }
+      }
       const all = await BudgetRepository.getAll();
       dispatch({ type: 'SET_BUDGETS', payload: all });
-    })();
-  }, []);
+    } catch {
+      const all = await BudgetRepository.getAll();
+      dispatch({ type: 'SET_BUDGETS', payload: all });
+    }
+  }, [token]);
+
+  useEffect(() => {
+    reload();
+  }, [reload, token]);
 
   const getByMonth = useCallback(
     (month: string) => state.budgets.filter((b) => b.month === month),
@@ -75,15 +105,42 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     async (data: Omit<Budget, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => {
       const budget = await BudgetRepository.upsert(data);
       dispatch({ type: 'UPSERT_BUDGET', payload: budget });
+
+      if (token) {
+        try {
+          const [yearStr, monthStr] = data.month.split('-');
+          await budgetsApi.upsert({
+            categoryId: data.categoryId ?? '',
+            limit: data.amount,
+            period: 'monthly',
+            month: parseInt(monthStr, 10),
+            year: parseInt(yearStr, 10),
+          });
+          console.log('✅ Budget saved to MongoDB Atlas');
+        } catch (e) {
+          console.warn('⚠️ Budget backend save warning:', e);
+        }
+      }
       return budget;
     },
-    [],
+    [token],
   );
 
-  const deleteBudget = useCallback(async (id: string) => {
-    await BudgetRepository.remove(id);
-    dispatch({ type: 'REMOVE_BUDGET', payload: id });
-  }, []);
+  const deleteBudget = useCallback(
+    async (id: string) => {
+      await BudgetRepository.remove(id);
+      dispatch({ type: 'REMOVE_BUDGET', payload: id });
+
+      if (token) {
+        try {
+          await budgetsApi.remove(id);
+        } catch (e) {
+          console.warn('⚠️ Budget backend delete warning:', e);
+        }
+      }
+    },
+    [token],
+  );
 
   return (
     <BudgetContext.Provider value={{ ...state, getByMonth, upsertBudget, deleteBudget }}>

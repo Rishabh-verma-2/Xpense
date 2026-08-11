@@ -4,6 +4,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MainTabNavigator } from './MainTabNavigator';
 import SplashScreen from '../../features/onboarding/screens/SplashScreen';
 import OnboardingScreen from '../../features/onboarding/screens/OnboardingScreen';
+import LoginScreen from '../../features/auth/screens/LoginScreen';
+import SignupScreen from '../../features/auth/screens/SignupScreen';
+import NameSetupScreen from '../../features/auth/screens/NameSetupScreen';
 import AddTransactionScreen from '../../features/transactions/screens/AddTransactionScreen';
 import { colors } from '../theme';
 import type { RootStackParamList } from './types';
@@ -37,6 +40,9 @@ export default function RootNavigator() {
       >
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Signup" component={SignupScreen} />
+        <Stack.Screen name="NameSetup" component={NameSetupScreen} />
         <Stack.Screen name="MainTabs" component={MainTabNavigator} />
         <Stack.Screen
           name="AddTransaction"

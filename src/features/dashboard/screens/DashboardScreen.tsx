@@ -219,8 +219,8 @@ export default function DashboardScreen() {
     ]).start();
   }, [headerFade, balanceFade, balanceSlide]);
 
-  const handleAddTransaction = () => {
-    navigation.navigate('AddTransaction');
+  const handleAddTransaction = (type?: 'expense' | 'income') => {
+    navigation.navigate('AddTransaction', { type });
   };
 
   const handleSeeAll = () => {
@@ -242,7 +242,7 @@ export default function DashboardScreen() {
           </View>
           <TouchableOpacity
             style={styles.addBtnHeader}
-            onPress={handleAddTransaction}
+            onPress={() => handleAddTransaction()}
             activeOpacity={0.8}
           >
             <LinearGradient
@@ -287,6 +287,45 @@ export default function DashboardScreen() {
             </View>
           </LinearGradient>
         </Animated.View>
+
+        {/* ── Quick Action Buttons for Instant Entry ── */}
+        <View style={styles.quickActionsRow}>
+          <TouchableOpacity
+            style={styles.quickActionBtn}
+            onPress={() => handleAddTransaction('expense')}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={['#EF4444', '#DC2626']}
+              style={styles.quickActionGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <View style={styles.quickActionIconBg}>
+                <Ionicons name="arrow-down" size={16} color="#FFF" />
+              </View>
+              <Text style={styles.quickActionText}>+ Expense</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickActionBtn}
+            onPress={() => handleAddTransaction('income')}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={['#10B981', '#059669']}
+              style={styles.quickActionGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <View style={styles.quickActionIconBg}>
+                <Ionicons name="arrow-up" size={16} color="#FFF" />
+              </View>
+              <Text style={styles.quickActionText}>+ Income</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
 
         {/* ── Stat Cards ── */}
         <View style={styles.statRow}>
@@ -345,7 +384,7 @@ export default function DashboardScreen() {
                 title="No transactions yet"
                 subtitle="Start tracking your expenses and income by adding your first transaction."
                 actionLabel="+ Add Transaction"
-                onAction={handleAddTransaction}
+                onAction={() => handleAddTransaction()}
               />
             </View>
           )}
@@ -368,6 +407,22 @@ export default function DashboardScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* ── Floating Action Button (FAB) ── */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => handleAddTransaction()}
+        activeOpacity={0.85}
+      >
+        <LinearGradient
+          colors={[colors.primary, colors.primaryDark]}
+          style={styles.fabGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <Ionicons name="add" size={28} color="#FFFFFF" />
+        </LinearGradient>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -640,5 +695,65 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 2,
     lineHeight: 18,
+  },
+
+  // Quick Action Buttons
+  quickActionsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.md,
+    gap: spacing.md,
+    marginTop: spacing.md,
+  },
+  quickActionBtn: {
+    flex: 1,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  quickActionGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    gap: spacing.xs,
+    borderRadius: radius.lg,
+  },
+  quickActionIconBg: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickActionText: {
+    ...typography.bodyMedium,
+    color: '#FFFFFF',
+    fontWeight: '700' as const,
+  },
+
+  // Floating Action Button (FAB)
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    borderRadius: 28,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  fabGradient: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

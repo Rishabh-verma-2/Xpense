@@ -1,6 +1,9 @@
 export type RootStackParamList = {
   Splash: undefined;
   Onboarding: undefined;
+  Login: undefined;
+  Signup: undefined;
+  NameSetup: undefined;
   MainTabs: undefined;
   AddTransaction: { type?: 'expense' | 'income' };
 };
@@ -34,4 +37,3 @@ export type SettingsStackParamList = {
   About: undefined;
   Export: undefined;
 };
-

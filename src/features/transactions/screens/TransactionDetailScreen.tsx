@@ -57,7 +57,9 @@ export default function TransactionDetailScreen({ navigation, route }: Props) {
           style: 'destructive',
           onPress: async () => {
             await deleteTransaction(transaction.id);
-            navigation.goBack();
+            Alert.alert('Success', 'Transaction deleted successfully!', [
+              { text: 'OK', onPress: () => navigation.goBack() },
+            ]);
           },
         },
       ]

@@ -19,6 +19,8 @@ import { MonthSelector } from '../../../shared/components/MonthSelector';
 import { computeMonthlyStats } from '../services/reportEngine';
 import { PieChart, BarChart } from 'react-native-gifted-charts';
 
+import { ExportModal } from '../../../shared/components/ExportModal';
+
 type Props = {
   navigation: NativeStackNavigationProp<ReportsStackParamList, 'MonthlyReport'>;
 };
@@ -26,6 +28,7 @@ type Props = {
 export default function MonthlyReportScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [monthKey, setMonthKey] = useState(getMonthKey(new Date()));
+  const [showExportModal, setShowExportModal] = useState(false);
   const { transactions } = useTransactions();
   const { settings } = useSettings();
   const currencySymbol = settings?.currencySymbol ?? '₹';
@@ -61,16 +64,29 @@ export default function MonthlyReportScreen({ navigation }: Props) {
       {/* Header with Monthly/Yearly toggle */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Financial Reports</Text>
-        <TouchableOpacity
-          style={styles.toggleBtn}
-          onPress={() => navigation.navigate('YearlyReport', { year: monthKey.slice(0, 4) })}
-        >
-          <Text style={styles.toggleText}>Yearly View</Text>
-          <Ionicons name="swap-horizontal-outline" size={16} color={colors.primary} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+          <TouchableOpacity
+            style={styles.exportHeaderBtn}
+            onPress={() => setShowExportModal(true)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="download-outline" size={16} color={colors.primaryLight} />
+            <Text style={styles.exportHeaderText}>Export</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.toggleBtn}
+            onPress={() => navigation.navigate('YearlyReport', { year: monthKey.slice(0, 4) })}
+          >
+            <Text style={styles.toggleText}>Yearly</Text>
+            <Ionicons name="swap-horizontal-outline" size={14} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <MonthSelector monthKey={monthKey} onChange={setMonthKey} />
+
+      <ExportModal visible={showExportModal} onClose={() => setShowExportModal(false)} />
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* Overview Summary Card */}
@@ -291,5 +307,22 @@ const styles = StyleSheet.create({
   emptyText: {
     ...typography.body,
     color: colors.textMuted,
+  },
+
+  exportHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(124, 58, 237, 0.14)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(124, 58, 237, 0.3)',
+  },
+  exportHeaderText: {
+    ...typography.caption,
+    color: colors.primaryLight,
+    fontWeight: '700',
   },
 });

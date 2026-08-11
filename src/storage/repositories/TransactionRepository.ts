@@ -59,6 +59,10 @@ async function restore(id: string): Promise<void> {
   await update(id, { deletedAt: null });
 }
 
+async function clearAll(): Promise<void> {
+  await storageSet(STORAGE_KEYS.TRANSACTIONS, []);
+}
+
 export const TransactionRepository = {
   getAll,
   getAllIncludingDeleted,
@@ -67,4 +71,5 @@ export const TransactionRepository = {
   update,
   softDelete,
   restore,
+  clearAll,
 };

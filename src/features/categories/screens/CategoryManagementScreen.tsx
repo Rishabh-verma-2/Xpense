@@ -34,7 +34,14 @@ export default function CategoryManagementScreen({ navigation }: Props) {
     }
     Alert.alert('Delete Category', `Are you sure you want to delete "${name}"?`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => removeCategory(id) },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          await removeCategory(id);
+          Alert.alert('Success', `Category "${name}" deleted successfully!`);
+        },
+      },
     ]);
   };
 

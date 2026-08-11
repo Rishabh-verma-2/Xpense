@@ -2,12 +2,13 @@
   "expo": {
     "name": "Xpense",
     "slug": "xpense",
+    "scheme": "xpense",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash_icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#0A0A0F"
     },
@@ -27,7 +28,9 @@
     },
     "sdkVersion": "54.0.0",
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      "@react-native-google-signin/google-signin",
+      "expo-web-browser"
     ]
   }
 }

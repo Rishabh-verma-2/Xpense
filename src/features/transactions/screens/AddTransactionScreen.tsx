@@ -9,6 +9,8 @@ import {
   Alert,
   Platform,
   KeyboardAvoidingView,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -21,6 +23,7 @@ import { useCategories } from '../../../context/CategoryContext';
 import { useSettings } from '../../../context/SettingsContext';
 import { colors, typography, spacing, radius } from '../../../core/theme';
 import { PAYMENT_METHODS } from '../../../shared/constants/appConstants';
+import { ALL_CURRENCIES } from '../../../shared/constants/currencies';
 import { validateAmount, validateDate, validateNotes } from '../../../shared/utils/validators';
 import { TransactionType, PaymentMethod } from '../../../shared/types/transaction.types';
 import { Category } from '../../../shared/types/category.types';
@@ -33,10 +36,34 @@ type Props = {
 
 const NUM_PAD = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'];
 
+const QUICK_ICONS = [
+  'pricetag-outline',
+  'cart-outline',
+  'fast-food-outline',
+  'car-outline',
+  'heart-outline',
+  'sparkles-outline',
+  'film-outline',
+  'briefcase-outline',
+  'home-outline',
+  'cash-outline',
+];
+
+const QUICK_COLORS = [
+  '#7C3AED',
+  '#EF4444',
+  '#10B981',
+  '#3B82F6',
+  '#F59E0B',
+  '#EC4899',
+  '#8B5CF6',
+  '#06B6D4',
+];
+
 export default function AddTransactionScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { addTransaction } = useTransactions();
-  const { getByType } = useCategories();
+  const { getByType, addCategory } = useCategories();
   const { settings } = useSettings();
 
   const [type, setType] = useState<TransactionType>(route.params?.type ?? 'expense');
@@ -49,8 +76,48 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
+  // Per-Transaction Currency State (Defaults to Indian Rupee ₹ / INR or User Settings)
+  const [selectedCurrencySymbol, setSelectedCurrencySymbol] = useState(settings?.currencySymbol ?? '₹');
+  const [selectedCurrencyCode, setSelectedCurrencyCode] = useState(settings?.currencyCode ?? 'INR');
+  const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
+
+  // Custom Category Creation State
+  const [showAddCatModal, setShowAddCatModal] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatIcon, setNewCatIcon] = useState('pricetag-outline');
+  const [newCatColor, setNewCatColor] = useState('#7C3AED');
+  const [creatingCategory, setCreatingCategory] = useState(false);
+
   const categories = getByType(type);
-  const currencySymbol = settings?.currencySymbol ?? '₹';
+  const currencySymbol = selectedCurrencySymbol;
+
+  const handleCreateCustomCategory = async () => {
+    if (!newCatName.trim()) {
+      Alert.alert('Category Name Required', 'Please enter a name for your custom category.');
+      return;
+    }
+
+    setCreatingCategory(true);
+    try {
+      const created = await addCategory({
+        name: newCatName.trim(),
+        type,
+        icon: newCatIcon,
+        color: newCatColor,
+        isArchived: false,
+        sortOrder: categories.length,
+      });
+
+      setSelectedCategory(created);
+      setShowAddCatModal(false);
+      setNewCatName('');
+      Alert.alert('Success', `Category "${created.name}" created and selected!`);
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to create category.');
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
 
   // ── Numpad ───────────────────────────────────────────────────────────────
   const handleNumpad = useCallback((key: string) => {
@@ -103,7 +170,11 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
         notes,
         isRecurring: false,
       });
-      navigation.goBack();
+      Alert.alert(
+        'Success',
+        `${type === 'expense' ? 'Expense' : 'Income'} added successfully!`,
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
     } catch {
       Alert.alert('Error', "Couldn't save transaction. Please try again.");
     } finally {
@@ -157,34 +228,87 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          {/* Amount Display */}
-          <View style={styles.amountSection}>
-            <Text style={styles.currencySymbol}>{currencySymbol}</Text>
-            <Text style={[styles.amountDisplay, { color: accentColor }]}>
-              {parseFloat(amount).toLocaleString('en-IN', {
-                minimumFractionDigits: amount.includes('.') ? amount.split('.')[1].length : 0,
-                maximumFractionDigits: 2,
-              })}
-            </Text>
+          {/* Amount Display Hero Card */}
+          <View style={[styles.amountCard, { borderColor: `${accentColor}40` }]}>
+            <LinearGradient
+              colors={
+                isExpense
+                  ? ['rgba(239, 68, 68, 0.18)', 'rgba(239, 68, 68, 0.04)', 'rgba(0,0,0,0)']
+                  : ['rgba(16, 185, 129, 0.18)', 'rgba(16, 185, 129, 0.04)', 'rgba(0,0,0,0)']
+              }
+              style={styles.amountGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Text style={styles.amountLabel}>
+                {isExpense ? 'ENTER EXPENSE AMOUNT' : 'ENTER INCOME AMOUNT'}
+              </Text>
+
+              <View style={styles.amountDisplayRow}>
+                <TouchableOpacity
+                  style={styles.currencyBadgeBtn}
+                  onPress={() => setShowCurrencyPicker(true)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.currencySymbol, { color: accentColor }]}>{selectedCurrencySymbol}</Text>
+                  <Ionicons name="chevron-down" size={14} color={accentColor} style={{ marginLeft: 2, marginBottom: 4 }} />
+                </TouchableOpacity>
+                <Text style={[styles.amountDisplay, { color: accentColor }]} numberOfLines={1} adjustsFontSizeToFit>
+                  {parseFloat(amount).toLocaleString('en-IN', {
+                    minimumFractionDigits: amount.includes('.') ? amount.split('.')[1].length : 0,
+                    maximumFractionDigits: 2,
+                  })}
+                </Text>
+              </View>
+
+              {/* Quick Amount Presets */}
+              <View style={styles.presetsRow}>
+                {[100, 500, 1000, 2000].map((preset) => (
+                  <TouchableOpacity
+                    key={preset}
+                    style={[styles.presetChip, { borderColor: `${accentColor}40`, backgroundColor: `${accentColor}12` }]}
+                    onPress={() => {
+                      const current = parseFloat(amount) || 0;
+                      setAmount((current + preset).toString());
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.presetText, { color: accentColor }]}>+{preset}</Text>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity
+                  style={styles.clearPresetChip}
+                  onPress={() => setAmount('0')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.clearPresetText}>Clear</Text>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
           </View>
           {errors.amount && <Text style={styles.errorText}>{errors.amount}</Text>}
 
-          {/* Numpad */}
-          <View style={styles.numpad}>
-            {NUM_PAD.map((key) => (
-              <TouchableOpacity
-                key={key}
-                style={[styles.numKey, key === '⌫' && styles.backspaceKey]}
-                onPress={() => handleNumpad(key)}
-                activeOpacity={0.6}
-              >
-                {key === '⌫' ? (
-                  <Ionicons name="backspace-outline" size={22} color={colors.textSecondary} />
-                ) : (
-                  <Text style={styles.numKeyText}>{key}</Text>
-                )}
-              </TouchableOpacity>
-            ))}
+          {/* Modern Numpad */}
+          <View style={styles.numpadContainer}>
+            <View style={styles.numpadGrid}>
+              {NUM_PAD.map((key) => (
+                <TouchableOpacity
+                  key={key}
+                  style={[
+                    styles.numKey,
+                    key === '⌫' && styles.backspaceKey,
+                  ]}
+                  onPress={() => handleNumpad(key)}
+                  activeOpacity={0.65}
+                >
+                  {key === '⌫' ? (
+                    <Ionicons name="backspace-outline" size={24} color={colors.textSecondary} />
+                  ) : (
+                    <Text style={styles.numKeyText}>{key}</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
           {/* Category */}
@@ -239,6 +363,16 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
                     </Text>
                   </TouchableOpacity>
                 ))}
+
+                {/* + New Category Option */}
+                <TouchableOpacity
+                  style={styles.addCustomCatChip}
+                  onPress={() => setShowAddCatModal(true)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="add-circle" size={18} color={colors.primaryLight} />
+                  <Text style={styles.addCustomCatChipText}>+ New Category</Text>
+                </TouchableOpacity>
               </View>
             )}
           </View>
@@ -289,6 +423,134 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
         <View style={styles.saveRow}>
           <AppButton label="Save Transaction" onPress={handleSave} loading={loading} />
         </View>
+
+        {/* Quick Add Custom Category Modal */}
+        <Modal
+          visible={showAddCatModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowAddCatModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.catModalContainer}>
+              <View style={styles.catModalHeader}>
+                <Text style={styles.catModalTitle}>New {type === 'expense' ? 'Expense' : 'Income'} Category</Text>
+                <TouchableOpacity onPress={() => setShowAddCatModal(false)}>
+                  <Ionicons name="close" size={22} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+
+              <TextInput
+                style={styles.catNameInput}
+                placeholder="e.g. Coffee, Rent, Crypto..."
+                placeholderTextColor={colors.textMuted}
+                value={newCatName}
+                onChangeText={setNewCatName}
+                maxLength={40}
+                autoFocus
+              />
+
+              {/* Icon Picker */}
+              <Text style={styles.pickerSublabel}>Choose Icon</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.iconScroll}>
+                {QUICK_ICONS.map((ic) => (
+                  <TouchableOpacity
+                    key={ic}
+                    style={[
+                      styles.iconChip,
+                      newCatIcon === ic && { backgroundColor: `${newCatColor}25`, borderColor: newCatColor },
+                    ]}
+                    onPress={() => setNewCatIcon(ic)}
+                  >
+                    <Ionicons name={ic as any} size={20} color={newCatIcon === ic ? newCatColor : colors.textMuted} />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {/* Color Picker */}
+              <Text style={styles.pickerSublabel}>Choose Color</Text>
+              <View style={styles.colorRow}>
+                {QUICK_COLORS.map((col) => (
+                  <TouchableOpacity
+                    key={col}
+                    style={[styles.colorDot, { backgroundColor: col }, newCatColor === col && styles.colorDotSelected]}
+                    onPress={() => setNewCatColor(col)}
+                  />
+                ))}
+              </View>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.cancelBtn}
+                  onPress={() => setShowAddCatModal(false)}
+                  disabled={creatingCategory}
+                >
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.saveCatBtn, { backgroundColor: newCatColor }]}
+                  onPress={handleCreateCustomCategory}
+                  disabled={creatingCategory}
+                  activeOpacity={0.88}
+                >
+                  {creatingCategory ? (
+                    <ActivityIndicator color="#FFF" size="small" />
+                  ) : (
+                    <Text style={styles.saveCatBtnText}>Add & Select</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Per-Transaction Currency Selector Modal */}
+        <Modal
+          visible={showCurrencyPicker}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowCurrencyPicker(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.catModalContainer}>
+              <View style={styles.catModalHeader}>
+                <Text style={styles.catModalTitle}>Transaction Currency</Text>
+                <TouchableOpacity onPress={() => setShowCurrencyPicker(false)}>
+                  <Ionicons name="close" size={22} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+                {ALL_CURRENCIES.map((curr) => {
+                  const isSel = selectedCurrencyCode === curr.code;
+                  return (
+                    <TouchableOpacity
+                      key={curr.code}
+                      style={[styles.currRow, isSel && styles.currRowSelected]}
+                      onPress={() => {
+                        setSelectedCurrencySymbol(curr.symbol);
+                        setSelectedCurrencyCode(curr.code);
+                        setShowCurrencyPicker(false);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[styles.currSymbolBg, isSel && { backgroundColor: `${accentColor}25` }]}>
+                        <Text style={[styles.currSymbolText, { color: isSel ? accentColor : colors.textPrimary }]}>
+                          {curr.symbol}
+                        </Text>
+                      </View>
+                      <Text style={styles.currNameText}>
+                        {curr.name} <Text style={{ color: colors.textMuted }}>({curr.code})</Text>
+                      </Text>
+                      {isSel && <Ionicons name="checkmark-circle" size={20} color={accentColor} />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
       </View>
     </KeyboardAvoidingView>
   );
@@ -343,50 +605,109 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 14,
   },
-  amountSection: {
+  // Amount Hero Card
+  amountCard: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.xs,
+    marginBottom: spacing.md,
+    borderRadius: radius.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+    backgroundColor: colors.card,
+  },
+  amountGradient: {
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.md,
+    alignItems: 'center',
+  },
+  amountLabel: {
+    ...typography.caption,
+    color: colors.textMuted,
+    letterSpacing: 1.2,
+    fontSize: 11,
+    textTransform: 'uppercase',
+    marginBottom: spacing.xs,
+  },
+  amountDisplayRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'center',
-    paddingVertical: spacing.lg,
-    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   currencySymbol: {
-    ...typography.displayMedium,
-    color: colors.textSecondary,
     fontSize: 28,
-    marginBottom: 4,
+    fontWeight: '700',
+    marginRight: 4,
+    marginBottom: 6,
   },
   amountDisplay: {
-    fontSize: 56,
+    fontSize: 52,
     fontWeight: '700',
-    letterSpacing: -2,
-    color: colors.textPrimary,
+    letterSpacing: -1.5,
   },
-  numpad: {
+  presetsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: spacing.xl,
-    gap: spacing.sm,
+    justifyContent: 'center',
+    gap: spacing.xs,
+    width: '100%',
+    paddingTop: spacing.xs,
+  },
+  presetChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  presetText: {
+    ...typography.caption,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  clearPresetChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  clearPresetText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontSize: 13,
+  },
+
+  // Numpad Container & Buttons
+  numpadContainer: {
+    paddingHorizontal: spacing.lg,
     marginBottom: spacing.lg,
   },
+  numpadGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: spacing.xs + 2,
+  },
   numKey: {
-    width: '30%',
-    aspectRatio: 1.8,
+    width: '31%',
+    height: 52,
     backgroundColor: colors.card,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: colors.cardBorder,
   },
   backspaceKey: {
-    backgroundColor: colors.expenseMuted,
-    borderColor: `${colors.expense}20`,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: 'rgba(239, 68, 68, 0.25)',
   },
   numKeyText: {
     ...typography.heading,
     color: colors.textPrimary,
     fontSize: 22,
+    fontWeight: '600',
   },
   section: {
     paddingHorizontal: spacing.lg,
@@ -498,5 +819,178 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.cardBorder,
     backgroundColor: colors.background,
+  },
+
+  // Custom Category Chip
+  addCustomCatChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    backgroundColor: 'rgba(124, 58, 237, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(124, 58, 237, 0.3)',
+  },
+  addCustomCatChipText: {
+    ...typography.caption,
+    color: colors.primaryLight,
+    fontWeight: '700',
+  },
+
+  // Custom Category Creation Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  catModalContainer: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: colors.card || '#1E1E2D',
+    borderRadius: radius.xl,
+    padding: spacing.xl,
+    borderWidth: 1,
+    borderColor: colors.cardBorder || 'rgba(255, 255, 255, 0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  catModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  catModalTitle: {
+    ...typography.subheading,
+    color: colors.textPrimary,
+    fontSize: 18,
+  },
+  catNameInput: {
+    backgroundColor: colors.surface || '#12121A',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    paddingHorizontal: spacing.md,
+    height: 48,
+    color: colors.textPrimary,
+    fontSize: 15,
+    marginBottom: spacing.md,
+  },
+  pickerSublabel: {
+    ...typography.caption,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: spacing.xs,
+  },
+  iconScroll: {
+    gap: spacing.xs,
+    paddingBottom: spacing.md,
+  },
+  iconChip: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  colorRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xl,
+    paddingTop: spacing.xs,
+  },
+  colorDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  colorDotSelected: {
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  cancelBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: radius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelBtnText: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+  },
+  saveCatBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveCatBtnText: {
+    ...typography.bodyMedium,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+
+  // Currency Badge & Selector Styles
+  currencyBadgeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    marginRight: 6,
+  },
+  currRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    marginBottom: spacing.xs,
+    gap: spacing.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  currRowSelected: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  currSymbolBg: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  currSymbolText: {
+    ...typography.bodyMedium,
+    fontWeight: '700',
+  },
+  currNameText: {
+    flex: 1,
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+    fontSize: 14,
   },
 });

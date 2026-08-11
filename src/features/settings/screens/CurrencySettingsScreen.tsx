@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  TextInput,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,26 +14,24 @@ import type { SettingsStackParamList } from '../../../core/navigation/SettingsSt
 import { useSettings } from '../../../context/SettingsContext';
 import { colors, typography, spacing, radius } from '../../../core/theme';
 import { ScreenHeader } from '../../../shared/components/ScreenHeader';
+import { ALL_CURRENCIES } from '../../../shared/constants/currencies';
 
 type Props = {
   navigation: NativeStackNavigationProp<SettingsStackParamList, 'CurrencySettings'>;
 };
 
-const CURRENCIES = [
-  { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
-  { code: 'USD', symbol: '$', name: 'US Dollar' },
-  { code: 'EUR', symbol: '€', name: 'Euro' },
-  { code: 'GBP', symbol: '£', name: 'British Pound' },
-  { code: 'AED', symbol: 'AED', name: 'UAE Dirham' },
-  { code: 'CAD', symbol: 'CA$', name: 'Canadian Dollar' },
-  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
-  { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar' },
-  { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
-];
-
 export default function CurrencySettingsScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { settings, updateSettings } = useSettings();
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredCurrencies = useMemo(() => {
+    if (!searchQuery.trim()) return ALL_CURRENCIES;
+    const q = searchQuery.toLowerCase().trim();
+    return ALL_CURRENCIES.filter(
+      (c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q) || c.symbol.includes(q)
+    );
+  }, [searchQuery]);
 
   const handleSelect = (code: string, symbol: string) => {
     updateSettings({ currencyCode: code, currencySymbol: symbol });
@@ -41,11 +40,25 @@ export default function CurrencySettingsScreen({ navigation }: Props) {
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-      <ScreenHeader title="Select Currency" onBack={() => navigation.goBack()} />
+      <ScreenHeader title="Select Default Currency" onBack={() => navigation.goBack()} />
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {CURRENCIES.map((curr) => {
-          const isSelected = settings?.currencyCode === curr.code;
+      {/* Search Input */}
+      <View style={styles.searchWrapper}>
+        <Ionicons name="search-outline" size={18} color={colors.textMuted} style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by currency name or code (e.g. INR, USD)..."
+          placeholderTextColor={colors.textMuted}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoCapitalize="none"
+          clearButtonMode="while-editing"
+        />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {filteredCurrencies.map((curr) => {
+          const isSelected = (settings?.currencyCode || 'INR') === curr.code;
 
           return (
             <TouchableOpacity
@@ -54,8 +67,8 @@ export default function CurrencySettingsScreen({ navigation }: Props) {
               onPress={() => handleSelect(curr.code, curr.symbol)}
               activeOpacity={0.7}
             >
-              <View style={styles.symbolBg}>
-                <Text style={styles.symbolText}>{curr.symbol}</Text>
+              <View style={[styles.symbolBg, isSelected && styles.symbolBgSelected]}>
+                <Text style={[styles.symbolText, isSelected && styles.symbolTextSelected]}>{curr.symbol}</Text>
               </View>
               <View style={styles.info}>
                 <Text style={styles.name}>{curr.name}</Text>
@@ -76,6 +89,27 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  searchWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    marginHorizontal: spacing.lg,
+    marginVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    height: 48,
+  },
+  searchIcon: {
+    marginRight: spacing.xs,
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.textPrimary,
+    ...typography.body,
+    fontSize: 14,
   },
   content: {
     padding: spacing.lg,
@@ -103,9 +137,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  symbolBgSelected: {
+    backgroundColor: 'rgba(124, 58, 237, 0.2)',
+  },
   symbolText: {
     ...typography.subheading,
+    color: colors.textPrimary,
+  },
+  symbolTextSelected: {
     color: colors.primary,
+    fontWeight: '700',
   },
   info: {
     flex: 1,

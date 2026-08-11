@@ -5,100 +5,265 @@ import {
   StyleSheet,
   Animated,
   Dimensions,
+  Easing,
+  Image,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '../../../core/navigation/types';
 import { useSettings } from '../../../context/SettingsContext';
-import { colors, typography, spacing } from '../../../core/theme';
+import { useAuth } from '../../../context/AuthContext';
+import { typography, spacing, radius } from '../../../core/theme';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Splash'>;
 };
 
 export default function SplashScreen({ navigation }: Props) {
-  const { settings, loading } = useSettings();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
-  const textFadeAnim = useRef(new Animated.Value(0)).current;
+  const { settings, loading: settingsLoading } = useSettings();
+  const { token, loading: authLoading } = useAuth();
+  const loading = settingsLoading || authLoading;
+
+  // --- Sequential Animation Values ---
+  // 1) Logo Pop-Up
+  const logoScale = useRef(new Animated.Value(0.1)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const logoRotate = useRef(new Animated.Value(-20)).current;
+
+  // 2) Title Slide & Fade (Triggers after Logo pops up)
+  const titleOpacity = useRef(new Animated.Value(0)).current;
+  const titleTranslateY = useRef(new Animated.Value(28)).current;
+
+  // 3) Tagline Slide & Fade (Triggers after Title)
+  const taglineOpacity = useRef(new Animated.Value(0)).current;
+  const taglineTranslateY = useRef(new Animated.Value(18)).current;
+
+  // 4) Footer Fade
+  const footerOpacity = useRef(new Animated.Value(0)).current;
+
+  // Exit Animation
+  const exitScale = useRef(new Animated.Value(1)).current;
+  const exitOpacity = useRef(new Animated.Value(1)).current;
+
+  // Ambient Glow Pulse
+  const glowScale = useRef(new Animated.Value(0.85)).current;
+  const glowOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Logo entrance animation
-    Animated.parallel([
-      Animated.spring(scaleAnim, {
+    // 0) Ambient Background Glow Fades In
+    Animated.timing(glowOpacity, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowScale, {
+          toValue: 1.25,
+          duration: 1800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(glowScale, {
+          toValue: 0.85,
+          duration: 1800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    // PHASE 1: ONLY the Logo Pops Up in the center
+    Animated.sequence([
+      Animated.delay(150),
+      Animated.parallel([
+        Animated.spring(logoScale, {
+          toValue: 1,
+          tension: 90,
+          friction: 6,
+          useNativeDriver: true,
+        }),
+        Animated.timing(logoOpacity, {
+          toValue: 1,
+          duration: 450,
+          useNativeDriver: true,
+        }),
+        Animated.spring(logoRotate, {
+          toValue: 0,
+          tension: 90,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+
+    // PHASE 2: AFTER logo settles, the Title ("Xpense") slides up below the logo
+    Animated.sequence([
+      Animated.delay(750),
+      Animated.parallel([
+        Animated.timing(titleOpacity, {
+          toValue: 1,
+          duration: 450,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.spring(titleTranslateY, {
+          toValue: 0,
+          tension: 80,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+
+    // PHASE 3: Tagline ("TRACK · BUDGET · GROW") slides up below title
+    Animated.sequence([
+      Animated.delay(1150),
+      Animated.parallel([
+        Animated.timing(taglineOpacity, {
+          toValue: 1,
+          duration: 450,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.spring(taglineTranslateY, {
+          toValue: 0,
+          tension: 80,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+
+    // PHASE 4: Footer Fades In
+    Animated.sequence([
+      Animated.delay(1450),
+      Animated.timing(footerOpacity, {
         toValue: 1,
-        tension: 60,
-        friction: 8,
+        duration: 450,
         useNativeDriver: true,
       }),
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      Animated.timing(textFadeAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }).start();
-    });
+    ]).start();
   }, []);
 
+  // Exit transition after loading is complete
   useEffect(() => {
     if (loading) return;
 
     const timer = setTimeout(() => {
-      // Fade out before navigating
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start(() => {
+      Animated.parallel([
+        Animated.timing(exitScale, {
+          toValue: 1.25,
+          duration: 400,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(exitOpacity, {
+          toValue: 0,
+          duration: 350,
+          easing: Easing.in(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
         if (!settings?.onboardingCompleted) {
           navigation.replace('Onboarding');
-        } else {
+        } else if (token) {
           navigation.replace('MainTabs');
+        } else {
+          navigation.replace('Login');
         }
       });
-    }, 2000);
+    }, 2800);
 
     return () => clearTimeout(timer);
-  }, [loading, settings]);
+  }, [loading, settings, token]);
+
+  const rotate = logoRotate.interpolate({
+    inputRange: [-20, 0],
+    outputRange: ['-20deg', '0deg'],
+  });
 
   return (
     <LinearGradient
-      colors={['#0A0A0F', '#12111E', '#0A0A0F']}
+      colors={['#06060D', '#0D0B1A', '#06060D']}
+      locations={[0, 0.5, 1]}
       style={styles.container}
     >
-      {/* Background glow */}
-      <View style={styles.glowCircle} />
-
+      {/* Animated exit wrapper */}
       <Animated.View
         style={[
-          styles.logoContainer,
-          { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
+          styles.exitWrapper,
+          { opacity: exitOpacity, transform: [{ scale: exitScale }] },
         ]}
       >
-        <LinearGradient
-          colors={['#7C3AED', '#5B21B6']}
-          style={styles.logoIcon}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <Ionicons name="wallet" size={40} color="#FFFFFF" />
-        </LinearGradient>
+        {/* Ambient background glow */}
+        <Animated.View
+          style={[
+            styles.glowOuter,
+            { opacity: glowOpacity, transform: [{ scale: glowScale }] },
+          ]}
+        />
+        <Animated.View
+          style={[
+            styles.glowInner,
+            { opacity: glowOpacity, transform: [{ scale: glowScale }] },
+          ]}
+        />
 
-        <Animated.View style={{ opacity: textFadeAnim }}>
-          <Text style={styles.appName}>Xpense</Text>
-          <Text style={styles.tagline}>Track · Budget · Grow</Text>
+        {/* PHASE 1: Logo Image Pops Up (Blends seamlessly with dark background) */}
+        <Animated.View
+          style={[
+            styles.logoImageWrapper,
+            {
+              opacity: logoOpacity,
+              transform: [{ scale: logoScale }, { rotate }],
+            },
+          ]}
+        >
+          <Image
+            source={require('../../../../assets/splash_icon.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
+        </Animated.View>
+
+        {/* PHASE 2: App Title ("Xpense.") Slides Up */}
+        <Animated.View
+          style={[
+            styles.titleWrapper,
+            {
+              opacity: titleOpacity,
+              transform: [{ translateY: titleTranslateY }],
+            },
+          ]}
+        >
+          <Text style={styles.appName}>
+            Xpense<Text style={styles.appNameDot}>.</Text>
+          </Text>
+        </Animated.View>
+
+        {/* PHASE 3: Tagline Pill Slides Up */}
+        <Animated.View
+          style={[
+            styles.taglineWrapper,
+            {
+              opacity: taglineOpacity,
+              transform: [{ translateY: taglineTranslateY }],
+            },
+          ]}
+        >
+          <View style={styles.taglinePill}>
+            <Text style={styles.taglineText}>TRACK · BUDGET · GROW</Text>
+          </View>
         </Animated.View>
       </Animated.View>
 
-      <Animated.View style={[styles.footer, { opacity: textFadeAnim }]}>
+      {/* PHASE 4: Bottom Footer */}
+      <Animated.View style={[styles.footer, { opacity: footerOpacity }]}>
         <Text style={styles.footerText}>Your personal finance companion</Text>
       </Animated.View>
     </LinearGradient>
@@ -110,47 +275,74 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: '#06060D',
   },
-  glowCircle: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: 'rgba(124, 58, 237, 0.08)',
-    top: height * 0.25,
-    alignSelf: 'center',
-  },
-  logoContainer: {
-    alignItems: 'center',
-    gap: spacing.lg,
-  },
-  logoIcon: {
-    width: 90,
-    height: 90,
-    borderRadius: 24,
+  exitWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  glowOuter: {
+    position: 'absolute',
+    width: 340,
+    height: 340,
+    borderRadius: 170,
+    backgroundColor: 'rgba(124, 58, 237, 0.08)',
+  },
+  glowInner: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(124, 58, 237, 0.15)',
+  },
+  logoImageWrapper: {
+    width: 140,
+    height: 140,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+    backgroundColor: 'transparent',
     shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.7,
+    shadowRadius: 30,
+    elevation: 20,
+  },
+  logoImage: {
+    width: 140,
+    height: 140,
+    backgroundColor: 'transparent',
+  },
+  titleWrapper: {
+    alignItems: 'center',
+    marginBottom: spacing.sm,
   },
   appName: {
-    ...typography.displayLarge,
-    color: colors.textPrimary,
-    textAlign: 'center',
-    fontSize: 40,
+    fontSize: 48,
+    fontWeight: '800' as const,
+    color: '#FFFFFF',
+    letterSpacing: -1.5,
   },
-  tagline: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
+  appNameDot: {
+    color: '#A855F7',
+  },
+  taglineWrapper: {
+    alignItems: 'center',
+  },
+  taglinePill: {
+    paddingHorizontal: spacing.md + 4,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.full,
+    backgroundColor: 'rgba(168, 85, 247, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(168, 85, 247, 0.3)',
+  },
+  taglineText: {
+    ...typography.caption,
+    color: 'rgba(216, 180, 254, 0.95)',
     letterSpacing: 3,
-    textTransform: 'uppercase',
-    fontSize: 12,
-    marginTop: -spacing.sm,
+    fontSize: 11,
+    fontWeight: '700' as const,
   },
   footer: {
     position: 'absolute',
@@ -158,6 +350,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     ...typography.caption,
-    color: colors.textMuted,
+    color: 'rgba(156, 163, 175, 0.6)',
+    letterSpacing: 0.5,
   },
 });

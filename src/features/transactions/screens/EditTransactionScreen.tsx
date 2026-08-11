@@ -77,7 +77,9 @@ export default function EditTransactionScreen({ navigation, route }: Props) {
         paymentMethod,
         notes,
       });
-      navigation.goBack();
+      Alert.alert('Success', 'Transaction updated successfully!', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
     } catch {
       Alert.alert('Error', "Couldn't update transaction.");
     } finally {
@@ -93,7 +95,9 @@ export default function EditTransactionScreen({ navigation, route }: Props) {
         style: 'destructive',
         onPress: async () => {
           await deleteTransaction(transaction.id);
-          navigation.popToTop();
+          Alert.alert('Success', 'Transaction deleted successfully!', [
+            { text: 'OK', onPress: () => navigation.popToTop() },
+          ]);
         },
       },
     ]);

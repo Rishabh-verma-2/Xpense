@@ -55,6 +55,21 @@ export default function BudgetsScreen() {
     setShowAddModal(false);
     setBudgetAmount('');
     setSelectedCatId(null);
+    Alert.alert('Success', 'Budget saved successfully!');
+  };
+
+  const handleDeleteBudget = (id: string) => {
+    Alert.alert('Delete Budget', 'Are you sure you want to remove this budget?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteBudget(id);
+          Alert.alert('Success', 'Budget deleted successfully!');
+        },
+      },
+    ]);
   };
 
   return (
@@ -98,7 +113,7 @@ export default function BudgetsScreen() {
                     </View>
                     <Text style={styles.budgetName}>{title}</Text>
                   </View>
-                  <TouchableOpacity onPress={() => deleteBudget(item.budget.id)}>
+                  <TouchableOpacity onPress={() => handleDeleteBudget(item.budget.id)}>
                     <Ionicons name="trash-outline" size={16} color={colors.textMuted} />
                   </TouchableOpacity>
                 </View>

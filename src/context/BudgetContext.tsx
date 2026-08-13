@@ -109,13 +109,21 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
       if (token) {
         try {
           const [yearStr, monthStr] = data.month.split('-');
-          await budgetsApi.upsert({
+          const res = await budgetsApi.upsert({
             categoryId: data.categoryId ?? '',
             limit: data.amount,
             period: 'monthly',
             month: parseInt(monthStr, 10),
             year: parseInt(yearStr, 10),
           });
+          if (res.success && res.data) {
+            const remoteId = res.data.id || res.data._id;
+            if (remoteId && remoteId !== budget.id) {
+              const updatedWithRemoteId = { ...budget, id: remoteId };
+              dispatch({ type: 'UPSERT_BUDGET', payload: updatedWithRemoteId });
+              await BudgetRepository.upsert(updatedWithRemoteId);
+            }
+          }
           console.log('✅ Budget saved to MongoDB Atlas');
         } catch (e) {
           console.warn('⚠️ Budget backend save warning:', e);
@@ -128,18 +136,34 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
 
   const deleteBudget = useCallback(
     async (id: string) => {
-      await BudgetRepository.remove(id);
-      dispatch({ type: 'REMOVE_BUDGET', payload: id });
+      const existing = state.budgets.find((b) => b.id === id || b.categoryId === id);
+      const targetId = existing?.id || id;
+      const targetCatId = existing?.categoryId || id;
+
+      await BudgetRepository.remove(targetId);
+      if (existing) {
+        await BudgetRepository.remove(existing.id);
+      }
+      dispatch({ type: 'REMOVE_BUDGET', payload: targetId });
 
       if (token) {
         try {
-          await budgetsApi.remove(id);
+          try {
+            await budgetsApi.remove(targetId);
+          } catch (e: any) {
+            if (targetCatId && targetCatId !== targetId) {
+              await budgetsApi.remove(targetCatId);
+            } else {
+              throw e;
+            }
+          }
+          console.log('✅ Budget deleted from MongoDB Atlas');
         } catch (e) {
           console.warn('⚠️ Budget backend delete warning:', e);
         }
       }
     },
-    [token],
+    [token, state.budgets],
   );
 
   return (

@@ -21,12 +21,14 @@ import type { RootStackParamList } from '../../../core/navigation/types';
 import { useTransactions } from '../../../context/TransactionContext';
 import { useCategories } from '../../../context/CategoryContext';
 import { useSettings } from '../../../context/SettingsContext';
+import { useToast } from '../../../context/ToastContext';
 import { colors, typography, spacing, radius } from '../../../core/theme';
 import { PAYMENT_METHODS } from '../../../shared/constants/appConstants';
 import { ALL_CURRENCIES } from '../../../shared/constants/currencies';
-import { validateAmount, validateDate, validateNotes } from '../../../shared/utils/validators';
+import { validateAmount, validateNotes } from '../../../shared/utils/validators';
 import { TransactionType, PaymentMethod } from '../../../shared/types/transaction.types';
 import { Category } from '../../../shared/types/category.types';
+import { CurrentMonthDatePickerModal } from '../../../shared/components/CurrentMonthDatePickerModal';
 import { AppButton } from '../../../shared/components/AppButton';
 
 type Props = {
@@ -65,6 +67,7 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
   const { addTransaction } = useTransactions();
   const { getByType, addCategory } = useCategories();
   const { settings } = useSettings();
+  const { showSuccess, showError, showWarning } = useToast();
 
   const [type, setType] = useState<TransactionType>(route.params?.type ?? 'expense');
   const [amount, setAmount] = useState('0');
@@ -72,6 +75,7 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [notes, setNotes] = useState('');
   const [date, setDate] = useState(new Date().toISOString());
+  const [showDatePickerModal, setShowDatePickerModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
@@ -93,7 +97,7 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
 
   const handleCreateCustomCategory = async () => {
     if (!newCatName.trim()) {
-      Alert.alert('Category Name Required', 'Please enter a name for your custom category.');
+      showWarning('Category Name Required', 'Please enter a name for your custom category.');
       return;
     }
 
@@ -111,9 +115,9 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
       setSelectedCategory(created);
       setShowAddCatModal(false);
       setNewCatName('');
-      Alert.alert('Success', `Category "${created.name}" created and selected!`);
+      showSuccess('Category Created! 🏷️', `"${created.name}" created & selected`);
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to create category.');
+      showError('Error', err.message || 'Failed to create category.');
     } finally {
       setCreatingCategory(false);
     }
@@ -170,13 +174,14 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
         notes,
         isRecurring: false,
       });
-      Alert.alert(
-        'Success',
-        `${type === 'expense' ? 'Expense' : 'Income'} added successfully!`,
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      const formattedAmount = `${settings?.currencySymbol ?? '₹'}${parseFloat(amount).toLocaleString()}`;
+      showSuccess(
+        `${type === 'expense' ? 'Expense' : 'Income'} Added! 🎉`,
+        `${selectedCategory!.name} • ${formattedAmount}`
       );
+      navigation.goBack();
     } catch {
-      Alert.alert('Error', "Couldn't save transaction. Please try again.");
+      showError('Transaction Error', "Couldn't save transaction. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -226,6 +231,24 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Top Prominent Date Picker Pill */}
+        <TouchableOpacity
+          style={styles.topDatePill}
+          onPress={() => setShowDatePickerModal(true)}
+          activeOpacity={0.8}
+        >
+          <View style={styles.topDatePillInner}>
+            <Ionicons name="calendar" size={15} color={colors.primaryLight} />
+            <Text style={styles.topDatePillText}>
+              Date:{' '}
+              <Text style={{ fontWeight: '800', color: colors.primaryLight }}>
+                {new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </Text>
+            </Text>
+            <Ionicons name="pencil" size={12} color={colors.primaryLight} style={{ marginLeft: 2 }} />
+          </View>
+        </TouchableOpacity>
 
         <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* Amount Display Hero Card */}
@@ -401,6 +424,30 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
             </ScrollView>
           </View>
 
+          {/* Transaction Date (Current Month Only) */}
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Transaction Date (Current Month Only)</Text>
+            <TouchableOpacity
+              style={styles.pickerRow}
+              onPress={() => setShowDatePickerModal(true)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.catIcon, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
+                <Ionicons name="calendar-outline" size={18} color={colors.primaryLight} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pickerValue}>
+                  {new Date(date).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </Text>
+              </View>
+              <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+
           {/* Notes */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Notes (optional)</Text>
@@ -418,6 +465,13 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
 
           <View style={{ height: spacing.xxl }} />
         </ScrollView>
+
+        <CurrentMonthDatePickerModal
+          visible={showDatePickerModal}
+          selectedDateIso={date}
+          onSelectDate={(newIso) => setDate(newIso)}
+          onClose={() => setShowDatePickerModal(false)}
+        />
 
         {/* Save Button */}
         <View style={styles.saveRow}>
@@ -975,6 +1029,28 @@ const styles = StyleSheet.create({
   currRowSelected: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
   },
+
+  topDatePill: {
+    alignSelf: 'center',
+    marginBottom: spacing.xs,
+  },
+  topDatePillInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.full,
+    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(168, 85, 247, 0.35)',
+  },
+  topDatePillText: {
+    ...typography.caption,
+    color: colors.primaryLight,
+    fontSize: 12,
+  },
+
   currSymbolBg: {
     width: 32,
     height: 32,

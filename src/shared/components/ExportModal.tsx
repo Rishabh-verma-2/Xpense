@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { colors, typography, spacing, radius } from '../../core/theme';
 import { useTransactions } from '../../context/TransactionContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import {
   filterTransactionsByDateRange,
   generateAndSharePDF,
@@ -28,10 +29,51 @@ interface Props {
   onClose: () => void;
 }
 
+import { Animated } from 'react-native';
+
 export function ExportModal({ visible, onClose }: Props) {
   const { transactions } = useTransactions();
   const { settings } = useSettings();
   const { user } = useAuth();
+  const { showSuccess, showWarning, showError } = useToast();
+
+  const [showModal, setShowModal] = useState(visible);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.92)).current;
+
+  useEffect(() => {
+    if (visible) {
+      setShowModal(true);
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 8,
+          tension: 70,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 0.92,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setShowModal(false);
+      });
+    }
+  }, [visible, fadeAnim, scaleAnim]);
 
   const [preset, setPreset] = useState<PresetKey>('this_month');
   const [exportFormat, setExportFormat] = useState<'pdf' | 'csv'>('pdf');
@@ -112,17 +154,17 @@ export function ExportModal({ visible, onClose }: Props) {
 
   const handleExport = async () => {
     if (!startDate.trim() || !endDate.trim()) {
-      Alert.alert('Date Range Required', 'Please enter valid start and end dates.');
+      showWarning('Date Range Required', 'Please enter valid start and end dates.');
       return;
     }
 
     if (new Date(startDate) > new Date(endDate)) {
-      Alert.alert('Invalid Range', 'Start date cannot be after end date.');
+      showWarning('Invalid Range', 'Start date cannot be after end date.');
       return;
     }
 
     if (matchingTransactions.length === 0) {
-      Alert.alert('No Transactions', 'No transactions found for the selected date range.');
+      showWarning('No Transactions', 'No transactions found for the selected date range.');
       return;
     }
 
@@ -142,22 +184,24 @@ export function ExportModal({ visible, onClose }: Props) {
         await generateAndShareCSV(matchingTransactions, options);
       }
 
-      Alert.alert(
+      showSuccess(
         'Export Complete 🎉',
-        `Successfully generated and exported ${matchingTransactions.length} transaction records as ${exportFormat.toUpperCase()}.`,
-        [{ text: 'OK', onPress: onClose }]
+        `Exported ${matchingTransactions.length} records as ${exportFormat.toUpperCase()}.`
       );
+      onClose();
     } catch (err: any) {
-      Alert.alert('Export Failed', err.message || 'An error occurred while generating report.');
+      showError('Export Failed', err.message || 'An error occurred while generating report.');
     } finally {
       setLoading(false);
     }
   };
 
+  if (!showModal) return null;
+
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.container}>
+    <Modal visible={showModal} transparent animationType="none" onRequestClose={onClose}>
+      <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
+        <Animated.View style={[styles.container, { transform: [{ scale: scaleAnim }] }]}>
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerTitleRow}>
@@ -305,8 +349,8 @@ export function ExportModal({ visible, onClose }: Props) {
               )}
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 }

@@ -46,4 +46,9 @@ export const config = {
       .split(',')
       .map((o) => o.trim()),
   },
+
+  email: {
+    user: optional('EMAIL_USER', ''),
+    pass: optional('EMAIL_PASS', ''),
+  },
 };

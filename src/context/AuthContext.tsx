@@ -14,6 +14,7 @@ import { signInWithGoogleAndFirebase } from '../services/googleAuthService';
 export interface UserProfile {
   id: string;
   email: string;
+  phoneNumber?: string;
   name: string;
   currency: string;
   createdAt?: string;
@@ -23,12 +24,13 @@ interface AuthContextValue {
   user: UserProfile | null;
   token: string | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  login: (identifier: string, password: string) => Promise<void>;
+  register: (name: string, email: string, phone: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<UserProfile>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   updateUserProfileName: (name: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
 const TOKEN_KEY = 'xpense_token';
@@ -72,8 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const res = await authApi.login({ email, password });
+  const login = useCallback(async (identifier: string, password: string) => {
+    const res = await authApi.login({ identifier, password });
     if (res.success && res.data) {
       const { user: userData, token: jwtToken } = res.data;
       setUser(userData);
@@ -85,8 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const register = useCallback(async (name: string, email: string, password: string) => {
-    const res = await authApi.register({ name, email, password });
+  const register = useCallback(async (name: string, email: string, phone: string, password: string) => {
+    const res = await authApi.register({ name, email, phone, password });
     if (res.success && res.data) {
       const { user: userData, token: jwtToken } = res.data;
       setUser(userData);
@@ -174,6 +176,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    const res = await authApi.changePassword({ currentPassword, newPassword });
+    if (!res.success) {
+      throw new Error(res.message || 'Failed to update password');
+    }
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -186,6 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         refreshUser,
         updateUserProfileName,
+        changePassword,
       }}
     >
       {children}

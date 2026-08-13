@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +13,8 @@ import { useBudgets } from '../../../context/BudgetContext';
 import { useTransactions } from '../../../context/TransactionContext';
 import { useCategories } from '../../../context/CategoryContext';
 import { useSettings } from '../../../context/SettingsContext';
+import { useToast } from '../../../context/ToastContext';
+import { ConfirmModal } from '../../../shared/components/ConfirmModal';
 import { colors, typography, spacing, radius } from '../../../core/theme';
 import { getMonthKey } from '../../../shared/utils/dateUtils';
 import { formatCurrency } from '../../../shared/utils/currencyUtils';
@@ -28,48 +29,55 @@ export default function BudgetsScreen() {
   const { transactions } = useTransactions();
   const { categories } = useCategories();
   const { settings } = useSettings();
+  const { showSuccess, showWarning, showInfo, showError } = useToast();
   const currencySymbol = settings?.currencySymbol ?? '₹';
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
   const [budgetAmount, setBudgetAmount] = useState('');
+  const [deletingBudgetId, setDeletingBudgetId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const progressList = computeBudgetProgress(budgets, transactions, monthKey);
 
   const handleSaveBudget = async () => {
     if (!budgetAmount || isNaN(Number(budgetAmount)) || Number(budgetAmount) <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid budget amount');
+      showWarning('Invalid Amount', 'Please enter a valid monthly budget amount');
       return;
     }
 
-    await upsertBudget({
-      categoryId: selectedCatId,
-      amount: Number(budgetAmount),
-      month: monthKey,
-      notifyAt70: true,
-      notifyAt90: true,
-      notifyAt100: true,
-      carryForward: true,
-    });
+    try {
+      await upsertBudget({
+        categoryId: selectedCatId,
+        amount: Number(budgetAmount),
+        month: monthKey,
+        notifyAt70: true,
+        notifyAt90: true,
+        notifyAt100: true,
+        carryForward: true,
+      });
 
-    setShowAddModal(false);
-    setBudgetAmount('');
-    setSelectedCatId(null);
-    Alert.alert('Success', 'Budget saved successfully!');
+      setShowAddModal(false);
+      setBudgetAmount('');
+      setSelectedCatId(null);
+      showSuccess('Budget Set! 🎯', `Limit of ${currencySymbol}${Number(budgetAmount).toLocaleString()} set for ${monthKey}`);
+    } catch {
+      showError('Error', "Couldn't save budget.");
+    }
   };
 
-  const handleDeleteBudget = (id: string) => {
-    Alert.alert('Delete Budget', 'Are you sure you want to remove this budget?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteBudget(id);
-          Alert.alert('Success', 'Budget deleted successfully!');
-        },
-      },
-    ]);
+  const confirmDeleteBudget = async () => {
+    if (!deletingBudgetId) return;
+    setDeleting(true);
+    try {
+      await deleteBudget(deletingBudgetId);
+      setDeletingBudgetId(null);
+      showInfo('Budget Removed 🗑️', 'The budget limit was deleted.');
+    } catch {
+      showError('Error', "Couldn't delete budget.");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -113,7 +121,7 @@ export default function BudgetsScreen() {
                     </View>
                     <Text style={styles.budgetName}>{title}</Text>
                   </View>
-                  <TouchableOpacity onPress={() => handleDeleteBudget(item.budget.id)}>
+                  <TouchableOpacity onPress={() => setDeletingBudgetId(item.budget.id)}>
                     <Ionicons name="trash-outline" size={16} color={colors.textMuted} />
                   </TouchableOpacity>
                 </View>
@@ -207,6 +215,17 @@ export default function BudgetsScreen() {
           </View>
         )}
       </ScrollView>
+
+      <ConfirmModal
+        visible={!!deletingBudgetId}
+        title="Delete Budget?"
+        message="Are you sure you want to remove this monthly budget limit?"
+        confirmLabel="Delete"
+        isDestructive
+        loading={deleting}
+        onConfirm={confirmDeleteBudget}
+        onCancel={() => setDeletingBudgetId(null)}
+      />
     </View>
   );
 }

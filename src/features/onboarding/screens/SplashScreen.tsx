@@ -214,7 +214,7 @@ export default function SplashScreen({ navigation }: Props) {
           ]}
         />
 
-        {/* PHASE 1: Logo Image Pops Up (Blends seamlessly with dark background) */}
+        {/* PHASE 1: Transparent Glassmorphic Logo Badge Pops Up */}
         <Animated.View
           style={[
             styles.logoImageWrapper,
@@ -224,11 +224,16 @@ export default function SplashScreen({ navigation }: Props) {
             },
           ]}
         >
-          <Image
-            source={require('../../../../assets/splash_icon.png')}
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
+          <LinearGradient
+            colors={['rgba(168, 85, 247, 0.25)', 'rgba(124, 58, 237, 0.08)']}
+            style={styles.logoBadgeGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.logoInnerIconRing}>
+              <Ionicons name="wallet-outline" size={54} color="#C084FC" />
+            </View>
+          </LinearGradient>
         </Animated.View>
 
         {/* PHASE 2: App Title ("Xpense.") Slides Up */}
@@ -296,22 +301,37 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(124, 58, 237, 0.15)',
   },
   logoImageWrapper: {
-    width: 140,
-    height: 140,
+    width: 120,
+    height: 120,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.lg,
     backgroundColor: 'transparent',
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.7,
-    shadowRadius: 30,
+    shadowColor: '#A855F7',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.6,
+    shadowRadius: 25,
     elevation: 20,
   },
-  logoImage: {
-    width: 140,
-    height: 140,
-    backgroundColor: 'transparent',
+  logoBadgeGradient: {
+    width: 120,
+    height: 120,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(168, 85, 247, 0.4)',
+    padding: 4,
+  },
+  logoInnerIconRing: {
+    width: 104,
+    height: 104,
+    borderRadius: 30,
+    backgroundColor: 'rgba(124, 58, 237, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(192, 132, 252, 0.3)',
   },
   titleWrapper: {
     alignItems: 'center',

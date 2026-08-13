@@ -87,22 +87,55 @@ router.get('/summary', async (req: AuthRequest, res: Response) => {
 // ─── POST /api/transactions ───────────────────────────────────────────────────
 router.post('/', async (req: AuthRequest, res: Response) => {
   try {
-    const { categoryId, type, amount, note, date, isRecurring } = req.body;
+    const {
+      categoryId,
+      type,
+      amount,
+      note,
+      date,
+      isRecurring,
+      categoryName,
+      categoryIcon,
+      categoryColor,
+    } = req.body;
 
-    if (!categoryId || !type || amount === undefined) {
+    if (!type || amount === undefined) {
       return res.status(400).json({
         success: false,
-        message: 'categoryId, type, and amount are required',
+        message: 'type and amount are required',
       });
     }
 
+    let finalCatId: Types.ObjectId | null = null;
+
+    if (categoryId && Types.ObjectId.isValid(categoryId)) {
+      const catObj = await Category.findOne({ _id: categoryId, userId: req.userId });
+      if (catObj) finalCatId = catObj._id;
+    }
+
+    if (!finalCatId) {
+      const targetName = categoryName || 'General';
+      let found = await Category.findOne({ userId: req.userId, name: targetName, type });
+      if (!found) {
+        found = await Category.create({
+          userId: req.userId,
+          name: targetName,
+          icon: categoryIcon || 'pricetag-outline',
+          color: categoryColor || '#7C3AED',
+          type,
+          isSystem: false,
+        });
+      }
+      finalCatId = found._id;
+    }
+
     const transaction = await Transaction.create({
-      userId:      req.userId,
-      categoryId,
+      userId: req.userId,
+      categoryId: finalCatId,
       type,
-      amount:      parseFloat(amount),
-      note,
-      date:        date ? new Date(date) : new Date(),
+      amount: parseFloat(amount),
+      note: note || '',
+      date: date ? new Date(date) : new Date(),
       isRecurring: !!isRecurring,
     });
 
@@ -117,20 +150,56 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 // ─── PUT /api/transactions/:id ────────────────────────────────────────────────
 router.put('/:id', async (req: AuthRequest, res: Response) => {
   try {
+    if (!Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({ success: false, message: 'Transaction not found' });
+    }
+
     const existing = await Transaction.findOne({ _id: req.params.id, userId: req.userId });
     if (!existing) {
       return res.status(404).json({ success: false, message: 'Transaction not found' });
     }
 
-    const { categoryId, type, amount, note, date, isRecurring } = req.body;
+    const {
+      categoryId,
+      type,
+      amount,
+      note,
+      date,
+      isRecurring,
+      categoryName,
+      categoryIcon,
+      categoryColor,
+    } = req.body;
+
+    let updateCatId = categoryId;
+    if (categoryId && !Types.ObjectId.isValid(categoryId)) {
+      const targetName = categoryName || 'General';
+      let found = await Category.findOne({
+        userId: req.userId,
+        name: targetName,
+        type: type || existing.type,
+      });
+      if (!found) {
+        found = await Category.create({
+          userId: req.userId,
+          name: targetName,
+          icon: categoryIcon || 'pricetag-outline',
+          color: categoryColor || '#7C3AED',
+          type: type || existing.type,
+          isSystem: false,
+        });
+      }
+      updateCatId = found._id;
+    }
+
     const updated = await Transaction.findByIdAndUpdate(
       req.params.id,
       {
-        ...(categoryId !== undefined && { categoryId }),
-        ...(type       !== undefined && { type }),
-        ...(amount     !== undefined && { amount: parseFloat(amount) }),
-        ...(note       !== undefined && { note }),
-        ...(date       !== undefined && { date: new Date(date) }),
+        ...(updateCatId !== undefined && { categoryId: updateCatId }),
+        ...(type        !== undefined && { type }),
+        ...(amount      !== undefined && { amount: parseFloat(amount) }),
+        ...(note        !== undefined && { note }),
+        ...(date        !== undefined && { date: new Date(date) }),
         ...(isRecurring !== undefined && { isRecurring: !!isRecurring }),
       },
       { new: true, runValidators: true }
@@ -157,9 +226,13 @@ router.delete('/all', async (req: AuthRequest, res: Response) => {
 // ─── DELETE /api/transactions/:id ─────────────────────────────────────────────
 router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
+    if (!Types.ObjectId.isValid(req.params.id)) {
+      return res.json({ success: true, message: 'Local transaction deleted' });
+    }
+
     const existing = await Transaction.findOne({ _id: req.params.id, userId: req.userId });
     if (!existing) {
-      return res.status(404).json({ success: false, message: 'Transaction not found' });
+      return res.json({ success: true, message: 'Transaction already deleted or not found' });
     }
     await Transaction.findByIdAndDelete(req.params.id);
     return res.json({ success: true, message: 'Transaction deleted' });

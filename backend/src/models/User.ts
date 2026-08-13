@@ -4,11 +4,14 @@ import { Schema, model, Document, Types } from 'mongoose';
 export interface IUser extends Document {
   _id: Types.ObjectId;
   email: string;
+  phoneNumber?: string;
   name: string;
   passwordHash: string;
   currency: string;
   authProvider: 'email' | 'google';
   avatar?: string;
+  resetPasswordOtp?: string;
+  resetPasswordOtpExpires?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +26,13 @@ const UserSchema = new Schema<IUser>(
       lowercase: true,
       trim: true,
       match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email'],
+    },
+    phoneNumber: {
+      type: String,
+      required: [true, 'Phone number is required'],
+      unique: true,
+      trim: true,
+      sparse: true,
     },
     name: {
       type: String,
@@ -48,6 +58,14 @@ const UserSchema = new Schema<IUser>(
     },
     avatar: {
       type: String,
+    },
+    resetPasswordOtp: {
+      type: String,
+      select: false,
+    },
+    resetPasswordOtpExpires: {
+      type: Date,
+      select: false,
     },
   },
   {

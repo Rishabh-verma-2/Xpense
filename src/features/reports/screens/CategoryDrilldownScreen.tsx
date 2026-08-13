@@ -76,7 +76,7 @@ export default function CategoryDrilldownScreen({ navigation, route }: Props) {
               <Text style={styles.txAmount}>
                 {formatCurrency(item.amount, 'INR', currencySymbol)}
               </Text>
-              <Text style={styles.txMethod}>{item.paymentMethod.toUpperCase()}</Text>
+              <Text style={styles.txMethod}>{(item.paymentMethod || 'cash').toUpperCase()}</Text>
             </View>
           </View>
         )}

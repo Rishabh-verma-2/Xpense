@@ -25,10 +25,11 @@ type Props = {
 
 export default function SignupScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const { register, loginWithGoogle } = useAuth();
+  const { register } = useAuth();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -36,10 +37,25 @@ export default function SignupScreen({ navigation }: Props) {
   const [error, setError] = useState('');
 
   const handleSignup = async () => {
-    if (!name.trim() || !email.trim() || !password.trim()) {
+    if (!name.trim() || !email.trim() || !phone.trim() || !password.trim()) {
       setError('Please fill in all required fields.');
       return;
     }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setError('Please enter a valid email address (e.g. user@example.com).');
+      return;
+    }
+
+    // Phone format validation (digits minimum 10)
+    const cleanPhoneDigits = phone.replace(/\D/g, '');
+    if (cleanPhoneDigits.length < 10 || cleanPhoneDigits.length > 15) {
+      setError('Please enter a valid 10-digit phone number.');
+      return;
+    }
+
     if (password.length < 6) {
       setError('Password must be at least 6 characters.');
       return;
@@ -53,29 +69,10 @@ export default function SignupScreen({ navigation }: Props) {
     setLoading(true);
 
     try {
-      await register(name.trim(), email.trim(), password);
+      await register(name.trim(), email.trim(), phone.trim(), password);
       navigation.replace('NameSetup');
     } catch (err: any) {
       setError(err.message || 'Signup failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleSignUp = async () => {
-    setError('');
-    setLoading(true);
-
-    try {
-      // 1. Open Google Account Picker -> Get ID Token -> Create Firebase Credential -> Sign in with Firebase -> Store session in AsyncStorage
-      await loginWithGoogle();
-
-      // 2. Navigate to NameSetup screen to confirm/set user full name
-      navigation.replace('NameSetup');
-    } catch (err: any) {
-      if (err.message && !err.message.includes('cancelled')) {
-        setError(err.message || 'Google Sign-Up failed');
-      }
     } finally {
       setLoading(false);
     }
@@ -138,11 +135,29 @@ export default function SignupScreen({ navigation }: Props) {
                 <Ionicons name="mail-outline" size={20} color={colors.textMuted} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Enter your email"
+                  placeholder="Enter your email (e.g. user@example.com)"
                   placeholderTextColor="rgba(156,163,175,0.5)"
                   value={email}
                   onChangeText={setEmail}
                   keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+            </View>
+
+            {/* Phone Number Field */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Phone Number</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="call-outline" size={20} color={colors.textMuted} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter 10-digit phone number"
+                  placeholderTextColor="rgba(156,163,175,0.5)"
+                  value={phone}
+                  onChangeText={setPhone}
+                  keyboardType="phone-pad"
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
@@ -215,23 +230,6 @@ export default function SignupScreen({ navigation }: Props) {
                   </>
                 )}
               </LinearGradient>
-            </TouchableOpacity>
-
-            {/* Divider */}
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            {/* Google Sign-up Button */}
-            <TouchableOpacity
-              style={styles.googleBtn}
-              onPress={handleGoogleSignUp}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="logo-google" size={20} color="#EA4335" />
-              <Text style={styles.googleBtnText}>Sign Up with Google</Text>
             </TouchableOpacity>
           </View>
 

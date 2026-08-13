@@ -15,6 +15,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SettingsStackParamList } from '../../../core/navigation/SettingsStackNavigator';
 import { useSettings } from '../../../context/SettingsContext';
 import { useAuth } from '../../../context/AuthContext';
+import { useToast } from '../../../context/ToastContext';
+import { ConfirmModal } from '../../../shared/components/ConfirmModal';
+import { ChangePasswordModal } from '../../../shared/components/ChangePasswordModal';
 import { colors, typography, spacing, radius } from '../../../core/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ExportModal } from '../../../shared/components/ExportModal';
@@ -30,23 +33,23 @@ export default function SettingsScreen({ navigation }: Props) {
   const { settings, updateSettings } = useSettings();
   const { user, logout } = useAuth();
   const { deleteAllTransactions } = useTransactions();
+  const { showInfo, showError } = useToast();
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [erasing, setErasing] = useState(false);
 
-  const handleLogoutPress = () => {
-    setShowLogoutModal(true);
-  };
-
-  const confirmLogout = async () => {
+  const handleLogout = async () => {
     setLoggingOut(true);
     try {
       await logout();
-      setShowLogoutModal(false);
+      showInfo('Logged Out 👋', 'You have been signed out.');
       navigation.getParent()?.reset({
         index: 0,
-        routes: [{ name: 'Login' as any }],
+        routes: [{ name: 'Splash' as any }],
       });
     } catch (err) {
       console.error('Logout error:', err);
@@ -55,46 +58,27 @@ export default function SettingsScreen({ navigation }: Props) {
     }
   };
 
-  const handleResetData = () => {
-    Alert.alert(
-      'Erase All Data',
-      'This will permanently delete all your transactions, categories, budgets, and settings both locally and from your account. This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Erase Everything',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // 1) Wipe all transactions (local + MongoDB Atlas backend)
-              await deleteAllTransactions();
-              // 2) Clear AsyncStorage
-              await AsyncStorage.clear();
-              // 3) Reset onboarding
-              await updateSettings({ onboardingCompleted: false });
-              // 4) Success popup confirmation
-              Alert.alert(
-                'Data Erased Successfully',
-                'All your transaction history, budgets, and data have been completely deleted.',
-                [
-                  {
-                    text: 'OK',
-                    onPress: () => {
-                      navigation.getParent()?.reset({
-                        index: 0,
-                        routes: [{ name: 'Splash' as any }],
-                      });
-                    },
-                  },
-                ]
-              );
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'Failed to erase all data.');
-            }
-          },
-        },
-      ]
-    );
+  const confirmResetData = async () => {
+    setErasing(true);
+    try {
+      // 1) Wipe all transactions (local + MongoDB Atlas backend)
+      await deleteAllTransactions();
+      // 2) Clear AsyncStorage
+      await AsyncStorage.clear();
+      // 3) Reset onboarding
+      await updateSettings({ onboardingCompleted: false });
+      // 4) Dismiss modal & show Toast
+      setShowResetModal(false);
+      showInfo('Data Erased 🗑️', 'All history, budgets, and data were reset.');
+      navigation.getParent()?.reset({
+        index: 0,
+        routes: [{ name: 'Splash' as any }],
+      });
+    } catch (err: any) {
+      showError('Error', err.message || 'Failed to erase all data.');
+    } finally {
+      setErasing(false);
+    }
   };
 
   const renderSettingRow = (
@@ -187,10 +171,17 @@ export default function SettingsScreen({ navigation }: Props) {
         <Text style={styles.sectionHeader}>Account & Security</Text>
         <View style={styles.card}>
           {renderSettingRow(
+            'key-outline',
+            'Change Password',
+            undefined,
+            () => setShowPasswordModal(true)
+          )}
+          <View style={styles.divider} />
+          {renderSettingRow(
             'log-out-outline',
             'Log Out',
             undefined,
-            handleLogoutPress,
+            () => setShowLogoutModal(true),
             true
           )}
         </View>
@@ -198,6 +189,17 @@ export default function SettingsScreen({ navigation }: Props) {
         {/* App Info */}
         <Text style={styles.sectionHeader}>App Info</Text>
         <View style={styles.card}>
+          {renderSettingRow(
+            'sparkles-outline',
+            'View Onboarding Guide',
+            undefined,
+            async () => {
+              await updateSettings({ onboardingCompleted: false });
+              showInfo('Onboarding Reset', 'Opening onboarding feature guide...');
+              navigation.navigate('About');
+            }
+          )}
+          <View style={styles.divider} />
           {renderSettingRow(
             'information-circle-outline',
             'About Xpense',
@@ -209,7 +211,7 @@ export default function SettingsScreen({ navigation }: Props) {
             'trash-outline',
             'Reset Local App Data',
             undefined,
-            handleResetData,
+            () => setShowResetModal(true),
             true
           )}
         </View>
@@ -217,6 +219,21 @@ export default function SettingsScreen({ navigation }: Props) {
 
       {/* Export Data Modal */}
       <ExportModal visible={showExportModal} onClose={() => setShowExportModal(false)} />
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal visible={showPasswordModal} onClose={() => setShowPasswordModal(false)} />
+
+      {/* Reset Data Confirm Modal */}
+      <ConfirmModal
+        visible={showResetModal}
+        title="Erase All Data?"
+        message="This will permanently delete all your transactions, categories, budgets, and settings. This action cannot be undone."
+        confirmLabel="Erase Everything"
+        isDestructive
+        loading={erasing}
+        onConfirm={confirmResetData}
+        onCancel={() => setShowResetModal(false)}
+      />
 
       {/* Logout Confirmation Modal */}
       <Modal
@@ -248,7 +265,7 @@ export default function SettingsScreen({ navigation }: Props) {
 
               <TouchableOpacity
                 style={styles.logoutBtn}
-                onPress={confirmLogout}
+                onPress={handleLogout}
                 disabled={loggingOut}
                 activeOpacity={0.88}
               >

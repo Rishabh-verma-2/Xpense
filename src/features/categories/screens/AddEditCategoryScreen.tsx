@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SettingsStackParamList } from '../../../core/navigation/SettingsStackNavigator';
 import { useCategories } from '../../../context/CategoryContext';
+import { useToast } from '../../../context/ToastContext';
 import { colors, typography, spacing, radius } from '../../../core/theme';
 import { validateCategoryName } from '../../../shared/utils/validators';
 import { ScreenHeader } from '../../../shared/components/ScreenHeader';
@@ -40,6 +41,7 @@ export default function AddEditCategoryScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { categoryId } = route.params || {};
   const { categories, addCategory, updateCategory } = useCategories();
+  const { showSuccess, showError } = useToast();
 
   const existingCat = categories.find((c) => c.id === categoryId);
 
@@ -64,6 +66,7 @@ export default function AddEditCategoryScreen({ navigation, route }: Props) {
           icon: selectedIcon,
           color: selectedColor,
         });
+        showSuccess('Category Updated! ✏️', `"${name.trim()}" saved`);
       } else {
         await addCategory({
           name: name.trim(),
@@ -73,14 +76,11 @@ export default function AddEditCategoryScreen({ navigation, route }: Props) {
           isArchived: false,
           sortOrder: categories.length,
         });
+        showSuccess('Category Created! 🏷️', `"${name.trim()}" added to ${type}s`);
       }
-      Alert.alert(
-        'Success',
-        existingCat ? 'Category updated successfully!' : 'Category created successfully!',
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
-      );
+      navigation.goBack();
     } catch {
-      Alert.alert('Error', 'Failed to save category');
+      showError('Error', 'Failed to save category');
     }
   };
 

@@ -1,5 +1,10 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithCredential, User as FirebaseUser } from 'firebase/auth';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithCredential,
+  User as FirebaseUser,
+} from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { promptGoogleNativeAuth } from './googleAuth';

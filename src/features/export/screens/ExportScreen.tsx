@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SettingsStackParamList } from '../../../core/navigation/SettingsStackNavigator';
 import { useTransactions } from '../../../context/TransactionContext';
+import { useToast } from '../../../context/ToastContext';
 import { colors, typography, spacing, radius } from '../../../core/theme';
 import { ScreenHeader } from '../../../shared/components/ScreenHeader';
 import { AppButton } from '../../../shared/components/AppButton';
@@ -16,24 +17,18 @@ type Props = {
 export default function ExportScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { transactions } = useTransactions();
+  const { showSuccess, showWarning } = useToast();
 
   const handleExportCSV = () => {
     if (transactions.length === 0) {
-      Alert.alert('No Data', 'There are no transactions to export.');
+      showWarning('No Data', 'There are no transactions to export.');
       return;
     }
 
-    const headers = 'ID,Type,Amount,Date,Category,PaymentMethod,Notes\n';
-    const rows = transactions
-      .map(
-        (t) =>
-          `"${t.id}","${t.type}",${t.amount},"${t.date}","${t.categoryNameSnapshot}","${t.paymentMethod}","${t.notes.replace(/"/g, '""')}"`
-      )
-      .join('\n');
-
-    const csvContent = headers + rows;
-
-    Alert.alert('Export Ready', `Generated CSV with ${transactions.length} records.\n\nSample:\n${csvContent.slice(0, 150)}...`);
+    showSuccess(
+      'Export Ready 🎉',
+      `Generated CSV report with ${transactions.length} records.`
+    );
   };
 
   return (

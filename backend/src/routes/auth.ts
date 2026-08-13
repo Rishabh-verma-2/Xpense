@@ -5,6 +5,7 @@ import { User } from '../models';
 import { config } from '../config/env';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { verifyFirebaseIdToken, initFirebaseAdmin } from '../config/firebaseAdmin';
+import { sendPasswordResetEmail } from '../services/emailService';
 
 const router = Router();
 
@@ -21,22 +22,63 @@ function signToken(userId: string) {
 // ─── POST /api/auth/register ──────────────────────────────────────────────────
 router.post('/register', async (req: Request, res: Response) => {
   try {
-    const { email, name, password, currency = 'INR' } = req.body;
+    const { email, phone, phoneNumber, name, password, currency = 'INR' } = req.body;
+    const rawPhone = (phone || phoneNumber || '').toString().trim();
+    const rawEmail = (email || '').toString().trim().toLowerCase();
 
-    if (!email || !name || !password) {
+    if (!rawEmail || !rawPhone || !name || !password) {
       return res.status(400).json({
         success: false,
-        message: 'email, name, and password are required',
+        message: 'Name, email, phone number, and password are required.',
       });
     }
 
-    const existing = await User.findOne({ email: email.toLowerCase() });
-    if (existing) {
-      return res.status(409).json({ success: false, message: 'Email already in use' });
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(rawEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid email address (e.g. user@example.com).',
+      });
+    }
+
+    // Phone number format validation (digits, minimum 10 digits)
+    const cleanPhoneDigits = rawPhone.replace(/\D/g, '');
+    if (cleanPhoneDigits.length < 10 || cleanPhoneDigits.length > 15) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid phone number (at least 10 digits).',
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long.',
+      });
+    }
+
+    // Check duplicate email
+    const existingEmail = await User.findOne({ email: rawEmail });
+    if (existingEmail) {
+      return res.status(409).json({ success: false, message: 'Email address is already in use.' });
+    }
+
+    // Check duplicate phone number
+    const existingPhone = await User.findOne({ phoneNumber: rawPhone });
+    if (existingPhone) {
+      return res.status(409).json({ success: false, message: 'Phone number is already in use.' });
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
-    const user = await User.create({ email, name, passwordHash, currency });
+    const user = await User.create({
+      email: rawEmail,
+      phoneNumber: rawPhone,
+      name: name.trim(),
+      passwordHash,
+      currency,
+      authProvider: 'email',
+    });
 
     const token = signToken(user._id.toString());
 
@@ -46,6 +88,7 @@ router.post('/register', async (req: Request, res: Response) => {
         user: {
           id: user._id,
           email: user.email,
+          phoneNumber: user.phoneNumber,
           name: user.name,
           currency: user.currency,
           createdAt: user.createdAt,
@@ -55,7 +98,11 @@ router.post('/register', async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     if (err.code === 11000) {
-      return res.status(409).json({ success: false, message: 'Email already in use' });
+      const field = Object.keys(err.keyPattern || {})[0];
+      return res.status(409).json({
+        success: false,
+        message: field === 'phoneNumber' ? 'Phone number already in use' : 'Email already in use',
+      });
     }
     console.error('[register]', err);
     return res.status(500).json({ success: false, message: 'Registration failed' });
@@ -65,23 +112,35 @@ router.post('/register', async (req: Request, res: Response) => {
 // ─── POST /api/auth/login ─────────────────────────────────────────────────────
 router.post('/login', async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { identifier, email, phone, phoneNumber, password } = req.body;
+    const loginInput = (identifier || email || phone || phoneNumber || '').toString().trim();
 
-    if (!email || !password) {
+    if (!loginInput || !password) {
       return res.status(400).json({
         success: false,
-        message: 'email and password are required',
+        message: 'Email address or phone number and password are required',
       });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() }).select('+passwordHash');
+    const loginInputLower = loginInput.toLowerCase();
+    const cleanDigits = loginInput.replace(/\D/g, '');
+
+    // Search user by email OR phone number
+    const user = await User.findOne({
+      $or: [
+        { email: loginInputLower },
+        { phoneNumber: loginInput },
+        ...(cleanDigits.length >= 10 ? [{ phoneNumber: cleanDigits }] : []),
+      ],
+    }).select('+passwordHash');
+
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+      return res.status(401).json({ success: false, message: 'Invalid email/phone number or password' });
     }
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+      return res.status(401).json({ success: false, message: 'Invalid email/phone number or password' });
     }
 
     const token = signToken(user._id.toString());
@@ -92,6 +151,7 @@ router.post('/login', async (req: Request, res: Response) => {
         user: {
           id: user._id,
           email: user.email,
+          phoneNumber: user.phoneNumber,
           name: user.name,
           currency: user.currency,
           createdAt: user.createdAt,
@@ -242,6 +302,7 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
       data: {
         id: user._id,
         email: user.email,
+        phoneNumber: user.phoneNumber,
         name: user.name,
         currency: user.currency,
         createdAt: user.createdAt,
@@ -267,6 +328,162 @@ router.put('/profile', authenticate, async (req: AuthRequest, res: Response) => 
     return res.json({ success: true, data: user });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to update profile' });
+  }
+});
+
+// ─── PUT /api/auth/change-password ───────────────────────────────────────────
+router.put('/change-password', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password and new password are required.',
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters long.',
+      });
+    }
+
+    const user = await User.findById(req.userId).select('+passwordHash');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    // Verify current password
+    const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password is incorrect.',
+      });
+    }
+
+    // Hash and update new password
+    user.passwordHash = await bcrypt.hash(newPassword, 12);
+    await user.save();
+
+    console.log(`🔐 Password updated successfully for user: ${user.email}`);
+    return res.json({ success: true, message: 'Password updated successfully.' });
+  } catch (err: any) {
+    console.error('[change-password]', err);
+    return res.status(500).json({ success: false, message: 'Failed to update password.' });
+  }
+});
+
+// ─── POST /api/auth/forgot-password ──────────────────────────────────────────
+router.post('/forgot-password', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    const rawEmail = (email || '').toString().trim().toLowerCase();
+
+    if (!rawEmail) {
+      return res.status(400).json({ success: false, message: 'Email address is required.' });
+    }
+
+    const user = await User.findOne({ email: rawEmail }).select('+resetPasswordOtp +resetPasswordOtpExpires');
+    if (!user) {
+      // Security best practice: don't reveal user existence
+      return res.json({
+        success: true,
+        message: 'If an account exists with that email, a reset code has been sent.',
+      });
+    }
+
+    // Generate 6-digit random OTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
+    user.resetPasswordOtp = otpCode;
+    user.resetPasswordOtpExpires = expiresAt;
+    await user.save();
+
+    // Send HTML email via Nodemailer
+    await sendPasswordResetEmail(user.email, user.name, otpCode);
+
+    return res.json({
+      success: true,
+      message: 'A 6-digit verification code has been sent to your email.',
+    });
+  } catch (err: any) {
+    console.error('[forgot-password error]', err);
+    return res.status(500).json({
+      success: false,
+      message: err.message || 'Failed to send password reset email.',
+    });
+  }
+});
+
+// ─── POST /api/auth/reset-password-otp ───────────────────────────────────────
+router.post('/reset-password-otp', async (req: Request, res: Response) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    const rawEmail = (email || '').toString().trim().toLowerCase();
+    const rawOtp = (otp || '').toString().trim();
+
+    if (!rawEmail || !rawOtp || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email, OTP code, and new password are required.',
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long.',
+      });
+    }
+
+    const user = await User.findOne({ email: rawEmail }).select(
+      '+passwordHash +resetPasswordOtp +resetPasswordOtpExpires'
+    );
+
+    if (!user || !user.resetPasswordOtp || !user.resetPasswordOtpExpires) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired OTP request. Please request a new code.',
+      });
+    }
+
+    // Check expiration
+    if (new Date() > user.resetPasswordOtpExpires) {
+      return res.status(400).json({
+        success: false,
+        message: 'OTP verification code has expired. Please request a new code.',
+      });
+    }
+
+    // Check OTP match
+    if (user.resetPasswordOtp !== rawOtp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid verification code. Please check your email and try again.',
+      });
+    }
+
+    // Update password
+    user.passwordHash = await bcrypt.hash(newPassword, 12);
+    user.resetPasswordOtp = undefined;
+    user.resetPasswordOtpExpires = undefined;
+    await user.save();
+
+    console.log(`✅ Password reset via email OTP successful for: ${user.email}`);
+    return res.json({
+      success: true,
+      message: 'Password reset successful! You can now log in with your new password.',
+    });
+  } catch (err: any) {
+    console.error('[reset-password-otp error]', err);
+    return res.status(500).json({
+      success: false,
+      message: err.message || 'Failed to reset password.',
+    });
   }
 });
 

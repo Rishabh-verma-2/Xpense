@@ -1,4 +1,5 @@
 import { Router, Response } from 'express';
+import { Types } from 'mongoose';
 import { Category } from '../models';
 import { authenticate, AuthRequest } from '../middleware/auth';
 
@@ -43,6 +44,10 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 // ─── PUT /api/categories/:id ──────────────────────────────────────────────────
 router.put('/:id', async (req: AuthRequest, res: Response) => {
   try {
+    if (!Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({ success: false, message: 'Category not found' });
+    }
+
     const cat = await Category.findOne({ _id: req.params.id, userId: req.userId });
     if (!cat) return res.status(404).json({ success: false, message: 'Category not found' });
     if (cat.isSystem) return res.status(403).json({ success: false, message: 'Cannot edit system category' });
@@ -54,7 +59,8 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
       { new: true, runValidators: true }
     );
     return res.json({ success: true, data: updated });
-  } catch {
+  } catch (err) {
+    console.error('[PUT /categories/:id]', err);
     return res.status(500).json({ success: false, message: 'Failed to update category' });
   }
 });
@@ -62,13 +68,18 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
 // ─── DELETE /api/categories/:id ───────────────────────────────────────────────
 router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
+    if (!Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({ success: false, message: 'Category not found' });
+    }
+
     const cat = await Category.findOne({ _id: req.params.id, userId: req.userId });
     if (!cat) return res.status(404).json({ success: false, message: 'Category not found' });
     if (cat.isSystem) return res.status(403).json({ success: false, message: 'Cannot delete system category' });
 
     await Category.findByIdAndDelete(req.params.id);
     return res.json({ success: true, message: 'Category deleted' });
-  } catch {
+  } catch (err) {
+    console.error('[DELETE /categories/:id]', err);
     return res.status(500).json({ success: false, message: 'Failed to delete category' });
   }
 });

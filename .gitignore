@@ -30,12 +30,12 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
-.env
+# local env files (allowed for private repo as requested)
+# .env*.local
+# .env
 
 # backend secrets
-backend/.env
+# backend/.env
 backend/*.pem
 
 # typescript

@@ -17,6 +17,7 @@ import { colors, typography, spacing, radius } from '../../../core/theme';
 import { formatCurrency } from '../../../shared/utils/currencyUtils';
 import { formatTransactionDate, groupByDate } from '../../../shared/utils/dateUtils';
 import { EmptyState } from '../../../shared/components/EmptyState';
+import { useCategories } from '../../../context/CategoryContext';
 import { Transaction } from '../../../shared/types/transaction.types';
 
 type Props = {
@@ -26,6 +27,7 @@ type Props = {
 export default function HistoryScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { transactions } = useTransactions();
+  const { getById } = useCategories();
   const { settings } = useSettings();
   const currencySymbol = settings?.currencySymbol ?? '₹';
 
@@ -38,13 +40,14 @@ export default function HistoryScreen({ navigation }: Props) {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchesNote = t.notes?.toLowerCase().includes(q);
-        const matchesCategory = t.categoryNameSnapshot.toLowerCase().includes(q);
+        const catName = getById(t.categoryId)?.name || t.categoryNameSnapshot || '';
+        const matchesCategory = catName.toLowerCase().includes(q);
         const matchesAmount = t.amount.toString().includes(q);
         return matchesNote || matchesCategory || matchesAmount;
       }
       return true;
     });
-  }, [transactions, selectedType, searchQuery]);
+  }, [transactions, selectedType, searchQuery, getById]);
 
   const grouped = useMemo(() => {
     return groupByDate(filteredTransactions, (t) => t.date);
@@ -53,6 +56,10 @@ export default function HistoryScreen({ navigation }: Props) {
   const renderTransactionItem = (item: Transaction) => {
     const isExpense = item.type === 'expense';
     const amountColor = isExpense ? colors.expense : colors.income;
+    const cat = getById(item.categoryId);
+    const catName = cat?.name || item.categoryNameSnapshot || 'General';
+    const catIcon = cat?.icon || item.categoryIconSnapshot || (isExpense ? 'receipt-outline' : 'wallet-outline');
+    const catColor = cat?.color || item.categoryColorSnapshot || (isExpense ? colors.expense : colors.income);
 
     return (
       <TouchableOpacity
@@ -61,14 +68,14 @@ export default function HistoryScreen({ navigation }: Props) {
         onPress={() => navigation.navigate('TransactionDetail', { transactionId: item.id })}
         activeOpacity={0.7}
       >
-        <View style={[styles.iconBg, { backgroundColor: `${item.categoryColorSnapshot}20` }]}>
-          <Ionicons name={item.categoryIconSnapshot as any} size={20} color={item.categoryColorSnapshot} />
+        <View style={[styles.iconBg, { backgroundColor: `${catColor}20` }]}>
+          <Ionicons name={catIcon as any} size={20} color={catColor} />
         </View>
 
         <View style={styles.txInfo}>
-          <Text style={styles.txTitle}>{item.categoryNameSnapshot}</Text>
+          <Text style={styles.txTitle}>{catName}</Text>
           <Text style={styles.txSub}>
-            {item.notes ? item.notes : formatTransactionDate(item.date)}
+            {item.notes?.trim() ? item.notes : formatTransactionDate(item.date)}
           </Text>
         </View>
 
@@ -76,7 +83,7 @@ export default function HistoryScreen({ navigation }: Props) {
           <Text style={[styles.txAmount, { color: amountColor }]}>
             {isExpense ? '-' : '+'}{formatCurrency(item.amount, 'INR', currencySymbol)}
           </Text>
-          <Text style={styles.txMethod}>{item.paymentMethod.toUpperCase()}</Text>
+          <Text style={styles.txMethod}>{(item.paymentMethod || 'cash').toUpperCase()}</Text>
         </View>
       </TouchableOpacity>
     );

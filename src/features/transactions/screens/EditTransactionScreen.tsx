@@ -18,6 +18,9 @@ import type { HistoryStackParamList } from '../../../core/navigation/types';
 import { useTransactions } from '../../../context/TransactionContext';
 import { useCategories } from '../../../context/CategoryContext';
 import { useSettings } from '../../../context/SettingsContext';
+import { useToast } from '../../../context/ToastContext';
+import { ConfirmModal } from '../../../shared/components/ConfirmModal';
+import { CurrentMonthDatePickerModal } from '../../../shared/components/CurrentMonthDatePickerModal';
 import { colors, typography, spacing, radius } from '../../../core/theme';
 import { PAYMENT_METHODS } from '../../../shared/constants/appConstants';
 import { validateAmount, validateNotes } from '../../../shared/utils/validators';
@@ -32,12 +35,14 @@ type Props = {
 };
 
 export default function EditTransactionScreen({ navigation, route }: Props) {
+  const { transactionId } = route.params;
   const insets = useSafeAreaInsets();
   const { transactions, updateTransaction, deleteTransaction } = useTransactions();
   const { getByType } = useCategories();
   const { settings } = useSettings();
+  const { showSuccess, showError, showInfo } = useToast();
 
-  const transaction = transactions.find((t) => t.id === route.params.transactionId);
+  const transaction = transactions.find((t) => t.id === transactionId);
   if (!transaction) {
     navigation.goBack();
     return null;
@@ -52,8 +57,12 @@ export default function EditTransactionScreen({ navigation, route }: Props) {
   );
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(transaction.paymentMethod);
   const [notes, setNotes] = useState(transaction.notes);
+  const [date, setDate] = useState(transaction.date);
+  const [showDatePickerModal, setShowDatePickerModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleSave = async () => {
@@ -76,31 +85,29 @@ export default function EditTransactionScreen({ navigation, route }: Props) {
         categoryColorSnapshot: selectedCategory!.color,
         paymentMethod,
         notes,
+        date,
       });
-      Alert.alert('Success', 'Transaction updated successfully!', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      showSuccess('Transaction Saved! ✏️', `${selectedCategory!.name} updated`);
+      navigation.goBack();
     } catch {
-      Alert.alert('Error', "Couldn't update transaction.");
+      showError('Error', "Couldn't update transaction.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = () => {
-    Alert.alert('Delete Transaction', 'Are you sure you want to delete this transaction?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteTransaction(transaction.id);
-          Alert.alert('Success', 'Transaction deleted successfully!', [
-            { text: 'OK', onPress: () => navigation.popToTop() },
-          ]);
-        },
-      },
-    ]);
+  const confirmDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteTransaction(transaction.id);
+      setShowDeleteModal(false);
+      showInfo('Transaction Deleted 🗑️', 'The entry was removed.');
+      navigation.popToTop();
+    } catch {
+      showError('Error', "Couldn't delete transaction.");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const isExpense = transaction.type === 'expense';
@@ -112,7 +119,7 @@ export default function EditTransactionScreen({ navigation, route }: Props) {
         <ScreenHeader
           title="Edit Transaction"
           onBack={() => navigation.goBack()}
-          rightAction={{ icon: 'trash-outline', onPress: handleDelete }}
+          rightAction={{ icon: 'trash-outline', onPress: () => setShowDeleteModal(true) }}
         />
 
         <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -201,6 +208,30 @@ export default function EditTransactionScreen({ navigation, route }: Props) {
             </ScrollView>
           </View>
 
+          {/* Transaction Date (Current Month Only) */}
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Transaction Date (Current Month Only)</Text>
+            <TouchableOpacity
+              style={styles.pickerRow}
+              onPress={() => setShowDatePickerModal(true)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.catIcon, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
+                <Ionicons name="calendar-outline" size={18} color={colors.primaryLight} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pickerValue}>
+                  {new Date(date).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </Text>
+              </View>
+              <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+
           {/* Notes */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Notes</Text>
@@ -221,6 +252,24 @@ export default function EditTransactionScreen({ navigation, route }: Props) {
         <View style={styles.saveRow}>
           <AppButton label="Update Transaction" onPress={handleSave} loading={loading} />
         </View>
+
+        <CurrentMonthDatePickerModal
+          visible={showDatePickerModal}
+          selectedDateIso={date}
+          onSelectDate={(newIso) => setDate(newIso)}
+          onClose={() => setShowDatePickerModal(false)}
+        />
+
+        <ConfirmModal
+          visible={showDeleteModal}
+          title="Delete Transaction?"
+          message="Are you sure you want to delete this transaction? This action cannot be undone."
+          confirmLabel="Delete"
+          isDestructive
+          loading={deleting}
+          onConfirm={confirmDelete}
+          onCancel={() => setShowDeleteModal(false)}
+        />
       </View>
     </KeyboardAvoidingView>
   );

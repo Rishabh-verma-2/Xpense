@@ -133,18 +133,28 @@ export function CategoryProvider({ children }: { children: ReactNode }) {
 
   const addCategory = useCallback(
     async (data: Omit<Category, 'id' | 'isSystem' | 'createdAt' | 'updatedAt'>) => {
-      const category = await CategoryRepository.create(data);
+      let category = await CategoryRepository.create(data);
       dispatch({ type: 'ADD_CATEGORY', payload: category });
 
       if (token) {
         try {
-          await categoriesApi.create({
+          const res = await categoriesApi.create({
             name: data.name,
             type: data.type,
             icon: data.icon,
             color: data.color,
           });
-          console.log('✅ Category saved to MongoDB Atlas:', data.name);
+          if (res.success && res.data) {
+            const remoteId = res.data.id || res.data._id;
+            if (remoteId && remoteId !== category.id) {
+              const oldId = category.id;
+              category = { ...category, id: remoteId };
+              dispatch({ type: 'REMOVE_CATEGORY', payload: oldId });
+              dispatch({ type: 'ADD_CATEGORY', payload: category });
+              await CategoryRepository.update(oldId, { ...category });
+            }
+            console.log('✅ Category saved to MongoDB Atlas:', data.name);
+          }
         } catch (e) {
           console.warn('⚠️ Category backend save warning:', e);
         }

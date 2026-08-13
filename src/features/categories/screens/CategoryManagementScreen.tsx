@@ -12,6 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SettingsStackParamList } from '../../../core/navigation/SettingsStackNavigator';
 import { useCategories } from '../../../context/CategoryContext';
+import { useToast } from '../../../context/ToastContext';
+import { ConfirmModal } from '../../../shared/components/ConfirmModal';
 import { colors, typography, spacing, radius } from '../../../core/theme';
 import { ScreenHeader } from '../../../shared/components/ScreenHeader';
 import { AppButton } from '../../../shared/components/AppButton';
@@ -23,26 +25,33 @@ type Props = {
 export default function CategoryManagementScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { categories, archiveCategory, unarchiveCategory, removeCategory } = useCategories();
+  const { showInfo, showWarning, showError } = useToast();
   const [selectedTab, setSelectedTab] = useState<'expense' | 'income'>('expense');
+  const [deletingCategory, setDeletingCategory] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const filtered = categories.filter((c) => c.type === selectedTab);
 
-  const handleDelete = (id: string, name: string, isSystem: boolean) => {
+  const handleDeleteClick = (id: string, name: string, isSystem: boolean) => {
     if (isSystem) {
-      Alert.alert('System Category', 'System categories cannot be deleted, but you can archive them.');
+      showWarning('System Category', 'System categories cannot be deleted, but can be archived.');
       return;
     }
-    Alert.alert('Delete Category', `Are you sure you want to delete "${name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await removeCategory(id);
-          Alert.alert('Success', `Category "${name}" deleted successfully!`);
-        },
-      },
-    ]);
+    setDeletingCategory({ id, name });
+  };
+
+  const confirmDeleteCategory = async () => {
+    if (!deletingCategory) return;
+    setDeleting(true);
+    try {
+      await removeCategory(deletingCategory.id);
+      showInfo('Category Deleted 🏷️', `"${deletingCategory.name}" removed.`);
+      setDeletingCategory(null);
+    } catch {
+      showError('Error', "Couldn't delete category.");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -97,7 +106,7 @@ export default function CategoryManagementScreen({ navigation }: Props) {
                 <Ionicons name="create-outline" size={18} color={colors.primary} />
               </TouchableOpacity>
               {!cat.isSystem ? (
-                <TouchableOpacity onPress={() => handleDelete(cat.id, cat.name, cat.isSystem)}>
+                <TouchableOpacity onPress={() => handleDeleteClick(cat.id, cat.name, cat.isSystem)}>
                   <Ionicons name="trash-outline" size={18} color={colors.expense} />
                 </TouchableOpacity>
               ) : null}
@@ -113,6 +122,17 @@ export default function CategoryManagementScreen({ navigation }: Props) {
           icon={<Ionicons name="add" size={20} color="#FFF" />}
         />
       </View>
+
+      <ConfirmModal
+        visible={!!deletingCategory}
+        title="Delete Category?"
+        message={`Are you sure you want to delete "${deletingCategory?.name ?? ''}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        isDestructive
+        loading={deleting}
+        onConfirm={confirmDeleteCategory}
+        onCancel={() => setDeletingCategory(null)}
+      />
     </View>
   );
 }

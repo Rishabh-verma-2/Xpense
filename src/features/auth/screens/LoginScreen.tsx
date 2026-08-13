@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../../../core/navigation/types';
 import { useAuth } from '../../../context/AuthContext';
 import { promptGoogleNativeAuth } from '../../../services/googleAuth';
+import { ForgotPasswordModal } from '../../../shared/components/ForgotPasswordModal';
 import { colors, typography, spacing, radius } from '../../../core/theme';
 
 type Props = {
@@ -25,46 +26,29 @@ type Props = {
 
 export default function LoginScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const { login, loginWithGoogle } = useAuth();
+  const { login } = useAuth();
 
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const [showForgotModal, setShowForgotModal] = useState(false);
+
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      setError('Please enter both email and password.');
+    if (!identifier.trim() || !password.trim()) {
+      setError('Please enter your email or phone number and password.');
       return;
     }
     setError('');
     setLoading(true);
 
     try {
-      await login(email.trim(), password);
+      await login(identifier.trim(), password);
       navigation.replace('MainTabs');
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    setError('');
-    setLoading(true);
-
-    try {
-      // 1. Open Google Account Picker -> Get ID Token -> Create Firebase Credential -> Sign in with Firebase -> Store session in AsyncStorage
-      await loginWithGoogle();
-
-      // 2. Navigate to NameSetup screen to confirm/set user full name
-      navigation.replace('NameSetup');
-    } catch (err: any) {
-      if (err.message && !err.message.includes('cancelled')) {
-        setError(err.message || 'Google Sign-In failed');
-      }
     } finally {
       setLoading(false);
     }
@@ -99,18 +83,18 @@ export default function LoginScreen({ navigation }: Props) {
               </View>
             ) : null}
 
-            {/* Email Field */}
+            {/* Email or Phone Field */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email Address</Text>
+              <Text style={styles.label}>Email Address or Phone Number</Text>
               <View style={styles.inputWrapper}>
-                <Ionicons name="mail-outline" size={20} color={colors.textMuted} style={styles.inputIcon} />
+                <Ionicons name="person-outline" size={20} color={colors.textMuted} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="enter your email"
+                  placeholder="enter email or phone number"
                   placeholderTextColor="rgba(156,163,175,0.5)"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
+                  value={identifier}
+                  onChangeText={setIdentifier}
+                  keyboardType="default"
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
@@ -142,6 +126,14 @@ export default function LoginScreen({ navigation }: Props) {
                   />
                 </TouchableOpacity>
               </View>
+
+              {/* Forgot Password Action */}
+              <TouchableOpacity
+                style={styles.forgotBtn}
+                onPress={() => setShowForgotModal(true)}
+              >
+                <Text style={styles.forgotText}>Forgot Password?</Text>
+              </TouchableOpacity>
             </View>
 
             {/* Login Button */}
@@ -167,23 +159,6 @@ export default function LoginScreen({ navigation }: Props) {
                 )}
               </LinearGradient>
             </TouchableOpacity>
-
-            {/* Divider */}
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            {/* Google Sign-in Button */}
-            <TouchableOpacity
-              style={styles.googleBtn}
-              onPress={handleGoogleSignIn}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="logo-google" size={20} color="#EA4335" />
-              <Text style={styles.googleBtnText}>Continue with Google</Text>
-            </TouchableOpacity>
           </View>
 
           {/* Footer */}
@@ -195,6 +170,13 @@ export default function LoginScreen({ navigation }: Props) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Forgot Password Modal */}
+      <ForgotPasswordModal
+        visible={showForgotModal}
+        initialEmail={identifier.includes('@') ? identifier : ''}
+        onClose={() => setShowForgotModal(false)}
+      />
     </View>
   );
 }
@@ -344,5 +326,15 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     color: colors.primaryLight,
     fontWeight: '700',
+  },
+  forgotBtn: {
+    alignSelf: 'flex-end',
+    marginTop: spacing.xs,
+    paddingVertical: 2,
+  },
+  forgotText: {
+    ...typography.caption,
+    color: colors.primaryLight,
+    fontWeight: '600',
   },
 });

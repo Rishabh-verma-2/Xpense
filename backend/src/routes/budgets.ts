@@ -71,12 +71,23 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 // ─── DELETE /api/budgets/:id ──────────────────────────────────────────────────
 router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    const budget = await Budget.findOne({ _id: req.params.id, userId: req.userId });
-    if (!budget) return res.status(404).json({ success: false, message: 'Budget not found' });
+    const param = req.params.id;
+    let budget = null;
 
-    await Budget.findByIdAndDelete(req.params.id);
+    if (Types.ObjectId.isValid(param)) {
+      budget = await Budget.findOneAndDelete({ _id: param, userId: req.userId });
+    }
+    if (!budget) {
+      budget = await Budget.findOneAndDelete({ categoryId: param, userId: req.userId });
+    }
+
+    if (!budget) {
+      return res.status(404).json({ success: false, message: 'Budget not found' });
+    }
+
     return res.json({ success: true, message: 'Budget deleted' });
-  } catch {
+  } catch (err) {
+    console.error('[DELETE /budgets/:id]', err);
     return res.status(500).json({ success: false, message: 'Failed to delete budget' });
   }
 });

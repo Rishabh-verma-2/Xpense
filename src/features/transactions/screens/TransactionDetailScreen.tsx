@@ -1,10 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -13,11 +12,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { HistoryStackParamList } from '../../../core/navigation/types';
 import { useTransactions } from '../../../context/TransactionContext';
 import { useSettings } from '../../../context/SettingsContext';
+import { useToast } from '../../../context/ToastContext';
+import { ConfirmModal } from '../../../shared/components/ConfirmModal';
 import { colors, typography, spacing, radius } from '../../../core/theme';
 import { formatCurrency } from '../../../shared/utils/currencyUtils';
 import { formatTransactionDate } from '../../../shared/utils/dateUtils';
 import { ScreenHeader } from '../../../shared/components/ScreenHeader';
 import { AppButton } from '../../../shared/components/AppButton';
+import { useCategories } from '../../../context/CategoryContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<HistoryStackParamList, 'TransactionDetail'>;
@@ -27,14 +29,20 @@ type Props = {
 export default function TransactionDetailScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { transactions, deleteTransaction } = useTransactions();
+  const { getById } = useCategories();
   const { settings } = useSettings();
+  const { showInfo, showError } = useToast();
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   const currencySymbol = settings?.currencySymbol ?? '₹';
 
   const transaction = transactions.find((t) => t.id === route.params.transactionId);
 
   if (!transaction) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={[styles.container, { paddingBottom: insets.bottom }]}>
         <ScreenHeader title="Transaction Details" onBack={() => navigation.goBack()} />
         <View style={styles.notFound}>
           <Text style={styles.notFoundText}>Transaction not found</Text>
@@ -46,24 +54,23 @@ export default function TransactionDetailScreen({ navigation, route }: Props) {
   const isExpense = transaction.type === 'expense';
   const amountColor = isExpense ? colors.expense : colors.income;
 
-  const handleDelete = () => {
-    Alert.alert(
-      'Delete Transaction',
-      'Are you sure you want to delete this transaction?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await deleteTransaction(transaction.id);
-            Alert.alert('Success', 'Transaction deleted successfully!', [
-              { text: 'OK', onPress: () => navigation.goBack() },
-            ]);
-          },
-        },
-      ]
-    );
+  const cat = getById(transaction.categoryId);
+  const catName = cat?.name || transaction.categoryNameSnapshot || 'General';
+  const catIcon = cat?.icon || transaction.categoryIconSnapshot || (isExpense ? 'receipt-outline' : 'wallet-outline');
+  const catColor = cat?.color || transaction.categoryColorSnapshot || (isExpense ? colors.expense : colors.income);
+
+  const confirmDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteTransaction(transaction.id);
+      setShowDeleteModal(false);
+      showInfo('Transaction Deleted 🗑️', 'The entry has been removed');
+      navigation.goBack();
+    } catch {
+      showError('Error', "Couldn't delete transaction.");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -78,17 +85,17 @@ export default function TransactionDetailScreen({ navigation, route }: Props) {
       />
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Main Card */}
+        {/* Main Amount Card */}
         <View style={styles.card}>
-          <View style={[styles.iconBg, { backgroundColor: `${transaction.categoryColorSnapshot}20` }]}>
+          <View style={[styles.iconBg, { backgroundColor: `${catColor}20` }]}>
             <Ionicons
-              name={transaction.categoryIconSnapshot as any}
+              name={catIcon as any}
               size={32}
-              color={transaction.categoryColorSnapshot}
+              color={catColor}
             />
           </View>
 
-          <Text style={styles.categoryTitle}>{transaction.categoryNameSnapshot}</Text>
+          <Text style={styles.categoryTitle}>{catName}</Text>
           <Text style={[styles.amountText, { color: amountColor }]}>
             {isExpense ? '-' : '+'}{formatCurrency(transaction.amount, 'INR', currencySymbol)}
           </Text>
@@ -104,7 +111,7 @@ export default function TransactionDetailScreen({ navigation, route }: Props) {
 
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Payment Method</Text>
-            <Text style={styles.detailValue}>{transaction.paymentMethod.toUpperCase()}</Text>
+            <Text style={styles.detailValue}>{(transaction.paymentMethod || 'cash').toUpperCase()}</Text>
           </View>
 
           {transaction.notes ? (
@@ -119,11 +126,22 @@ export default function TransactionDetailScreen({ navigation, route }: Props) {
           <AppButton
             label="Delete Transaction"
             variant="danger"
-            onPress={handleDelete}
+            onPress={() => setShowDeleteModal(true)}
             icon={<Ionicons name="trash-outline" size={18} color={colors.expense} />}
           />
         </View>
       </ScrollView>
+
+      <ConfirmModal
+        visible={showDeleteModal}
+        title="Delete Transaction?"
+        message="Are you sure you want to delete this transaction? This action cannot be undone."
+        confirmLabel="Delete"
+        isDestructive
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setShowDeleteModal(false)}
+      />
     </View>
   );
 }

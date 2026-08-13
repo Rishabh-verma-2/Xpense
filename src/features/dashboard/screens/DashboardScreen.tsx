@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,6 +16,7 @@ import { colors, spacing, radius, typography } from '@/core/theme';
 import { useTransactions } from '@/context/TransactionContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useCategories } from '@/context/CategoryContext';
+import { useAuth } from '@/context/AuthContext';
 import { formatCurrency } from '@/shared/utils/currencyUtils';
 import { formatTransactionDate, getMonthKey, getMonthLabel } from '@/shared/utils/dateUtils';
 import { Transaction } from '@/shared/types/transaction.types';
@@ -80,6 +82,7 @@ interface TransactionRowProps {
   item: Transaction;
   index: number;
   currencySymbol: string;
+  categoryName: string;
   categoryIcon: string;
   categoryColor: string;
   onPress: () => void;
@@ -89,6 +92,7 @@ function TransactionRow({
   item,
   index,
   currencySymbol,
+  categoryName,
   categoryIcon,
   categoryColor,
   onPress,
@@ -139,9 +143,9 @@ function TransactionRow({
         </View>
         <View style={styles.txInfo}>
           <Text style={styles.txTitle} numberOfLines={1}>
-            {item.notes?.trim() ? item.notes : item.categoryNameSnapshot}
+            {categoryName}
           </Text>
-          <Text style={styles.txCategory}>{item.categoryNameSnapshot}</Text>
+          <Text style={styles.txCategory}>{item.notes?.trim() ? item.notes : categoryName}</Text>
         </View>
         <View style={styles.txRight}>
           <Text
@@ -163,9 +167,52 @@ function TransactionRow({
 
 export default function DashboardScreen() {
   const navigation = useNavigation<any>();
+  const { user } = useAuth();
   const { transactions } = useTransactions();
-  const { settings } = useSettings();
+  const { settings, updateSettings } = useSettings();
   const { getById } = useCategories();
+
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+
+  const onboardingFade = useRef(new Animated.Value(0)).current;
+  const onboardingScale = useRef(new Animated.Value(0.92)).current;
+
+  useEffect(() => {
+    if (settings && !settings.onboardingCompleted) {
+      setShowOnboardingModal(true);
+      Animated.parallel([
+        Animated.timing(onboardingFade, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.spring(onboardingScale, {
+          toValue: 1,
+          friction: 8,
+          tension: 70,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [settings, onboardingFade, onboardingScale]);
+
+  const handleFinishOnboarding = async () => {
+    Animated.parallel([
+      Animated.timing(onboardingFade, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(onboardingScale, {
+        toValue: 0.92,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(async () => {
+      setShowOnboardingModal(false);
+      await updateSettings({ onboardingCompleted: true });
+    });
+  };
 
   const currencySymbol = settings?.currencySymbol ?? '₹';
   const currentMonthKey = useMemo(() => getMonthKey(new Date()), []);
@@ -180,6 +227,12 @@ export default function DashboardScreen() {
   }, []);
 
   // Compute live financial totals
+  const totalExpenses = useMemo(() => {
+    return transactions.reduce((sum, t) => {
+      return t.type === 'expense' ? sum + t.amount : sum;
+    }, 0);
+  }, [transactions]);
+
   const totalBalance = useMemo(() => {
     return transactions.reduce((sum, t) => {
       return t.type === 'income' ? sum + t.amount : sum - t.amount;
@@ -238,7 +291,7 @@ export default function DashboardScreen() {
         <Animated.View style={[styles.header, { opacity: headerFade }]}>
           <View>
             <Text style={styles.greeting}>{greeting}</Text>
-            <Text style={styles.userName}>Dashboard</Text>
+            <Text style={styles.userName}>{user?.name ? user.name : 'Welcome Back'}</Text>
           </View>
           <TouchableOpacity
             style={styles.addBtnHeader}
@@ -269,9 +322,9 @@ export default function DashboardScreen() {
             <View style={styles.decorCircle1} />
             <View style={styles.decorCircle2} />
 
-            <Text style={styles.balanceLabel}>TOTAL BALANCE</Text>
+            <Text style={styles.balanceLabel}>TOTAL EXPENSES</Text>
             <Text style={styles.balanceAmount}>
-              {formatCurrency(totalBalance, 'INR', currencySymbol)}
+              {formatCurrency(totalExpenses, 'INR', currencySymbol)}
             </Text>
             <Text style={styles.balancePeriod}>{currentMonthLabel}</Text>
 
@@ -370,8 +423,9 @@ export default function DashboardScreen() {
                     item={item}
                     index={index}
                     currencySymbol={currencySymbol}
-                    categoryIcon={category?.icon || item.categoryIconSnapshot}
-                    categoryColor={category?.color || item.categoryColorSnapshot}
+                    categoryName={category?.name || item.categoryNameSnapshot || 'General'}
+                    categoryIcon={category?.icon || item.categoryIconSnapshot || 'pricetag-outline'}
+                    categoryColor={category?.color || item.categoryColorSnapshot || '#7C3AED'}
                     onPress={handleSeeAll}
                   />
                 );
@@ -408,21 +462,78 @@ export default function DashboardScreen() {
         )}
       </ScrollView>
 
-      {/* ── Floating Action Button (FAB) ── */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => handleAddTransaction()}
-        activeOpacity={0.85}
+      {/* ── New User Onboarding Modal ── */}
+      <Modal
+        visible={showOnboardingModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleFinishOnboarding}
       >
-        <LinearGradient
-          colors={[colors.primary, colors.primaryDark]}
-          style={styles.fabGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <Ionicons name="add" size={28} color="#FFFFFF" />
-        </LinearGradient>
-      </TouchableOpacity>
+        <Animated.View style={[styles.modalOverlay, { opacity: onboardingFade }]}>
+          <Animated.View style={[styles.modalCard, { transform: [{ scale: onboardingScale }] }]}>
+            <LinearGradient
+              colors={['#2D1B69', '#1A0A4A', '#0F0728']}
+              style={styles.modalHeaderGrad}
+            >
+              <View style={styles.modalBadge}>
+                <Ionicons name="sparkles" size={24} color="#C084FC" />
+              </View>
+              <Text style={styles.modalTitle}>Welcome to Xpense! 🚀</Text>
+              <Text style={styles.modalSubtitle}>
+                Here is your quick starter guide to master your money:
+              </Text>
+            </LinearGradient>
+
+            <View style={styles.modalBody}>
+              <View style={styles.onboardingFeatureRow}>
+                <View style={[styles.onboardingIconBg, { backgroundColor: 'rgba(124, 58, 237, 0.15)' }]}>
+                  <Ionicons name="wallet-outline" size={22} color="#7C3AED" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.onboardingFeatureTitle}>Log Transactions</Text>
+                  <Text style={styles.onboardingFeatureDesc}>Quickly record income & expenses with smart auto-categorisation.</Text>
+                </View>
+              </View>
+
+              <View style={styles.onboardingFeatureRow}>
+                <View style={[styles.onboardingIconBg, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+                  <Ionicons name="pie-chart-outline" size={22} color="#F59E0B" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.onboardingFeatureTitle}>Set Category Budgets</Text>
+                  <Text style={styles.onboardingFeatureDesc}>Set monthly spending limits and get alerts before overspending.</Text>
+                </View>
+              </View>
+
+              <View style={styles.onboardingFeatureRow}>
+                <View style={[styles.onboardingIconBg, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+                  <Ionicons name="stats-chart-outline" size={22} color="#10B981" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.onboardingFeatureTitle}>Track Insights & Export</Text>
+                  <Text style={styles.onboardingFeatureDesc}>Analyse spending trends and export PDF & CSV reports anytime.</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.modalActionBtn}
+                onPress={handleFinishOnboarding}
+                activeOpacity={0.88}
+              >
+                <LinearGradient
+                  colors={['#7C3AED', '#5B21B6']}
+                  style={styles.modalActionGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Text style={styles.modalActionText}>Get Started</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#FFF" />
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </Animated.View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -755,5 +866,103 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  // Onboarding Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(6, 6, 13, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(124, 58, 237, 0.3)',
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.5,
+    shadowRadius: 30,
+    elevation: 24,
+  },
+  modalHeaderGrad: {
+    padding: spacing.lg,
+    alignItems: 'center',
+  },
+  modalBadge: {
+    width: 52,
+    height: 52,
+    borderRadius: 20,
+    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(168, 85, 247, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  modalTitle: {
+    ...typography.subheading,
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    ...typography.body,
+    color: 'rgba(216, 180, 254, 0.85)',
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  modalBody: {
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  onboardingFeatureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  onboardingIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  onboardingFeatureTitle: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  onboardingFeatureDesc: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  modalActionBtn: {
+    borderRadius: radius.full,
+    overflow: 'hidden',
+    marginTop: spacing.sm,
+  },
+  modalActionGradient: {
+    height: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    borderRadius: radius.full,
+  },
+  modalActionText: {
+    ...typography.subheading,
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
 });

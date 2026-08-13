@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Linking,
   Easing,
+  Platform,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -187,11 +188,12 @@ export default function AboutScreen({ navigation }: Props) {
             </Text>
 
             <View style={styles.versionBadge}>
-              <Text style={styles.versionText}>v1.0.0 (Build 100)</Text>
+              <Ionicons name="sparkles" size={13} color="#C084FC" style={{ marginRight: 4 }} />
+              <Text style={styles.versionText}>v1.0.0 (PWA Enabled 📱)</Text>
             </View>
 
             <Text style={styles.tagline}>
-              Empowering you to master your financial destiny with clarity, privacy, and effortless tracking.
+              Empowering you to master your financial destiny with clarity, privacy, and effortless tracking across web & mobile.
             </Text>
           </Animated.View>
         </View>
@@ -204,6 +206,49 @@ export default function AboutScreen({ navigation }: Props) {
             gap: spacing.lg,
           }}
         >
+          {/* PWA App Install Card */}
+          <View style={styles.pwaInstallCard}>
+            <LinearGradient
+              colors={['#2D1B69', '#1A0A4A', '#0F0728']}
+              style={styles.pwaInstallGrad}
+            >
+              <View style={styles.pwaHeaderRow}>
+                <View style={styles.pwaIconBg}>
+                  <Ionicons name="phone-portrait-outline" size={22} color="#C084FC" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.pwaTitle}>Add to Home Screen</Text>
+                  <Text style={styles.pwaSubtitle}>Install Xpense as a Progressive Web App (PWA)</Text>
+                </View>
+              </View>
+
+              <Text style={styles.pwaDesc}>
+                Experience Xpense in full-screen with offline support and zero app store downloads.
+              </Text>
+
+              <TouchableOpacity
+                style={styles.pwaInstallBtn}
+                onPress={() => {
+                  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                    window.dispatchEvent(new Event('beforeinstallprompt'));
+                  }
+                  alert('📲 To install Xpense on your home screen:\n\n1. Tap the Share icon in your browser\n2. Select "Add to Home Screen"');
+                }}
+                activeOpacity={0.88}
+              >
+                <LinearGradient
+                  colors={['#A855F7', '#7C3AED']}
+                  style={styles.pwaBtnGrad}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Ionicons name="add-circle-outline" size={18} color="#FFF" />
+                  <Text style={styles.pwaBtnText}>Install / Add to Home Screen</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </LinearGradient>
+          </View>
+
           {/* Stats Bar */}
           <View style={styles.statsRow}>
             {STATS.map((s) => (
@@ -248,7 +293,16 @@ export default function AboutScreen({ navigation }: Props) {
           <View style={styles.techCard}>
             <Text style={styles.sectionHeader}>BUILT WITH CUTTING-EDGE TECH</Text>
             <View style={styles.techPillsRow}>
-              {['React Native', 'Expo SDK 54', 'MongoDB Atlas', 'TypeScript', 'Node.js', 'Express'].map((t) => (
+              {[
+                'React Native Web',
+                'PWA Web Manifest',
+                'Nodemailer SMTP',
+                'Expo SDK 54',
+                'MongoDB Atlas',
+                'TypeScript',
+                'Node.js',
+                'Express',
+              ].map((t) => (
                 <View key={t} style={styles.techPill}>
                   <Text style={styles.techPillText}>{t}</Text>
                 </View>
@@ -277,6 +331,72 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: spacing.xxl,
     gap: spacing.lg,
+  },
+  pwaInstallCard: {
+    borderRadius: radius.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(168, 85, 247, 0.35)',
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  pwaInstallGrad: {
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  pwaHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  pwaIconBg: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(168, 85, 247, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pwaTitle: {
+    ...typography.subheading,
+    color: '#FFFFFF',
+    fontSize: 16,
+  },
+  pwaSubtitle: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontSize: 11,
+    marginTop: 1,
+  },
+  pwaDesc: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  pwaInstallBtn: {
+    borderRadius: radius.full,
+    overflow: 'hidden',
+    marginTop: spacing.xs,
+  },
+  pwaBtnGrad: {
+    flexDirection: 'row',
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs + 2,
+    borderRadius: radius.full,
+  },
+  pwaBtnText: {
+    ...typography.bodyMedium,
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13,
   },
   heroSection: {
     alignItems: 'center',

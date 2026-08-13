@@ -1,0 +1,18 @@
+{
+  "short_name": "Xpense",
+  "name": "Xpense — Financial Tracker",
+  "icons": [
+    {
+      "src": "/assets/icon.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#06060D",
+  "theme_color": "#7C3AED",
+  "display": "standalone",
+  "orientation": "portrait",
+  "description": "Personal finance, budget tracking, and report analytics app."
+}

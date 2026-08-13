@@ -49,6 +49,9 @@ export default function NameSetupScreen({ navigation }: Props) {
       const name = fullName.trim();
       await updateUserProfileName(name);
 
+      // Reset onboarding flag so new user is welcomed on Dashboard
+      await updateSettings({ onboardingCompleted: false });
+
       // Navigate to main application dashboard
       navigation.replace('MainTabs');
     } catch (err: any) {

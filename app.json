@@ -5,7 +5,7 @@
     "scheme": "xpense",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/splash_icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/splash_icon.png",
@@ -18,13 +18,21 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/splash_icon.png",
         "backgroundColor": "#0A0A0F"
       },
       "package": "com.xpense.app"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/splash_icon.png",
+      "name": "Xpense — Financial Tracker",
+      "shortName": "Xpense",
+      "themeColor": "#7C3AED",
+      "backgroundColor": "#06060D",
+      "display": "standalone",
+      "orientation": "portrait",
+      "startUrl": "/",
+      "description": "Personal finance, budget tracking, and report analytics app."
     },
     "sdkVersion": "54.0.0",
     "plugins": [

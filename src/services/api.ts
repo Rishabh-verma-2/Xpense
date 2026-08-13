@@ -7,12 +7,46 @@
  */
 import axios, { AxiosRequestConfig, AxiosError } from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-// 192.168.1.4 is your machine's LAN IP so physical devices, emulators, and simulators can connect
-const DEFAULT_HOST = Platform.OS === 'web' ? 'localhost' : '192.168.1.4';
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || `http://${DEFAULT_HOST}:3000`;
+/**
+ * Dynamically resolves the API Base URL:
+ * 1. Uses explicit EXPO_PUBLIC_API_URL if set in .env
+ * 2. On Web, defaults to http://localhost:3000
+ * 3. On mobile (Expo Go / standalone dev client), dynamically extracts host machine IP from Expo Constants
+ * 4. Fallback: http://10.0.2.2:3000 for Android emulator, http://localhost:3000 for iOS simulator
+ */
+const getApiBaseUrl = (): string => {
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+
+  if (Platform.OS === 'web') {
+    return 'http://localhost:3000';
+  }
+
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    (Constants as any).manifest?.debuggerHost ||
+    (Constants as any).manifest2?.extra?.expoGo?.developer?.tool;
+
+  if (hostUri) {
+    const ip = hostUri.split(':')[0];
+    if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
+      return `http://${ip}:3000`;
+    }
+  }
+
+  if (Platform.OS === 'android') {
+    return 'http://10.0.2.2:3000';
+  }
+
+  return 'http://localhost:3000';
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -43,7 +77,7 @@ function extractMessage(err: unknown): string {
 
 // ─── Auth endpoints ───────────────────────────────────────────────────────────
 export const authApi = {
-  async register(payload: { email: string; name: string; password: string; currency?: string }) {
+  async register(payload: { email: string; phone: string; name: string; password: string; currency?: string }) {
     try {
       const { data } = await api.post('/api/auth/register', payload);
       return data;
@@ -52,7 +86,7 @@ export const authApi = {
     }
   },
 
-  async login(payload: { email: string; password: string }) {
+  async login(payload: { identifier: string; password: string }) {
     try {
       const { data } = await api.post('/api/auth/login', payload);
       return data;
@@ -87,6 +121,33 @@ export const authApi = {
       throw new Error(extractMessage(err));
     }
   },
+
+  async changePassword(payload: { currentPassword: string; newPassword: string }) {
+    try {
+      const { data } = await api.put('/api/auth/change-password', payload);
+      return data;
+    } catch (err) {
+      throw new Error(extractMessage(err));
+    }
+  },
+
+  async forgotPassword(payload: { email: string }) {
+    try {
+      const { data } = await api.post('/api/auth/forgot-password', payload);
+      return data;
+    } catch (err) {
+      throw new Error(extractMessage(err));
+    }
+  },
+
+  async resetPasswordOtp(payload: { email: string; otp: string; newPassword: string }) {
+    try {
+      const { data } = await api.post('/api/auth/reset-password-otp', payload);
+      return data;
+    } catch (err) {
+      throw new Error(extractMessage(err));
+    }
+  },
 };
 
 // ─── Transaction endpoints ────────────────────────────────────────────────────
@@ -99,7 +160,16 @@ export const transactionsApi = {
     const { data } = await api.get('/api/transactions/summary', { params });
     return data;
   },
-  async create(payload: { categoryId: string; type: string; amount: number; note?: string; date?: string }) {
+  async create(payload: {
+    categoryId: string;
+    type: string;
+    amount: number;
+    note?: string;
+    date?: string;
+    categoryName?: string;
+    categoryIcon?: string;
+    categoryColor?: string;
+  }) {
     const { data } = await api.post('/api/transactions', payload);
     return data;
   },

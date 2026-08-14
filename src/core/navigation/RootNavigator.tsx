@@ -10,7 +10,6 @@ import SignupScreen from '../../features/auth/screens/SignupScreen';
 import NameSetupScreen from '../../features/auth/screens/NameSetupScreen';
 import AddTransactionScreen from '../../features/transactions/screens/AddTransactionScreen';
 import { LandingScreen } from '../../features/landing/screens/LandingScreen';
-import { MobileInstallPrompt } from '../../shared/components/MobileInstallPrompt';
 import { colors } from '../theme';
 import type { RootStackParamList } from './types';
 
@@ -30,17 +29,14 @@ const appTheme = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const isMobileBrowser =
-  Platform.OS === 'web' &&
-  typeof navigator !== 'undefined' &&
-  /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '');
-
+/**
+ * On native (iOS/Android) → start at Splash directly.
+ * On web (any browser, desktop or mobile) → show the Landing page first.
+ * The Landing page has an "Open App" button that navigates to Login/Splash.
+ */
 const getInitialRouteName = (): keyof RootStackParamList => {
   if (Platform.OS !== 'web') return 'Splash';
-  // On mobile phone browsers, open the mobile app experience directly!
-  if (isMobileBrowser) return 'Splash';
-  // On desktop browsers, show the landing page
-  return 'Landing';
+  return 'Landing'; // Always show landing on web
 };
 
 export default function RootNavigator() {
@@ -56,7 +52,7 @@ export default function RootNavigator() {
       >
         <Stack.Screen name="Landing">
           {({ navigation }) => (
-            <LandingScreen onLaunchApp={() => navigation.navigate('Login')} />
+            <LandingScreen onLaunchApp={() => navigation.navigate('Splash')} />
           )}
         </Stack.Screen>
         <Stack.Screen name="Splash" component={SplashScreen} />
@@ -77,9 +73,6 @@ export default function RootNavigator() {
           }}
         />
       </Stack.Navigator>
-
-      {/* Automatic Mobile PWA Install Prompt */}
-      <MobileInstallPrompt />
     </NavigationContainer>
   );
 }

@@ -1,5 +1,5 @@
-// Xpense Mobile PWA Service Worker v2
-const CACHE_NAME = 'xpense-pwa-v2';
+// Xpense Mobile PWA Service Worker v3
+const CACHE_NAME = 'xpense-pwa-v3';
 
 const ASSETS_TO_CACHE = [
   '/',
@@ -21,13 +21,14 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate event — purge old caches
+// Activate event — immediately purge ALL older caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cache) => {
           if (cache !== CACHE_NAME) {
+            console.log('SW: Deleting old cache:', cache);
             return caches.delete(cache);
           }
         })

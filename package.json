@@ -7,7 +7,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build:web": "npx expo export -p web && node patch-pwa.js && cp assets/splash_icon.png dist/assets/icon-192.png && cp assets/splash_icon.png dist/assets/icon-512.png"
+    "build:web": "npx expo export -p web && node patch-pwa.js && cp assets/icon-192.png dist/assets/icon-192.png && cp assets/icon-512.png dist/assets/icon-512.png"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

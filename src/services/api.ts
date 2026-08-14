@@ -6,7 +6,7 @@
  * On iOS simulator / real device use http://localhost:3000 or your machine's LAN IP.
  */
 import axios, { AxiosRequestConfig, AxiosError } from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import { secureStorage } from '../storage/secureStorage';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
@@ -57,12 +57,12 @@ const api = axios.create({
 // ─── Auth token interceptor ───────────────────────────────────────────────────
 api.interceptors.request.use(async (config) => {
   try {
-    const token = await SecureStore.getItemAsync('xpense_token');
+    const token = await secureStorage.getItem('xpense_token');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-  } catch {
-    // SecureStore unavailable (web) — skip
+  } catch (err) {
+    console.warn('Error reading token in API interceptor:', err);
   }
   return config;
 });

@@ -6,9 +6,8 @@ import React, {
   useCallback,
   ReactNode,
 } from 'react';
-import * as SecureStore from 'expo-secure-store';
+import { secureStorage } from '../storage/secureStorage';
 import { authApi } from '../services/api';
-
 import { signInWithGoogleAndFirebase } from '../services/googleAuthService';
 
 export interface UserProfile {
@@ -47,8 +46,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const storedToken = await SecureStore.getItemAsync(TOKEN_KEY);
-        const storedUserJson = await SecureStore.getItemAsync(USER_KEY);
+        const storedToken = await secureStorage.getItem(TOKEN_KEY);
+        const storedUserJson = await secureStorage.getItem(USER_KEY);
 
         if (storedToken) {
           setToken(storedToken);
@@ -60,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const res = await authApi.me();
             if (res.success && res.data) {
               setUser(res.data);
-              await SecureStore.setItemAsync(USER_KEY, JSON.stringify(res.data));
+              await secureStorage.setItem(USER_KEY, JSON.stringify(res.data));
             }
           } catch (e) {
             console.log('Session verification failed, using cached user if available');
@@ -80,8 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { user: userData, token: jwtToken } = res.data;
       setUser(userData);
       setToken(jwtToken);
-      await SecureStore.setItemAsync(TOKEN_KEY, jwtToken);
-      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(userData));
+      await secureStorage.setItem(TOKEN_KEY, jwtToken);
+      await secureStorage.setItem(USER_KEY, JSON.stringify(userData));
     } else {
       throw new Error(res.message || 'Login failed');
     }
@@ -93,8 +92,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { user: userData, token: jwtToken } = res.data;
       setUser(userData);
       setToken(jwtToken);
-      await SecureStore.setItemAsync(TOKEN_KEY, jwtToken);
-      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(userData));
+      await secureStorage.setItem(TOKEN_KEY, jwtToken);
+      await secureStorage.setItem(USER_KEY, JSON.stringify(userData));
     } else {
       throw new Error(res.message || 'Registration failed');
     }
@@ -117,8 +116,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { user: userData, token: jwtToken } = res.data;
         setUser(userData);
         setToken(jwtToken);
-        await SecureStore.setItemAsync(TOKEN_KEY, jwtToken);
-        await SecureStore.setItemAsync(USER_KEY, JSON.stringify(userData));
+        await secureStorage.setItem(TOKEN_KEY, jwtToken);
+        await secureStorage.setItem(USER_KEY, JSON.stringify(userData));
         return userData;
       }
     } catch (e) {
@@ -135,8 +134,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setUser(firebaseUserProfile);
     setToken(`fb_token_${session.uid}`);
-    await SecureStore.setItemAsync(TOKEN_KEY, `fb_token_${session.uid}`);
-    await SecureStore.setItemAsync(USER_KEY, JSON.stringify(firebaseUserProfile));
+    await secureStorage.setItem(TOKEN_KEY, `fb_token_${session.uid}`);
+    await secureStorage.setItem(USER_KEY, JSON.stringify(firebaseUserProfile));
     return firebaseUserProfile;
   }, []);
 
@@ -144,8 +143,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setToken(null);
     try {
-      await SecureStore.deleteItemAsync(TOKEN_KEY);
-      await SecureStore.deleteItemAsync(USER_KEY);
+      await secureStorage.deleteItem(TOKEN_KEY);
+      await secureStorage.deleteItem(USER_KEY);
     } catch (e) {
       console.error('Error clearing secure store on logout', e);
     }
@@ -156,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await authApi.me();
       if (res.success && res.data) {
         setUser(res.data);
-        await SecureStore.setItemAsync(USER_KEY, JSON.stringify(res.data));
+        await secureStorage.setItem(USER_KEY, JSON.stringify(res.data));
       }
     } catch (e) {
       console.error('Failed to refresh user profile', e);
@@ -167,7 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user) {
       const updatedUser = { ...user, name: newName };
       setUser(updatedUser);
-      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(updatedUser));
+      await secureStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
       try {
         await authApi.updateProfile({ name: newName });
       } catch (e) {

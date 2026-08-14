@@ -6,7 +6,6 @@ import {
   User as FirebaseUser,
 } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import { promptGoogleNativeAuth } from './googleAuth';
 
 // ─── Firebase Web Client Configuration ────────────────────────────────────────

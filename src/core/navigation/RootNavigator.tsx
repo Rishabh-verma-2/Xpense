@@ -1,5 +1,10 @@
-import React from 'react';
-import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import React, { useEffect } from 'react';
+import { Platform, BackHandler } from 'react-native';
+import {
+  NavigationContainer,
+  DarkTheme,
+  useNavigationContainerRef,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MainTabNavigator } from './MainTabNavigator';
 import SplashScreen from '../../features/onboarding/screens/SplashScreen';
@@ -28,9 +33,96 @@ const appTheme = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+// ─── Deep Linking & Browser History Sync Configuration ────────────────────────
+const linking = {
+  prefixes: ['https://xpense-blush.vercel.app', 'xpense://', '/'],
+  config: {
+    screens: {
+      Splash: 'splash',
+      MainTabs: {
+        screens: {
+          DashboardTab: 'home',
+          HistoryTab: {
+            screens: {
+              HistoryList: 'history',
+              TransactionDetail: 'history/detail',
+              EditTransaction: 'history/edit',
+            },
+          },
+          ReportsTab: {
+            screens: {
+              MonthlyReport: 'reports',
+              YearlyReport: 'reports/yearly',
+              CategoryDrilldown: 'reports/category',
+            },
+          },
+          BudgetsTab: 'budgets',
+          SettingsTab: {
+            screens: {
+              SettingsHome: 'settings',
+              CategoryManagement: 'settings/categories',
+              AddEditCategory: 'settings/categories/edit',
+              CurrencySettings: 'settings/currency',
+              NotificationSettings: 'settings/notifications',
+              About: 'settings/about',
+              Export: 'settings/export',
+            },
+          },
+        },
+      },
+      Login: 'login',
+      Signup: 'signup',
+      NameSetup: 'name-setup',
+      Onboarding: 'onboarding',
+      Landing: 'landing',
+      AddTransaction: 'add-transaction',
+    },
+  },
+};
+
 export default function RootNavigator() {
+  const navigationRef = useNavigationContainerRef();
+
+  // ─── Hardware & Browser Back Button Handling ──────────────────────────────
+  useEffect(() => {
+    // 1. Android Native Back Button
+    const onAndroidBackPress = () => {
+      if (navigationRef.isReady() && navigationRef.canGoBack()) {
+        navigationRef.goBack();
+        return true; // Prevent default app exit
+      }
+      return false; // Allow exit on root screen
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      onAndroidBackPress
+    );
+
+    // 2. Web / PWA Browser Back Button & PopState Listener
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const handleWebPopState = () => {
+        if (navigationRef.isReady() && navigationRef.canGoBack()) {
+          navigationRef.goBack();
+        }
+      };
+
+      window.addEventListener('popstate', handleWebPopState);
+      return () => {
+        backHandler.remove();
+        window.removeEventListener('popstate', handleWebPopState);
+      };
+    }
+
+    return () => backHandler.remove();
+  }, [navigationRef]);
+
   return (
-    <NavigationContainer theme={appTheme}>
+    <NavigationContainer
+      ref={navigationRef}
+      theme={appTheme}
+      linking={linking}
+    >
       <Stack.Navigator
         initialRouteName="Splash"
         screenOptions={{

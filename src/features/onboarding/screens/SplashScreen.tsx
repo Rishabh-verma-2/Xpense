@@ -7,6 +7,7 @@ import {
   Dimensions,
   Easing,
   Image,
+  Platform,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -158,26 +159,43 @@ export default function SplashScreen({ navigation }: Props) {
       Animated.parallel([
         Animated.timing(exitScale, {
           toValue: 1.25,
-          duration: 400,
+          duration: 350,
           easing: Easing.in(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(exitOpacity, {
           toValue: 0,
-          duration: 350,
+          duration: 300,
           easing: Easing.in(Easing.ease),
           useNativeDriver: true,
         }),
       ]).start(() => {
+        // 1. Logged in users ALWAYS go straight to MainTabs dashboard!
+        if (token) {
+          navigation.replace('MainTabs');
+          return;
+        }
+
+        // 2. First-time mobile users go to Onboarding
         if (!settings?.onboardingCompleted) {
           navigation.replace('Onboarding');
-        } else if (token) {
-          navigation.replace('MainTabs');
+          return;
+        }
+
+        // 3. Desktop web visitors go to Landing page, mobile/PWA users go to Login
+        const isDesktopWeb =
+          Platform.OS === 'web' &&
+          typeof navigator !== 'undefined' &&
+          !/iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '') &&
+          !(typeof window !== 'undefined' && ((window as any).matchMedia?.('(display-mode: standalone)').matches || (window.navigator as any)?.standalone === true));
+
+        if (isDesktopWeb) {
+          navigation.replace('Landing');
         } else {
           navigation.replace('Login');
         }
       });
-    }, 2800);
+    }, 1800);
 
     return () => clearTimeout(timer);
   }, [loading, settings, token]);

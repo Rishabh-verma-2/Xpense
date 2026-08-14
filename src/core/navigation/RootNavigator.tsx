@@ -10,6 +10,7 @@ import SignupScreen from '../../features/auth/screens/SignupScreen';
 import NameSetupScreen from '../../features/auth/screens/NameSetupScreen';
 import AddTransactionScreen from '../../features/transactions/screens/AddTransactionScreen';
 import { LandingScreen } from '../../features/landing/screens/LandingScreen';
+import { useAuth } from '../../context/AuthContext';
 import { colors } from '../theme';
 import type { RootStackParamList } from './types';
 
@@ -29,17 +30,32 @@ const appTheme = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-/**
- * On native (iOS/Android) → start at Splash directly.
- * On web (any browser, desktop or mobile) → show the Landing page first.
- * The Landing page has an "Open App" button that navigates to Login/Splash.
- */
-const getInitialRouteName = (): keyof RootStackParamList => {
-  if (Platform.OS !== 'web') return 'Splash';
-  return 'Landing'; // Always show landing on web
-};
-
 export default function RootNavigator() {
+  const { token, loading } = useAuth();
+
+  // Check if running as an installed PWA (standalone display mode)
+  const isPWAStandalone =
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
+    ((typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches) ||
+      ((window.navigator as any)?.standalone === true));
+
+  // Determine initial route:
+  // 1. Native mobile (iOS/Android) -> 'Splash'
+  // 2. Installed PWA on home screen -> 'Splash' (bypasses landing page)
+  // 3. User with saved login session -> 'Splash' (auto-navigates to MainTabs dashboard)
+  // 4. First-time web visitors in browser -> 'Landing'
+  const getInitialRouteName = (): keyof RootStackParamList => {
+    if (Platform.OS !== 'web') return 'Splash';
+    if (isPWAStandalone) return 'Splash';
+    if (token) return 'Splash';
+    return 'Landing';
+  };
+
+  if (loading) {
+    return null;
+  }
+
   return (
     <NavigationContainer theme={appTheme}>
       <Stack.Navigator
@@ -52,7 +68,15 @@ export default function RootNavigator() {
       >
         <Stack.Screen name="Landing">
           {({ navigation }) => (
-            <LandingScreen onLaunchApp={() => navigation.navigate('Splash')} />
+            <LandingScreen
+              onLaunchApp={() => {
+                if (token) {
+                  navigation.navigate('MainTabs');
+                } else {
+                  navigation.navigate('Splash');
+                }
+              }}
+            />
           )}
         </Stack.Screen>
         <Stack.Screen name="Splash" component={SplashScreen} />

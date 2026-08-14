@@ -9,6 +9,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../../../context/AuthContext';
 import { colors, radius, spacing, typography } from '../../../core/theme';
 
 interface LandingScreenProps {
@@ -69,6 +70,7 @@ const STATS = [
 
 export function LandingScreen({ onLaunchApp }: LandingScreenProps) {
   const insets = useSafeAreaInsets();
+  const { token } = useAuth();
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -87,7 +89,7 @@ export function LandingScreen({ onLaunchApp }: LandingScreenProps) {
 
           {onLaunchApp && (
             <TouchableOpacity style={styles.openAppBtn} onPress={onLaunchApp} activeOpacity={0.85}>
-              <Text style={styles.openAppBtnText}>Open App ➔</Text>
+              <Text style={styles.openAppBtnText}>{token ? 'Dashboard ➔' : 'Open App ➔'}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -117,8 +119,8 @@ export function LandingScreen({ onLaunchApp }: LandingScreenProps) {
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
               >
-                <Ionicons name="rocket-outline" size={20} color="#FFF" />
-                <Text style={styles.heroCtaText}>Get Started — It's Free</Text>
+                <Ionicons name={token ? "stats-chart-outline" : "rocket-outline"} size={20} color="#FFF" />
+                <Text style={styles.heroCtaText}>{token ? 'Open Dashboard ➔' : "Get Started — It's Free"}</Text>
               </LinearGradient>
             </TouchableOpacity>
           )}

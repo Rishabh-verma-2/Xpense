@@ -103,6 +103,7 @@ const styles = StyleSheet.create({
 export function MainTabNavigator() {
   return (
     <Tab.Navigator
+      backBehavior="none"
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,

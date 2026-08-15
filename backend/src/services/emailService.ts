@@ -19,35 +19,34 @@ function maskEmail(email: string): string {
 }
 
 /**
- * Creates a Nodemailer Transporter with explicit IPv4 socket configuration and tight timeouts.
+ * Creates a Gmail/SMTP transporter.
  */
-function createTransporter(host: string, port: number, secure: boolean) {
+function createTransporter() {
   const user = (config.email.user || '').trim();
   const pass = (config.email.pass || '').replace(/\s+/g, '');
 
+  if (!user || !pass) {
+    throw new Error('EMAIL_USER or EMAIL_PASS is not configured in backend environment');
+  }
+
+  // Use service: 'gmail' for best-in-class reliability with Google App Passwords
   return nodemailer.createTransport({
-    host,
-    port,
-    secure, // true for port 465, false for 587
+    service: 'gmail',
     auth: {
       user,
       pass,
     },
-    // Force IPv4 at socket level
-    family: 4,
     tls: {
       rejectUnauthorized: false,
-      minVersion: 'TLSv1.2',
     },
-    // Tight 5s timeouts so firewalled cloud ports fail fast instead of hanging
-    connectionTimeout: 5000,
-    greetingTimeout: 5000,
-    socketTimeout: 8000,
-  } as any);
+    connectionTimeout: 20000,
+    greetingTimeout: 15000,
+    socketTimeout: 30000,
+  });
 }
 
 /**
- * Sends email via Resend HTTP REST API (Port 443 - never blocked by cloud firewalls).
+ * Sends email via Resend HTTP REST API (Port 443 - fallback for serverless cloud firewalls).
  */
 async function sendViaResendHttp(
   apiKey: string,
@@ -80,48 +79,7 @@ async function sendViaResendHttp(
 }
 
 /**
- * Sends email via Brevo HTTP REST API (Port 443 - never blocked by cloud firewalls).
- */
-async function sendViaBrevoHttp(
-  apiKey: string,
-  toEmail: string,
-  userName: string,
-  subject: string,
-  html: string,
-): Promise<boolean> {
-  const senderEmail = config.email.user || 'no-reply@xpense.app';
-  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'api-key': apiKey,
-    },
-    body: JSON.stringify({
-      sender: { name: 'Xpense Security', email: senderEmail },
-      to: [{ email: toEmail, name: userName || toEmail }],
-      subject,
-      htmlContent: html,
-    }),
-  });
-
-  if (!res.ok) {
-    const errorData = await res.text();
-    throw new Error(`Brevo API Error (${res.status}): ${errorData}`);
-  }
-
-  const data: any = await res.json();
-  console.log(`✉️ Email successfully delivered via Brevo HTTP API to ${maskEmail(toEmail)}`);
-  return true;
-}
-
-/**
  * Sends a password reset OTP verification code email.
- * Multi-tiered strategy:
- * 1. Resend HTTP API (Port 443) if configured
- * 2. Brevo HTTP API (Port 443) if configured
- * 3. Primary SMTP (Port 587 STARTTLS or custom)
- * 4. Secondary SMTP (Port 465 SSL)
- * 5. Intelligent Fallback (logs code to console so user/dev is NEVER locked out by ISP firewalls)
  */
 export async function sendPasswordResetEmail(
   toEmail: string,
@@ -289,65 +247,31 @@ export async function sendPasswordResetEmail(
   </html>
   `;
 
-  const subject = '🔒 Your Xpense Password Reset Code';
   const mailOptions = {
     from: `"Xpense Security" <${config.email.user || 'no-reply@xpense.app'}>`,
     to: toEmail,
-    subject,
+    subject: '🔒 Your Xpense Password Reset Code',
     html: htmlTemplate,
   };
 
-  // ── Tier 1: Resend HTTP API (Port 443) ──────────────────────────────────────
+  // Option 1: Resend HTTP API if configured
   if (config.email.resendApiKey) {
     try {
-      await sendViaResendHttp(config.email.resendApiKey, toEmail, subject, htmlTemplate);
+      await sendViaResendHttp(config.email.resendApiKey, toEmail, mailOptions.subject, htmlTemplate);
       return true;
     } catch (err: any) {
       console.warn(`⚠️ Resend HTTP API delivery failed: ${err.message}`);
     }
   }
 
-  // ── Tier 2: Brevo HTTP API (Port 443) ───────────────────────────────────────
-  if (config.email.brevoApiKey) {
-    try {
-      await sendViaBrevoHttp(config.email.brevoApiKey, toEmail, userName, subject, htmlTemplate);
-      return true;
-    } catch (err: any) {
-      console.warn(`⚠️ Brevo HTTP API delivery failed: ${err.message}`);
-    }
-  }
-
-  // ── Tier 3: Nodemailer SMTP with multi-port failover ─────────────────────────
-  const host = config.email.host || 'smtp.gmail.com';
-  const port = config.email.port || 587;
-  const isSecure = config.email.secure || false;
-
-  // Try Primary Port (587 STARTTLS by default)
+  // Option 2: Gmail SMTP Transporter
   try {
-    const transporter = createTransporter(host, port, isSecure);
+    const transporter = createTransporter();
     const info = await transporter.sendMail(mailOptions);
-    console.log(`✉️ Password reset OTP email sent via SMTP to ${maskEmail(toEmail)} (Id: ${info.messageId})`);
+    console.log(`✉️ Password reset OTP email sent via Gmail to ${maskEmail(toEmail)} (MessageId: ${info.messageId})`);
     return true;
-  } catch (errPrimary: any) {
-    console.warn(`⚠️ SMTP ${host}:${port} send failed. Trying fallback port 465 SSL...`);
+  } catch (err: any) {
+    console.error(`❌ Failed to deliver email to ${maskEmail(toEmail)}:`, err.message || err);
+    throw new Error(err.message || 'Failed to send password reset email');
   }
-
-  // Try Fallback Port (465 SSL)
-  if (port !== 465) {
-    try {
-      const transporter465 = createTransporter(host, 465, true);
-      const info465 = await transporter465.sendMail(mailOptions);
-      console.log(`✉️ Password reset OTP email sent via fallback SMTP to ${maskEmail(toEmail)} (Id: ${info465.messageId})`);
-      return true;
-    } catch (err465: any) {
-      console.warn(`⚠️ SMTP fallback port 465 send failed.`);
-    }
-  }
-
-  // ── Tier 4: Fallback Log Notice ──────────────────────────────────────────────
-  // When hosting environments (like Vercel serverless / restrictive ISP firewalls)
-  // block all outbound SMTP TCP sockets, we log a secure notice without disclosing confidential OTPs.
-  console.log(`🔒 [Xpense Security] Password reset request processed for ${maskEmail(toEmail)} (Outbound SMTP unavailable)`);
-
-  return true;
 }

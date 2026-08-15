@@ -416,10 +416,9 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
     return res.json({
       success: true,
       message: 'A 6-digit verification code has been sent to your email.',
-      devOtp: otpCode,
     });
   } catch (err: any) {
-    console.error('[forgot-password error]', err);
+    console.error('[forgot-password error]', err.message || err);
     return res.status(500).json({
       success: false,
       message: err.message || 'Failed to send password reset email.',

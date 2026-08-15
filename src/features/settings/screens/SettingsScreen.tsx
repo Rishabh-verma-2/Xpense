@@ -8,11 +8,12 @@ import {
   Alert,
   Modal,
   ActivityIndicator,
+  Share,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { SettingsStackParamList } from '../../../core/navigation/SettingsStackNavigator';
+import type { SettingsStackParamList } from '../../../core/navigation/types';
 import { useSettings } from '../../../context/SettingsContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
@@ -75,6 +76,18 @@ export default function SettingsScreen({ navigation }: Props) {
       showError('Error', err.message || 'Failed to erase all data.');
     } finally {
       setErasing(false);
+    }
+  };
+
+  const handleShareApp = async () => {
+    try {
+      await Share.share({
+        message:
+          'Take control of your personal finances with Xpense! Track spending, set category budgets, and analyze trends securely with zero latency: https://xpense.app',
+        title: 'Track your spending with Xpense',
+      });
+    } catch {
+      // Ignore dismissed share sheets
     }
   };
 
@@ -169,6 +182,31 @@ export default function SettingsScreen({ navigation }: Props) {
             'Export Report (PDF / CSV)',
             undefined,
             () => setShowExportModal(true)
+          )}
+        </View>
+
+        {/* Support & Feedback Section */}
+        <Text style={styles.sectionHeader}>Support & Feedback</Text>
+        <View style={styles.card}>
+          {renderSettingRow(
+            'chatbox-ellipses-outline',
+            'Send Feedback & Ideas',
+            undefined,
+            () => navigation.navigate('Feedback')
+          )}
+          <View style={styles.divider} />
+          {renderSettingRow(
+            'help-circle-outline',
+            'Help & FAQs',
+            undefined,
+            () => navigation.navigate('HelpFaq')
+          )}
+          <View style={styles.divider} />
+          {renderSettingRow(
+            'share-social-outline',
+            'Share Xpense with Friends',
+            undefined,
+            handleShareApp
           )}
         </View>
 

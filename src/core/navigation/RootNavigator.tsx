@@ -66,6 +66,8 @@ const linking = {
               NotificationSettings: 'settings/notifications',
               About: 'settings/about',
               Export: 'settings/export',
+              Feedback: 'settings/feedback',
+              HelpFaq: 'settings/help',
             },
           },
         },

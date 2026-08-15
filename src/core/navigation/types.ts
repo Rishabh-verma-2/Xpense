@@ -37,4 +37,6 @@ export type SettingsStackParamList = {
   NotificationSettings: undefined;
   About: undefined;
   Export: undefined;
+  Feedback: undefined;
+  HelpFaq: undefined;
 };

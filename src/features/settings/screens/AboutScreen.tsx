@@ -14,7 +14,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { SettingsStackParamList } from '../../../core/navigation/SettingsStackNavigator';
+import type { SettingsStackParamList } from '../../../core/navigation/types';
 import { colors, typography, spacing, radius } from '../../../core/theme';
 import { ScreenHeader } from '../../../shared/components/ScreenHeader';
 
@@ -308,6 +308,30 @@ export default function AboutScreen({ navigation }: Props) {
             </View>
           </View>
 
+          {/* Help & Feedback Card */}
+          <View style={styles.aboutActionsCard}>
+            <Text style={styles.sectionHeader}>SUPPORT & COMMUNITY</Text>
+            <View style={styles.aboutBtnRow}>
+              <TouchableOpacity
+                style={styles.aboutActionBtn}
+                onPress={() => navigation.navigate('Feedback')}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chatbubbles-outline" size={18} color={colors.primaryLight} />
+                <Text style={styles.aboutActionBtnText}>Send Feedback</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.aboutActionBtn}
+                onPress={() => navigation.navigate('HelpFaq')}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="help-circle-outline" size={18} color={colors.primaryLight} />
+                <Text style={styles.aboutActionBtnText}>Help & FAQs</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
           {/* Footer */}
           <View style={styles.footerContainer}>
             <View style={styles.footerHeartRow}>
@@ -552,6 +576,38 @@ const styles = StyleSheet.create({
   techPillText: {
     ...typography.caption,
     color: colors.textSecondary,
+    fontSize: 12,
+  },
+  aboutActionsCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    gap: spacing.sm,
+  },
+  aboutBtnRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  aboutActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primaryMuted,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(124, 58, 237, 0.3)',
+    gap: 6,
+  },
+  aboutActionBtnText: {
+    ...typography.caption,
+    fontWeight: '700',
+    color: colors.primaryLight,
     fontSize: 12,
   },
   footerContainer: {

@@ -19,6 +19,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { promptGoogleNativeAuth } from '../../../services/googleAuth';
 import { ForgotPasswordModal } from '../../../shared/components/ForgotPasswordModal';
 import { colors, typography, spacing, radius } from '../../../core/theme';
+import { getSafeTopInset } from '../../../shared/utils/layoutUtils';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
@@ -26,6 +27,7 @@ type Props = {
 
 export default function LoginScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const topInset = getSafeTopInset(insets);
   const { login } = useAuth();
 
   const [identifier, setIdentifier] = useState('');
@@ -55,7 +57,7 @@ export default function LoginScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: insets.bottom }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}

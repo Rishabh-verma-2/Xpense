@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../../context/AuthContext';
 import { colors, radius, spacing, typography } from '../../../core/theme';
+import { getSafeTopInset } from '../../../shared/utils/layoutUtils';
 
 interface LandingScreenProps {
   onLaunchApp?: () => void;
@@ -70,10 +71,11 @@ const STATS = [
 
 export function LandingScreen({ onLaunchApp }: LandingScreenProps) {
   const insets = useSafeAreaInsets();
+  const topInset = getSafeTopInset(insets);
   const { token } = useAuth();
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: insets.bottom }]}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
         {/* ── Navbar ─────────────────────────────────────────────────── */}

@@ -19,6 +19,7 @@ import { useToast } from '../../../context/ToastContext';
 import { ConfirmModal } from '../../../shared/components/ConfirmModal';
 import { ChangePasswordModal } from '../../../shared/components/ChangePasswordModal';
 import { colors, typography, spacing, radius } from '../../../core/theme';
+import { getSafeTopInset } from '../../../shared/utils/layoutUtils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ExportModal } from '../../../shared/components/ExportModal';
 
@@ -30,6 +31,7 @@ type Props = {
 
 export default function SettingsScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const topInset = getSafeTopInset(insets);
   const { settings, updateSettings } = useSettings();
   const { user, logout } = useAuth();
   const { deleteAllTransactions } = useTransactions();
@@ -43,34 +45,29 @@ export default function SettingsScreen({ navigation }: Props) {
   const [erasing, setErasing] = useState(false);
 
   const handleLogout = async () => {
-    setLoggingOut(true);
     try {
+      setLoggingOut(true);
       await logout();
-      showInfo('Logged Out 👋', 'You have been signed out.');
-      navigation.getParent()?.reset({
+      setShowLogoutModal(false);
+      navigation.reset({
         index: 0,
-        routes: [{ name: 'Splash' as any }],
+        routes: [{ name: 'Auth' as any }],
       });
-    } catch (err) {
-      console.error('Logout error:', err);
+    } catch {
+      showError('Error', 'Failed to log out.');
     } finally {
       setLoggingOut(false);
     }
   };
 
   const confirmResetData = async () => {
-    setErasing(true);
     try {
-      // 1) Wipe all transactions (local + MongoDB Atlas backend)
+      setErasing(true);
       await deleteAllTransactions();
-      // 2) Clear AsyncStorage
       await AsyncStorage.clear();
-      // 3) Reset onboarding
-      await updateSettings({ onboardingCompleted: false });
-      // 4) Dismiss modal & show Toast
+      showInfo('Data Reset', 'All transactions and user data have been reset.');
       setShowResetModal(false);
-      showInfo('Data Erased 🗑️', 'All history, budgets, and data were reset.');
-      navigation.getParent()?.reset({
+      navigation.reset({
         index: 0,
         routes: [{ name: 'Splash' as any }],
       });
@@ -86,7 +83,8 @@ export default function SettingsScreen({ navigation }: Props) {
     title: string,
     value?: string,
     onPress?: () => void,
-    danger = false
+    danger = false,
+    badge?: string
   ) => (
     <TouchableOpacity
       style={styles.row}
@@ -102,6 +100,11 @@ export default function SettingsScreen({ navigation }: Props) {
         />
       </View>
       <Text style={[styles.rowTitle, danger && styles.dangerTitle]}>{title}</Text>
+      {badge ? (
+        <View style={styles.badgeContainer}>
+          <Text style={styles.badgeText}>{badge}</Text>
+        </View>
+      ) : null}
       {value ? <Text style={styles.rowValue}>{value}</Text> : null}
       {onPress ? (
         <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
@@ -110,7 +113,7 @@ export default function SettingsScreen({ navigation }: Props) {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: topInset }]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
@@ -152,7 +155,9 @@ export default function SettingsScreen({ navigation }: Props) {
             'notifications-outline',
             'Notifications',
             undefined,
-            () => navigation.navigate('NotificationSettings')
+            () => navigation.navigate('NotificationSettings'),
+            false,
+            'Coming Soon'
           )}
         </View>
 
@@ -367,6 +372,22 @@ const styles = StyleSheet.create({
   rowValue: {
     ...typography.caption,
     color: colors.textMuted,
+  },
+  badgeContainer: {
+    backgroundColor: 'rgba(124, 58, 237, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(168, 85, 247, 0.35)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    marginRight: 4,
+  },
+  badgeText: {
+    ...typography.caption,
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.primaryLight,
+    letterSpacing: 0.3,
   },
   divider: {
     height: 1,

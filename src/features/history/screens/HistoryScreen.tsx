@@ -14,6 +14,7 @@ import type { HistoryStackParamList } from '../../../core/navigation/types';
 import { useTransactions } from '../../../context/TransactionContext';
 import { useSettings } from '../../../context/SettingsContext';
 import { colors, typography, spacing, radius } from '../../../core/theme';
+import { getSafeTopInset } from '../../../shared/utils/layoutUtils';
 import { formatCurrency } from '../../../shared/utils/currencyUtils';
 import { formatTransactionDate, groupByDate } from '../../../shared/utils/dateUtils';
 import { EmptyState } from '../../../shared/components/EmptyState';
@@ -26,6 +27,7 @@ type Props = {
 
 export default function HistoryScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const topInset = getSafeTopInset(insets);
   const { transactions } = useTransactions();
   const { getById } = useCategories();
   const { settings } = useSettings();
@@ -90,7 +92,7 @@ export default function HistoryScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: topInset }]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>History</Text>
       </View>

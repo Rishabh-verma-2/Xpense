@@ -16,8 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../../../core/navigation/types';
 import { useAuth } from '../../../context/AuthContext';
-import { promptGoogleNativeAuth } from '../../../services/googleAuth';
 import { colors, typography, spacing, radius } from '../../../core/theme';
+import { getSafeTopInset } from '../../../shared/utils/layoutUtils';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Signup'>;
@@ -25,6 +25,7 @@ type Props = {
 
 export default function SignupScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const topInset = getSafeTopInset(insets);
   const { register } = useAuth();
 
   const [name, setName] = useState('');
@@ -79,7 +80,7 @@ export default function SignupScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: insets.bottom }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}

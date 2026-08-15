@@ -16,6 +16,7 @@ import { useSettings } from '../../../context/SettingsContext';
 import { useToast } from '../../../context/ToastContext';
 import { ConfirmModal } from '../../../shared/components/ConfirmModal';
 import { colors, typography, spacing, radius } from '../../../core/theme';
+import { getSafeTopInset } from '../../../shared/utils/layoutUtils';
 import { getMonthKey } from '../../../shared/utils/dateUtils';
 import { formatCurrency } from '../../../shared/utils/currencyUtils';
 import { MonthSelector } from '../../../shared/components/MonthSelector';
@@ -24,6 +25,7 @@ import { AppButton } from '../../../shared/components/AppButton';
 
 export default function BudgetsScreen() {
   const insets = useSafeAreaInsets();
+  const topInset = getSafeTopInset(insets);
   const [monthKey, setMonthKey] = useState(getMonthKey(new Date()));
   const { budgets, upsertBudget, deleteBudget } = useBudgets();
   const { transactions } = useTransactions();
@@ -81,7 +83,7 @@ export default function BudgetsScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: topInset }]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Monthly Budgets</Text>
       </View>

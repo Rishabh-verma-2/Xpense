@@ -23,6 +23,7 @@ import { useCategories } from '../../../context/CategoryContext';
 import { useSettings } from '../../../context/SettingsContext';
 import { useToast } from '../../../context/ToastContext';
 import { colors, typography, spacing, radius } from '../../../core/theme';
+import { getSafeTopInset } from '../../../shared/utils/layoutUtils';
 import { PAYMENT_METHODS } from '../../../shared/constants/appConstants';
 import { ALL_CURRENCIES } from '../../../shared/constants/currencies';
 import { validateAmount, validateNotes } from '../../../shared/utils/validators';
@@ -64,6 +65,7 @@ const QUICK_COLORS = [
 
 export default function AddTransactionScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
+  const topInset = getSafeTopInset(insets);
   const { addTransaction } = useTransactions();
   const { getByType, addCategory } = useCategories();
   const { settings } = useSettings();
@@ -198,7 +200,7 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
     >
       <View style={[styles.container, { paddingBottom: insets.bottom }]}>
         {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
+        <View style={[styles.header, { paddingTop: topInset + spacing.sm }]}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeBtn}>
             <Ionicons name="close" size={24} color={colors.textSecondary} />
           </TouchableOpacity>

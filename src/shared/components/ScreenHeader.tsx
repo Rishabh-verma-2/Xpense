@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, typography, spacing } from '../../core/theme';
+import { getSafeTopInset } from '../utils/layoutUtils';
 
 interface ScreenHeaderProps {
   title: string;
@@ -13,8 +14,10 @@ interface ScreenHeaderProps {
 
 export function ScreenHeader({ title, subtitle, onBack, rightAction }: ScreenHeaderProps) {
   const insets = useSafeAreaInsets();
+  const topInset = getSafeTopInset(insets);
+
   return (
-    <View style={[styles.container, { paddingTop: insets.top + spacing.md }]}>
+    <View style={[styles.container, { paddingTop: topInset + spacing.sm }]}>
       <View style={styles.row}>
         {onBack ? (
           <TouchableOpacity onPress={onBack} style={styles.iconBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>

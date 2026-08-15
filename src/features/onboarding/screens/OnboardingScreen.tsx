@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../../../core/navigation/types';
 import { useSettings } from '../../../context/SettingsContext';
 import { colors, typography, spacing, radius } from '../../../core/theme';
+import { getSafeTopInset } from '../../../shared/utils/layoutUtils';
 
 const { width, height } = Dimensions.get('window');
 
@@ -250,6 +251,7 @@ function SlideVisual({ type, color }: { type: string; color: string }) {
 // ─── Main screen ─────────────────────────────────────────────────────────────
 export default function OnboardingScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const topInset = getSafeTopInset(insets);
   const { updateSettings } = useSettings();
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
@@ -311,7 +313,7 @@ export default function OnboardingScreen({ navigation }: Props) {
   const slide = SLIDES[currentIndex];
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: topInset }]}>
       {/* Top Header Row with Skip Button */}
       <View style={styles.topHeader}>
         <View style={styles.topLogoRow}>

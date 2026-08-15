@@ -8,11 +8,12 @@ import {
   Animated,
   Modal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { colors, spacing, radius, typography } from '@/core/theme';
+import { getSafeTopInset } from '@/shared/utils/layoutUtils';
 import { useTransactions } from '@/context/TransactionContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useCategories } from '@/context/CategoryContext';
@@ -272,6 +273,9 @@ export default function DashboardScreen() {
     ]).start();
   }, [headerFade, balanceFade, balanceSlide]);
 
+  const insets = useSafeAreaInsets();
+  const topInset = getSafeTopInset(insets);
+
   const handleAddTransaction = (type?: 'expense' | 'income') => {
     navigation.navigate('AddTransaction', { type });
   };
@@ -281,7 +285,7 @@ export default function DashboardScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={[styles.safeArea, { paddingTop: topInset }]}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -534,7 +538,7 @@ export default function DashboardScreen() {
           </Animated.View>
         </Animated.View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 

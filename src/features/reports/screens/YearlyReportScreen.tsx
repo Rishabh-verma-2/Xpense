@@ -15,6 +15,7 @@ import type { ReportsStackParamList } from '../../../core/navigation/types';
 import { useTransactions } from '../../../context/TransactionContext';
 import { useSettings } from '../../../context/SettingsContext';
 import { colors, typography, spacing, radius } from '../../../core/theme';
+import { getSafeTopInset } from '../../../shared/utils/layoutUtils';
 import { getYearKey, shiftYear, getMonthLabel } from '../../../shared/utils/dateUtils';
 import { formatCurrency } from '../../../shared/utils/currencyUtils';
 import { computeYearlyTotals } from '../services/reportEngine';
@@ -27,6 +28,7 @@ type Props = {
 
 export default function YearlyReportScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
+  const topInset = getSafeTopInset(insets);
   const [year, setYear] = useState(route.params?.year ?? getYearKey(new Date()));
   const { transactions } = useTransactions();
   const { settings } = useSettings();
@@ -68,7 +70,7 @@ export default function YearlyReportScreen({ navigation, route }: Props) {
   }, [monthlyTotals]);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: topInset }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>

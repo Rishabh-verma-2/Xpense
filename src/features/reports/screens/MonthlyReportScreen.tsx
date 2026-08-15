@@ -15,6 +15,7 @@ import type { ReportsStackParamList } from '../../../core/navigation/types';
 import { useTransactions } from '../../../context/TransactionContext';
 import { useSettings } from '../../../context/SettingsContext';
 import { colors, typography, spacing, radius } from '../../../core/theme';
+import { getSafeTopInset } from '../../../shared/utils/layoutUtils';
 import { getMonthKey, shiftMonth, getMonthLabel } from '../../../shared/utils/dateUtils';
 import { formatCurrency } from '../../../shared/utils/currencyUtils';
 import { MonthSelector } from '../../../shared/components/MonthSelector';
@@ -30,6 +31,7 @@ type Props = {
 
 export default function MonthlyReportScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const topInset = getSafeTopInset(insets);
   const [monthKey, setMonthKey] = useState(getMonthKey(new Date()));
   const [showExportModal, setShowExportModal] = useState(false);
   const { transactions } = useTransactions();
@@ -103,7 +105,7 @@ export default function MonthlyReportScreen({ navigation }: Props) {
   const topCategory = stats.categoryBreakdown[0] ?? null;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: topInset }]}>
       {/* ── Top Header ── */}
       <View style={styles.header}>
         <View>

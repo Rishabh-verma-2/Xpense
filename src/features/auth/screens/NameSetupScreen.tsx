@@ -19,6 +19,7 @@ import type { RootStackParamList } from '../../../core/navigation/types';
 import { useAuth } from '../../../context/AuthContext';
 import { useSettings } from '../../../context/SettingsContext';
 import { colors, typography, spacing, radius } from '../../../core/theme';
+import { getSafeTopInset } from '../../../shared/utils/layoutUtils';
 import { AppButton } from '../../../shared/components/AppButton';
 
 type Props = {
@@ -27,6 +28,7 @@ type Props = {
 
 export default function NameSetupScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const topInset = getSafeTopInset(insets);
   const { user, updateUserProfileName } = useAuth();
   const { updateSettings } = useSettings();
 
@@ -62,7 +64,7 @@ export default function NameSetupScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: insets.bottom }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}

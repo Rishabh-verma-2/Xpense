@@ -50,10 +50,17 @@ export default function SettingsScreen({ navigation }: Props) {
       setLoggingOut(true);
       await logout();
       setShowLogoutModal(false);
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Auth' as any }],
-      });
+      showInfo('Logged Out 👋', 'You have been signed out successfully.');
+
+      const rootNav = navigation.getParent()?.getParent();
+      if (rootNav) {
+        rootNav.reset({
+          index: 0,
+          routes: [{ name: 'Login' as any }],
+        });
+      } else {
+        (navigation as any).navigate('Login');
+      }
     } catch {
       showError('Error', 'Failed to log out.');
     } finally {
@@ -68,10 +75,16 @@ export default function SettingsScreen({ navigation }: Props) {
       await AsyncStorage.clear();
       showInfo('Data Reset', 'All transactions and user data have been reset.');
       setShowResetModal(false);
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Splash' as any }],
-      });
+
+      const rootNav = navigation.getParent()?.getParent();
+      if (rootNav) {
+        rootNav.reset({
+          index: 0,
+          routes: [{ name: 'Splash' as any }],
+        });
+      } else {
+        (navigation as any).navigate('Splash');
+      }
     } catch (err: any) {
       showError('Error', err.message || 'Failed to erase all data.');
     } finally {

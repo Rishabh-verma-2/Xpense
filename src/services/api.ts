@@ -53,7 +53,7 @@ export const API_BASE_URL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10_000,
+  timeout: 60_000, // 60s to accommodate Render backend cold-start & email SMTP dispatch
   headers: { 'Content-Type': 'application/json' },
 });
 

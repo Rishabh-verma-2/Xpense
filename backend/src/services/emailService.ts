@@ -6,24 +6,25 @@ import { config } from '../config/env';
  * Uses dedicated SSL on port 465 for robust delivery on cloud hosting (Render/AWS/Vercel).
  */
 function createTransporter() {
-  if (!config.email.user || !config.email.pass) {
+  const user = config.email.user;
+  const pass = (config.email.pass || '').replace(/\s+/g, '');
+
+  if (!user || !pass) {
     console.warn('⚠️ EMAIL_USER or EMAIL_PASS is not configured in backend/.env');
   }
 
   return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // SSL
+    service: 'gmail',
     auth: {
-      user: config.email.user,
-      pass: config.email.pass,
+      user,
+      pass,
     },
     tls: {
       rejectUnauthorized: false,
     },
-    pool: true,
-    maxConnections: 3,
-    maxMessages: 50,
+    connectionTimeout: 20000,
+    greetingTimeout: 15000,
+    socketTimeout: 30000,
   });
 }
 

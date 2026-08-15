@@ -25,7 +25,7 @@ const getApiBaseUrl = (): string => {
 
   if (Platform.OS === 'web') {
     if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      return 'https://xpense-nrwj-onrender.com';
+      return 'https://xpense-nrwj.onrender.com';
     }
     return 'http://localhost:3000';
   }
@@ -46,7 +46,7 @@ const getApiBaseUrl = (): string => {
     return 'http://10.0.2.2:3000';
   }
 
-  return 'https://xpense-nrwj-onrender.com';
+  return 'https://xpense-nrwj.onrender.com';
 };
 
 export const API_BASE_URL = getApiBaseUrl();

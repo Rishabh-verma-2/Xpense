@@ -1,5 +1,5 @@
-// Xpense Mobile PWA Service Worker v3
-const CACHE_NAME = 'xpense-pwa-v3';
+// Xpense Mobile PWA Service Worker v4
+const CACHE_NAME = 'xpense-pwa-v4';
 
 const ASSETS_TO_CACHE = [
   '/',

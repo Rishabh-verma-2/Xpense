@@ -5,12 +5,12 @@
     "scheme": "xpense",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/splash_icon.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/splash_icon.png",
+      "image": "./assets/icon-512.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0A0A0F"
+      "backgroundColor": "#06060D"
     },
     "ios": {
       "supportsTablet": true,
@@ -18,13 +18,13 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/splash_icon.png",
-        "backgroundColor": "#0A0A0F"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#06060D"
       },
       "package": "com.xpense.app"
     },
     "web": {
-      "favicon": "./assets/splash_icon.png",
+      "favicon": "./assets/favicon.png",
       "name": "Xpense — Financial Tracker",
       "shortName": "Xpense",
       "themeColor": "#7C3AED",

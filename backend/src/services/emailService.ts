@@ -9,6 +9,16 @@ if (typeof (dns as any).setDefaultResultOrder === 'function') {
 }
 
 /**
+ * Masks an email for secure, confidential console logging (e.g., jo***@gmail.com)
+ */
+function maskEmail(email: string): string {
+  if (!email || !email.includes('@')) return '***';
+  const [user, domain] = email.split('@');
+  const visible = user.length > 2 ? `${user.slice(0, 2)}***` : `${user.slice(0, 1)}***`;
+  return `${visible}@${domain}`;
+}
+
+/**
  * Creates a Nodemailer Transporter with explicit IPv4 socket configuration and tight timeouts.
  */
 function createTransporter(host: string, port: number, secure: boolean) {
@@ -65,7 +75,7 @@ async function sendViaResendHttp(
   }
 
   const data: any = await res.json();
-  console.log(`✉️ Email successfully delivered via Resend HTTP API (Id: ${data.id}) to ${toEmail}`);
+  console.log(`✉️ Email successfully delivered via Resend HTTP API to ${maskEmail(toEmail)}`);
   return true;
 }
 
@@ -100,7 +110,7 @@ async function sendViaBrevoHttp(
   }
 
   const data: any = await res.json();
-  console.log(`✉️ Email successfully delivered via Brevo HTTP API (MessageId: ${data.messageId}) to ${toEmail}`);
+  console.log(`✉️ Email successfully delivered via Brevo HTTP API to ${maskEmail(toEmail)}`);
   return true;
 }
 
@@ -316,10 +326,10 @@ export async function sendPasswordResetEmail(
   try {
     const transporter = createTransporter(host, port, isSecure);
     const info = await transporter.sendMail(mailOptions);
-    console.log(`✉️ Password reset OTP email sent via SMTP ${host}:${port} to ${toEmail} (Id: ${info.messageId})`);
+    console.log(`✉️ Password reset OTP email sent via SMTP to ${maskEmail(toEmail)} (Id: ${info.messageId})`);
     return true;
   } catch (errPrimary: any) {
-    console.warn(`⚠️ SMTP ${host}:${port} send failed (${errPrimary.message || errPrimary}). Trying fallback port 465 SSL...`);
+    console.warn(`⚠️ SMTP ${host}:${port} send failed. Trying fallback port 465 SSL...`);
   }
 
   // Try Fallback Port (465 SSL)
@@ -327,28 +337,17 @@ export async function sendPasswordResetEmail(
     try {
       const transporter465 = createTransporter(host, 465, true);
       const info465 = await transporter465.sendMail(mailOptions);
-      console.log(`✉️ Password reset OTP email sent via SMTP ${host}:465 to ${toEmail} (Id: ${info465.messageId})`);
+      console.log(`✉️ Password reset OTP email sent via fallback SMTP to ${maskEmail(toEmail)} (Id: ${info465.messageId})`);
       return true;
     } catch (err465: any) {
-      console.warn(`⚠️ SMTP ${host}:465 send failed (${err465.message || err465}).`);
+      console.warn(`⚠️ SMTP fallback port 465 send failed.`);
     }
   }
 
-  // ── Tier 4: Fallback Log Banner ──────────────────────────────────────────────
+  // ── Tier 4: Fallback Log Notice ──────────────────────────────────────────────
   // When hosting environments (like Vercel serverless / restrictive ISP firewalls)
-  // block all outbound SMTP TCP sockets, we log the OTP directly to console so the user
-  // and developer are never blocked from completing password resets.
-  console.log(`
-╔══════════════════════════════════════════════════════════════════════╗
-║  🔑 [XPENSE SECURITY] PASSWORD RESET OTP GENERATED                  ║
-╠══════════════════════════════════════════════════════════════════════╣
-║  📧 Recipient:  ${toEmail.padEnd(52, ' ')}║
-║  🔢 OTP Code:   ${otpCode.padEnd(52, ' ')}║
-║  ⏳ Validity:   15 Minutes                                           ║
-║  ⚠️ Notice:     Outbound SMTP timed out (host firewall / ETIMEDOUT). ║
-║  💡 Tip:        Set RESEND_API_KEY in .env for instant HTTPS email.  ║
-╚══════════════════════════════════════════════════════════════════════╝
-  `);
+  // block all outbound SMTP TCP sockets, we log a secure notice without disclosing confidential OTPs.
+  console.log(`🔒 [Xpense Security] Password reset request processed for ${maskEmail(toEmail)} (Outbound SMTP unavailable)`);
 
   return true;
 }

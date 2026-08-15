@@ -13,10 +13,17 @@ const router = Router();
 initFirebaseAdmin();
 
 // ─── Helper: sign JWT ─────────────────────────────────────────────────────────
-function signToken(userId: string) {
+function maskEmail(email?: string): string {
+  if (!email || !email.includes('@')) return '***';
+  const [user, domain] = email.split('@');
+  const visible = user.length > 2 ? `${user.slice(0, 2)}***` : `${user.slice(0, 1)}***`;
+  return `${visible}@${domain}`;
+}
+
+function signToken(userId: string): string {
   return jwt.sign({ userId }, config.jwt.secret, {
-    expiresIn: config.jwt.expiresIn as any,
-  });
+    expiresIn: config.jwt.expiresIn,
+  } as jwt.SignOptions);
 }
 
 // ─── POST /api/auth/register ──────────────────────────────────────────────────
@@ -259,9 +266,9 @@ router.post('/google', async (req: Request, res: Response) => {
         currency: 'INR',
         authProvider: 'google',
       });
-      console.log(`✨ New Google user registered in MongoDB: ${user.email}`);
+      console.log(`✨ New Google user registered in MongoDB: ${maskEmail(user.email)}`);
     } else {
-      console.log(`🔑 Existing Google user signed in: ${user.email}`);
+      console.log(`🔑 Existing Google user signed in: ${maskEmail(user.email)}`);
     }
 
     const token = signToken(user._id.toString());
@@ -368,7 +375,7 @@ router.put('/change-password', authenticate, async (req: AuthRequest, res: Respo
     user.passwordHash = await bcrypt.hash(newPassword, 12);
     await user.save();
 
-    console.log(`🔐 Password updated successfully for user: ${user.email}`);
+    console.log(`🔐 Password updated successfully for user: ${maskEmail(user.email)}`);
     return res.json({ success: true, message: 'Password updated successfully.' });
   } catch (err: any) {
     console.error('[change-password]', err);
@@ -474,7 +481,7 @@ router.post('/reset-password-otp', async (req: Request, res: Response) => {
     user.resetPasswordOtpExpires = undefined;
     await user.save();
 
-    console.log(`✅ Password reset via email OTP successful for: ${user.email}`);
+    console.log(`✅ Password reset via email OTP successful for: ${maskEmail(user.email)}`);
     return res.json({
       success: true,
       message: 'Password reset successful! You can now log in with your new password.',

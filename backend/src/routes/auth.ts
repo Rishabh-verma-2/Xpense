@@ -403,12 +403,13 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
     user.resetPasswordOtpExpires = expiresAt;
     await user.save();
 
-    // Send HTML email via Nodemailer
+    // Send HTML email via Nodemailer / HTTP API
     await sendPasswordResetEmail(user.email, user.name, otpCode);
 
     return res.json({
       success: true,
       message: 'A 6-digit verification code has been sent to your email.',
+      devOtp: otpCode,
     });
   } catch (err: any) {
     console.error('[forgot-password error]', err);

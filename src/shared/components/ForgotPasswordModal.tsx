@@ -34,6 +34,7 @@ export function ForgotPasswordModal({ visible, onClose, initialEmail = '' }: For
 
   const [email, setEmail] = useState(initialEmail);
   const [otp, setOtp] = useState('');
+  const [devOtp, setDevOtp] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -46,6 +47,7 @@ export function ForgotPasswordModal({ visible, onClose, initialEmail = '' }: For
       setStep(1);
       setEmail(initialEmail);
       setOtp('');
+      setDevOtp(null);
       setNewPassword('');
       setErrors({});
       Animated.parallel([
@@ -97,6 +99,9 @@ export function ForgotPasswordModal({ visible, onClose, initialEmail = '' }: For
 
     try {
       const res = await authApi.forgotPassword({ email: rawEmail });
+      if ((res as any).devOtp || (res as any).otp) {
+        setDevOtp((res as any).devOtp || (res as any).otp);
+      }
       showSuccess('OTP Sent! ✉️', res.message || 'Check your email for the 6-digit verification code.');
       setStep(2);
     } catch (err: any) {
@@ -213,6 +218,22 @@ export function ForgotPasswordModal({ visible, onClose, initialEmail = '' }: For
             ) : (
               /* Step 2: OTP & New Password Form */
               <View>
+                {devOtp ? (
+                  <TouchableOpacity
+                    style={styles.devOtpBanner}
+                    onPress={() => setOtp(devOtp)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.devOtpRow}>
+                      <Ionicons name="sparkles" size={14} color="#F59E0B" />
+                      <Text style={styles.devOtpText}>
+                        Code: <Text style={styles.devOtpCode}>{devOtp}</Text>
+                      </Text>
+                    </View>
+                    <Text style={styles.devOtpPaste}>Tap to Auto-fill</Text>
+                  </TouchableOpacity>
+                ) : null}
+
                 <View style={styles.field}>
                   <Text style={styles.fieldLabel}>6-Digit Verification Code (OTP)</Text>
                   <View style={[styles.inputRow, errors.otp && styles.fieldError]}>
@@ -352,6 +373,40 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  devOtpBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+    marginBottom: spacing.md,
+  },
+  devOtpRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  devOtpText: {
+    ...typography.caption,
+    color: '#FDE68A',
+    fontSize: 12,
+  },
+  devOtpCode: {
+    fontWeight: '800',
+    color: '#F59E0B',
+    letterSpacing: 1,
+  },
+  devOtpPaste: {
+    ...typography.caption,
+    color: colors.primaryLight,
+    fontWeight: '700',
+    fontSize: 11,
   },
 
   field: {

@@ -1,8 +1,14 @@
+import dns from 'dns';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { config } from './config/env';
+
+// Force Node.js DNS resolver to prioritize IPv4 (fixes ENETUNREACH on networks/cloud hosts without IPv6)
+if (typeof (dns as any).setDefaultResultOrder === 'function') {
+  (dns as any).setDefaultResultOrder('ipv4first');
+}
 import { connectDB } from './config/database';
 import { errorHandler, notFound } from './middleware/errorHandler';
 

@@ -190,20 +190,9 @@ export default function SettingsScreen({ navigation }: Props) {
         <Text style={styles.sectionHeader}>App Info</Text>
         <View style={styles.card}>
           {renderSettingRow(
-            'sparkles-outline',
-            'View Onboarding Guide',
-            undefined,
-            async () => {
-              await updateSettings({ onboardingCompleted: false });
-              showInfo('Onboarding Reset', 'Opening onboarding feature guide...');
-              navigation.navigate('About');
-            }
-          )}
-          <View style={styles.divider} />
-          {renderSettingRow(
             'information-circle-outline',
             'About Xpense',
-            'v1.0.0',
+            'v1.0.0 (PWA)',
             () => navigation.navigate('About')
           )}
           <View style={styles.divider} />

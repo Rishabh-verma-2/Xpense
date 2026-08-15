@@ -27,44 +27,69 @@ const FEATURES = [
     icon: 'shield-checkmark-outline',
     color: '#10B981',
     bg: 'rgba(16, 185, 129, 0.12)',
-    title: '100% Privacy & Security',
-    desc: 'Your data belongs strictly to you. All transactions remain local on your device with secure server sync options.',
+    title: '100% Privacy & Local-First Security',
+    desc: 'Your data belongs strictly to you. All transactions are securely stored locally with optional encrypted MongoDB Atlas cloud synchronization.',
   },
   {
     icon: 'flash-outline',
     color: '#F59E0B',
     bg: 'rgba(245, 158, 11, 0.12)',
-    title: 'Instant 1-Tap Entry',
-    desc: 'Log expenses and income in seconds with glowing amount displays, numpad grids, and quick preset pills.',
+    title: 'Lightning 1-Tap Expense Logging',
+    desc: 'Add transactions in under 3 seconds with customizable categories, payment method pills, smart numpad, and instant calculations.',
   },
   {
     icon: 'pie-chart-outline',
     color: '#8B5CF6',
     bg: 'rgba(139, 92, 246, 0.12)',
-    title: 'Visual Financial Analytics',
-    desc: 'Interactive monthly & yearly charts, category breakdowns, net balance trends, and budget overspend alerts.',
+    title: 'Visual Financial Intelligence',
+    desc: 'Interactive monthly & annual cashflow charts, category distribution bars, MoM spending comparisons, and budget limit alerts.',
   },
   {
     icon: 'document-text-outline',
     color: '#06B6D4',
     bg: 'rgba(6, 182, 212, 0.12)',
-    title: 'Professional Exporting',
-    desc: 'Export beautifully formatted PDF statements with breakdown tables or raw CSV data for Excel analysis.',
+    title: 'Executive PDF Statements & CSV',
+    desc: 'Generate and automatically download formatted financial statements with KPI cards, category breakdown charts, or raw Excel-ready CSV files.',
+  },
+  {
+    icon: 'phone-portrait-outline',
+    color: '#EC4899',
+    bg: 'rgba(236, 72, 153, 0.12)',
+    title: 'Universal PWA Experience',
+    desc: 'Installable directly from Chrome or Safari to your mobile home screen with full-screen native feel, offline caching, and zero app store delays.',
   },
   {
     icon: 'globe-outline',
-    color: '#EC4899',
-    bg: 'rgba(236, 72, 153, 0.12)',
-    title: 'Multi-Currency & Customization',
-    desc: 'Supports 30+ world currencies (defaulting to INR ₹), custom category creation, and tailored budget limits.',
+    color: '#3B82F6',
+    bg: 'rgba(59, 130, 246, 0.12)',
+    title: 'Global Multi-Currency Support',
+    desc: 'Supports 30+ international currencies (defaulting to INR ₹), custom user categories, and granular budget allocation.',
   },
 ];
 
 const STATS = [
+  { label: 'Privacy', value: '100%' },
   { label: 'Currencies', value: '30+' },
   { label: 'Categories', value: '23' },
-  { label: 'Privacy', value: '100%' },
-  { label: 'Ads', value: '0' },
+  { label: 'Ads & Bloat', value: '0' },
+];
+
+const HIGHLIGHTS = [
+  {
+    icon: 'cloud-offline-outline',
+    title: 'Offline Sync Engine',
+    desc: 'Log expenses anywhere without network. Changes automatically queue and sync once online.',
+  },
+  {
+    icon: 'lock-closed-outline',
+    title: 'JWT & SSL Email Reset',
+    desc: 'Protected with cryptographic JWT tokens and 6-digit OTP verification via Gmail SMTP.',
+  },
+  {
+    icon: 'speedometer-outline',
+    title: 'Zero Latency Performance',
+    desc: 'Built with React Native Web and Expo 54 for silky 60fps animations and instant interaction.',
+  },
 ];
 
 export default function AboutScreen({ navigation }: Props) {
@@ -166,12 +191,12 @@ export default function AboutScreen({ navigation }: Props) {
             ]}
           >
             <LinearGradient
-              colors={['#A855F7', '#7C3AED', '#5B21B6']}
+              colors={['#A855F7', '#7C3AED', '#4C1D95']}
               style={styles.logoGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <Ionicons name="wallet" size={44} color="#FFFFFF" />
+              <Ionicons name="wallet-outline" size={42} color="#FFFFFF" />
             </LinearGradient>
           </Animated.View>
 
@@ -189,11 +214,11 @@ export default function AboutScreen({ navigation }: Props) {
 
             <View style={styles.versionBadge}>
               <Ionicons name="sparkles" size={13} color="#C084FC" style={{ marginRight: 4 }} />
-              <Text style={styles.versionText}>v1.0.0 (PWA Enabled 📱)</Text>
+              <Text style={styles.versionText}>v1.0.0 — Executive Edition (PWA)</Text>
             </View>
 
             <Text style={styles.tagline}>
-              Empowering you to master your financial destiny with clarity, privacy, and effortless tracking across web & mobile.
+              Empowering you to master your personal finance with clarity, privacy, and effortless tracking across web and mobile devices.
             </Text>
           </Animated.View>
         </View>
@@ -206,49 +231,6 @@ export default function AboutScreen({ navigation }: Props) {
             gap: spacing.lg,
           }}
         >
-          {/* PWA App Install Card */}
-          <View style={styles.pwaInstallCard}>
-            <LinearGradient
-              colors={['#2D1B69', '#1A0A4A', '#0F0728']}
-              style={styles.pwaInstallGrad}
-            >
-              <View style={styles.pwaHeaderRow}>
-                <View style={styles.pwaIconBg}>
-                  <Ionicons name="phone-portrait-outline" size={22} color="#C084FC" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.pwaTitle}>Add to Home Screen</Text>
-                  <Text style={styles.pwaSubtitle}>Install Xpense as a Progressive Web App (PWA)</Text>
-                </View>
-              </View>
-
-              <Text style={styles.pwaDesc}>
-                Experience Xpense in full-screen with offline support and zero app store downloads.
-              </Text>
-
-              <TouchableOpacity
-                style={styles.pwaInstallBtn}
-                onPress={() => {
-                  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-                    window.dispatchEvent(new Event('beforeinstallprompt'));
-                  }
-                  alert('📲 To install Xpense on your home screen:\n\n1. Tap the Share icon in your browser\n2. Select "Add to Home Screen"');
-                }}
-                activeOpacity={0.88}
-              >
-                <LinearGradient
-                  colors={['#A855F7', '#7C3AED']}
-                  style={styles.pwaBtnGrad}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                >
-                  <Ionicons name="add-circle-outline" size={18} color="#FFF" />
-                  <Text style={styles.pwaBtnText}>Install / Add to Home Screen</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </LinearGradient>
-          </View>
-
           {/* Stats Bar */}
           <View style={styles.statsRow}>
             {STATS.map((s) => (
@@ -262,19 +244,19 @@ export default function AboutScreen({ navigation }: Props) {
           {/* Mission Card */}
           <View style={styles.missionCard}>
             <LinearGradient
-              colors={['rgba(124, 58, 237, 0.15)', 'rgba(124, 58, 237, 0.03)']}
+              colors={['rgba(124, 58, 237, 0.18)', 'rgba(124, 58, 237, 0.04)']}
               style={styles.missionGrad}
             >
-              <Text style={styles.sectionHeader}>OUR MISSION</Text>
-              <Text style={styles.missionTitle}>Smart Money Management Made Effortless</Text>
+              <Text style={styles.sectionHeader}>OUR PHILOSOPHY</Text>
+              <Text style={styles.missionTitle}>Smart Financial Control Without Compromise</Text>
               <Text style={styles.missionText}>
-                Xpense was crafted to give you total control over your personal finance. We believe financial tracking should be smooth, visually delighting, and 100% private without invasive tracking or clutter.
+                Xpense was engineered from the ground up to eliminate the friction of personal budgeting. No invasive advertisements, no selling of user financial data, and no slow loading times — just a beautiful, fast, and secure money companion.
               </Text>
             </LinearGradient>
           </View>
 
           {/* Core Feature Cards */}
-          <Text style={styles.sectionHeader}>WHY CHOOSE XPENSE</Text>
+          <Text style={styles.sectionHeader}>KEY CAPABILITIES</Text>
           <View style={styles.featuresList}>
             {FEATURES.map((feat) => (
               <View key={feat.title} style={styles.featureCard}>
@@ -289,19 +271,35 @@ export default function AboutScreen({ navigation }: Props) {
             ))}
           </View>
 
+          {/* Technical Architecture Highlights */}
+          <Text style={styles.sectionHeader}>ENGINEERING & SECURITY</Text>
+          <View style={styles.highlightsList}>
+            {HIGHLIGHTS.map((h) => (
+              <View key={h.title} style={styles.highlightCard}>
+                <View style={styles.highlightHeader}>
+                  <View style={styles.highlightIcon}>
+                    <Ionicons name={h.icon as any} size={18} color="#C084FC" />
+                  </View>
+                  <Text style={styles.highlightTitle}>{h.title}</Text>
+                </View>
+                <Text style={styles.highlightDesc}>{h.desc}</Text>
+              </View>
+            ))}
+          </View>
+
           {/* Tech Stack Info Card */}
           <View style={styles.techCard}>
-            <Text style={styles.sectionHeader}>BUILT WITH CUTTING-EDGE TECH</Text>
+            <Text style={styles.sectionHeader}>BUILT WITH MODERN WEB & MOBILE TECH</Text>
             <View style={styles.techPillsRow}>
               {[
                 'React Native Web',
-                'PWA Web Manifest',
-                'Nodemailer SMTP',
+                'PWA Service Worker v4',
+                'jsPDF Direct Exporter',
+                'Nodemailer SSL Transport',
                 'Expo SDK 54',
                 'MongoDB Atlas',
                 'TypeScript',
-                'Node.js',
-                'Express',
+                'Node.js & Express',
               ].map((t) => (
                 <View key={t} style={styles.techPill}>
                   <Text style={styles.techPillText}>{t}</Text>
@@ -312,9 +310,11 @@ export default function AboutScreen({ navigation }: Props) {
 
           {/* Footer */}
           <View style={styles.footerContainer}>
-            <Ionicons name="heart" size={18} color="#EC4899" />
-            <Text style={styles.footerText}>Designed & Crafted for Financial Freedom</Text>
-            <Text style={styles.copyrightText}>© 2026 Xpense Finance Inc. All rights reserved.</Text>
+            <View style={styles.footerHeartRow}>
+              <Ionicons name="heart" size={16} color="#EC4899" />
+              <Text style={styles.footerText}>Crafted for Financial Freedom & Simplicity</Text>
+            </View>
+            <Text style={styles.copyrightText}>© 2026 Xpense Finance. All rights reserved.</Text>
           </View>
         </Animated.View>
       </ScrollView>
@@ -332,72 +332,6 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
     gap: spacing.lg,
   },
-  pwaInstallCard: {
-    borderRadius: radius.xl,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(168, 85, 247, 0.35)',
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  pwaInstallGrad: {
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  pwaHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  pwaIconBg: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.md,
-    backgroundColor: 'rgba(168, 85, 247, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(168, 85, 247, 0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pwaTitle: {
-    ...typography.subheading,
-    color: '#FFFFFF',
-    fontSize: 16,
-  },
-  pwaSubtitle: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontSize: 11,
-    marginTop: 1,
-  },
-  pwaDesc: {
-    ...typography.body,
-    color: colors.textSecondary,
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  pwaInstallBtn: {
-    borderRadius: radius.full,
-    overflow: 'hidden',
-    marginTop: spacing.xs,
-  },
-  pwaBtnGrad: {
-    flexDirection: 'row',
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs + 2,
-    borderRadius: radius.full,
-  },
-  pwaBtnText: {
-    ...typography.bodyMedium,
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 13,
-  },
   heroSection: {
     alignItems: 'center',
     paddingVertical: spacing.md,
@@ -406,30 +340,30 @@ const styles = StyleSheet.create({
   glowRing: {
     position: 'absolute',
     top: 0,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: 'rgba(124, 58, 237, 0.1)',
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: 'rgba(124, 58, 237, 0.12)',
   },
   logoBadge: {
-    width: 90,
-    height: 90,
-    borderRadius: 30,
+    width: 88,
+    height: 88,
+    borderRadius: 28,
     marginBottom: spacing.md,
     shadowColor: '#7C3AED',
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.6,
+    shadowOpacity: 0.5,
     shadowRadius: 24,
     elevation: 16,
   },
   logoGradient: {
-    width: 90,
-    height: 90,
-    borderRadius: 30,
+    width: 88,
+    height: 88,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(192, 132, 252, 0.4)',
   },
   appName: {
     fontSize: 38,
@@ -442,18 +376,21 @@ const styles = StyleSheet.create({
     color: colors.primaryLight,
   },
   versionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: spacing.md,
-    paddingVertical: 3,
+    paddingVertical: 4,
     borderRadius: radius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: 'rgba(168, 85, 247, 0.12)',
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: 'rgba(168, 85, 247, 0.3)',
     marginBottom: spacing.md,
   },
   versionText: {
     ...typography.caption,
-    color: colors.textMuted,
+    color: '#D8B4FE',
     fontSize: 12,
+    fontWeight: '700',
   },
   tagline: {
     ...typography.body,
@@ -461,7 +398,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     maxWidth: 320,
     lineHeight: 22,
-    fontSize: 14,
+    fontSize: 13,
   },
   statsRow: {
     flexDirection: 'row',
@@ -470,7 +407,7 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderRadius: radius.lg,
     paddingVertical: spacing.md,
     alignItems: 'center',
@@ -487,6 +424,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 11,
     marginTop: 2,
+    fontWeight: '600',
   },
   missionCard: {
     borderRadius: radius.xl,
@@ -508,14 +446,14 @@ const styles = StyleSheet.create({
   missionTitle: {
     ...typography.subheading,
     color: colors.textPrimary,
-    fontSize: 18,
+    fontSize: 17,
     marginBottom: spacing.sm,
   },
   missionText: {
     ...typography.body,
     color: colors.textSecondary,
     lineHeight: 22,
-    fontSize: 14,
+    fontSize: 13,
   },
   featuresList: {
     gap: spacing.md,
@@ -523,7 +461,7 @@ const styles = StyleSheet.create({
   featureCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderRadius: radius.lg,
     padding: spacing.md,
     borderWidth: 1,
@@ -545,6 +483,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 15,
     marginBottom: 4,
+    fontWeight: '700',
   },
   featureDesc: {
     ...typography.body,
@@ -552,8 +491,45 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
   },
+  highlightsList: {
+    gap: spacing.sm,
+  },
+  highlightCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    gap: spacing.xs,
+  },
+  highlightHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  highlightIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: radius.sm,
+    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  highlightTitle: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  highlightDesc: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+    paddingLeft: 36,
+  },
   techCard: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.surface,
     borderRadius: radius.lg,
     padding: spacing.lg,
     borderWidth: 1,
@@ -569,7 +545,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderWidth: 1,
     borderColor: colors.cardBorder,
   },
@@ -582,6 +558,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.lg,
     gap: spacing.xs,
+  },
+  footerHeartRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   footerText: {
     ...typography.bodyMedium,

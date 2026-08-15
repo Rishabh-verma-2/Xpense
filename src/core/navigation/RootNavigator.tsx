@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { Platform, BackHandler } from 'react-native';
+import React, { useEffect } from 'react';
+import { BackHandler } from 'react-native';
 import {
   NavigationContainer,
   DarkTheme,
@@ -33,7 +33,7 @@ const appTheme = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-// ─── Deep Linking & Browser History Sync Configuration ────────────────────────
+// ─── Deep Linking & Native Browser History Integration ───────────────────────
 const linking = {
   prefixes: ['https://xpense-blush.vercel.app', 'xpense://', '/'],
   config: {
@@ -82,17 +82,15 @@ const linking = {
 
 export default function RootNavigator() {
   const navigationRef = useNavigationContainerRef();
-  const isNavigatingBackRef = useRef(false);
 
-  // ─── Hardware & PWA / Mobile Browser Back Button Handling ─────────────────
+  // ─── Hardware Back Button Handling (Native Android) ──────────────────────
   useEffect(() => {
-    // 1. Android Native Back Button
     const onAndroidBackPress = () => {
       if (navigationRef.isReady() && navigationRef.canGoBack()) {
         navigationRef.goBack();
-        return true; // Prevent default app exit
+        return true; // Go back exactly 1 step in stack
       }
-      return false; // Allow exit only on root screen
+      return false; // Exit app only when at root
     };
 
     const backHandler = BackHandler.addEventListener(
@@ -100,63 +98,14 @@ export default function RootNavigator() {
       onAndroidBackPress
     );
 
-    // 2. Web / PWA Browser Back Button & PopState Listener
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      // Seed initial history entry so browser doesn't close on first popstate
-      try {
-        window.history.replaceState({ xpensePage: 'root' }, '');
-        window.history.pushState({ xpensePage: 'app' }, '');
-      } catch (err) {
-        // Safe fallback
-      }
-
-      const handleWebPopState = () => {
-        if (navigationRef.isReady() && navigationRef.canGoBack()) {
-          isNavigatingBackRef.current = true;
-          navigationRef.goBack();
-          // Keep a forward buffer if we can still go back further
-          setTimeout(() => {
-            if (navigationRef.isReady() && navigationRef.canGoBack()) {
-              window.history.pushState({ xpenseNav: true }, '');
-            }
-            isNavigatingBackRef.current = false;
-          }, 50);
-        }
-      };
-
-      window.addEventListener('popstate', handleWebPopState);
-      return () => {
-        backHandler.remove();
-        window.removeEventListener('popstate', handleWebPopState);
-      };
-    }
-
     return () => backHandler.remove();
   }, [navigationRef]);
-
-  // Push state to browser history on web whenever user navigates deeper into stack
-  const handleStateChange = () => {
-    if (
-      Platform.OS === 'web' &&
-      typeof window !== 'undefined' &&
-      !isNavigatingBackRef.current
-    ) {
-      if (navigationRef.isReady() && navigationRef.canGoBack()) {
-        try {
-          window.history.pushState({ xpenseNav: true, time: Date.now() }, '');
-        } catch {
-          // Ignore
-        }
-      }
-    }
-  };
 
   return (
     <NavigationContainer
       ref={navigationRef}
       theme={appTheme}
       linking={linking}
-      onStateChange={handleStateChange}
     >
       <Stack.Navigator
         initialRouteName="Splash"

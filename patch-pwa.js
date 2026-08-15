@@ -2,42 +2,67 @@
 /**
  * patch-pwa.js — runs after `npx expo export -p web`
  * Injects PWA manifest, iOS meta tags, and service worker registration
- * into the Expo-generated dist/index.html
+ * into the Expo-generated dist/index.html and ensures all icon assets are copied.
  */
 
 const fs = require('fs');
 const path = require('path');
 
-const indexPath = path.join(__dirname, 'dist', 'index.html');
+const distDir = path.join(__dirname, 'dist');
+const distAssetsDir = path.join(distDir, 'assets');
+const indexPath = path.join(distDir, 'index.html');
 
-if (!fs.existsSync(indexPath)) {
-  console.error('❌  dist/index.html not found. Run `npm run build:web` first.');
+if (!fs.existsSync(distDir)) {
+  console.error('❌  dist/ not found. Run `npx expo export -p web` first.');
   process.exit(1);
 }
 
-let html = fs.readFileSync(indexPath, 'utf8');
-
-// --- 1. Inject manifest + iOS meta tags before </head> ---
-const pwaHeadTags = `
-<!-- PWA Manifest — REQUIRED for browser install prompt -->
-<link rel="manifest" href="/manifest.json" />
-
-<!-- Apple iOS PWA support -->
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="Xpense" />
-<link rel="apple-touch-icon" href="/assets/icon-192.png" />
-`;
-
-if (!html.includes('rel="manifest"')) {
-  html = html.replace('</head>', `${pwaHeadTags}</head>`);
-  console.log('✅  Injected PWA manifest + iOS meta tags');
-} else {
-  console.log('ℹ️   PWA manifest already present, skipping');
+if (!fs.existsSync(distAssetsDir)) {
+  fs.mkdirSync(distAssetsDir, { recursive: true });
 }
 
-// --- 2. Inject service worker registration before </body> ---
-const swScript = `
+// ─── 1. Copy Manifest, Service Worker & Icon Assets ───────────────────────────
+const copyFileSafe = (src, dest) => {
+  if (fs.existsSync(src)) {
+    fs.copyFileSync(src, dest);
+    console.log(`✅ Copied: ${path.basename(src)} → ${path.relative(__dirname, dest)}`);
+  }
+};
+
+copyFileSafe(path.join(__dirname, 'public', 'manifest.json'), path.join(distDir, 'manifest.json'));
+copyFileSafe(path.join(__dirname, 'public', 'sw.js'), path.join(distDir, 'sw.js'));
+copyFileSafe(path.join(__dirname, 'assets', 'icon-192.png'), path.join(distAssetsDir, 'icon-192.png'));
+copyFileSafe(path.join(__dirname, 'assets', 'icon-512.png'), path.join(distAssetsDir, 'icon-512.png'));
+copyFileSafe(path.join(__dirname, 'assets', 'icon.png'), path.join(distAssetsDir, 'icon.png'));
+copyFileSafe(path.join(__dirname, 'assets', 'favicon.png'), path.join(distDir, 'favicon.ico'));
+
+// ─── 2. Inject PWA Head Tags ───────────────────────────────────────────────────
+if (fs.existsSync(indexPath)) {
+  let html = fs.readFileSync(indexPath, 'utf8');
+
+  const pwaHeadTags = `
+  <!-- PWA Manifest — REQUIRED for browser install prompt -->
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/assets/icon-512.png" />
+
+  <!-- Apple iOS PWA support -->
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Xpense" />
+  <link rel="apple-touch-icon" href="/assets/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="/assets/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="512x512" href="/assets/icon-512.png" />
+`;
+
+  if (!html.includes('rel="manifest"')) {
+    html = html.replace('</head>', `${pwaHeadTags}\n</head>`);
+    console.log('✅ Injected PWA manifest + iOS meta tags');
+  }
+
+  // Inject Service Worker
+  const swScript = `
   <!-- Service Worker Registration -->
   <script>
     if ('serviceWorker' in navigator) {
@@ -50,12 +75,12 @@ const swScript = `
   </script>
 `;
 
-if (!html.includes("serviceWorker.register('/sw.js')")) {
-  html = html.replace('</body>', `${swScript}</body>`);
-  console.log('✅  Injected service worker registration script');
-} else {
-  console.log('ℹ️   Service worker registration already present, skipping');
+  if (!html.includes("serviceWorker.register('/sw.js')")) {
+    html = html.replace('</body>', `${swScript}\n</body>`);
+    console.log('✅ Injected service worker registration script');
+  }
+
+  fs.writeFileSync(indexPath, html, 'utf8');
 }
 
-fs.writeFileSync(indexPath, html, 'utf8');
-console.log('🎉  PWA patch complete! dist/index.html is ready for Vercel deployment.');
+console.log('🎉  PWA patch complete! dist is fully prepared for Vercel deployment.');

@@ -7,7 +7,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, typography, spacing, radius } from '../../core/theme';
+import { typography, spacing, radius } from '../../core/theme';
+import { useAppTheme } from '../../context/ThemeContext';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
@@ -31,6 +32,8 @@ export function AppButton({
   icon,
 }: AppButtonProps) {
   const isDisabled = disabled || loading;
+  const { theme } = useAppTheme();
+  const c = theme.colors;
 
   if (variant === 'primary') {
     return (
@@ -41,7 +44,7 @@ export function AppButton({
         activeOpacity={0.85}
       >
         <LinearGradient
-          colors={isDisabled ? ['#4B5563', '#374151'] : ['#7C3AED', '#5B21B6']}
+          colors={isDisabled ? ['#4B5563', '#374151'] : theme.accentGradient}
           style={styles.gradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
@@ -64,15 +67,21 @@ export function AppButton({
       <TouchableOpacity
         onPress={onPress}
         disabled={isDisabled}
-        style={[styles.base, styles.secondary, fullWidth && styles.fullWidth, isDisabled && styles.disabled]}
+        style={[
+          styles.base,
+          { backgroundColor: c.card, borderColor: c.cardBorder },
+          styles.secondaryBase,
+          fullWidth && styles.fullWidth,
+          isDisabled && styles.disabled,
+        ]}
         activeOpacity={0.7}
       >
         {loading ? (
-          <ActivityIndicator color={colors.primary} size="small" />
+          <ActivityIndicator color={c.primary} size="small" />
         ) : (
           <>
             {icon}
-            <Text style={styles.secondaryLabel}>{label}</Text>
+            <Text style={[styles.secondaryLabel, { color: c.textPrimary }]}>{label}</Text>
           </>
         )}
       </TouchableOpacity>
@@ -84,15 +93,21 @@ export function AppButton({
       <TouchableOpacity
         onPress={onPress}
         disabled={isDisabled}
-        style={[styles.base, styles.danger, fullWidth && styles.fullWidth, isDisabled && styles.disabled]}
+        style={[
+          styles.base,
+          { backgroundColor: c.expenseMuted, borderColor: `${c.expense}40` },
+          styles.dangerBase,
+          fullWidth && styles.fullWidth,
+          isDisabled && styles.disabled,
+        ]}
         activeOpacity={0.7}
       >
         {loading ? (
-          <ActivityIndicator color={colors.expense} size="small" />
+          <ActivityIndicator color={c.expense} size="small" />
         ) : (
           <>
             {icon}
-            <Text style={styles.dangerLabel}>{label}</Text>
+            <Text style={[styles.dangerLabel, { color: c.expense }]}>{label}</Text>
           </>
         )}
       </TouchableOpacity>
@@ -108,11 +123,11 @@ export function AppButton({
       activeOpacity={0.6}
     >
       {loading ? (
-        <ActivityIndicator color={colors.textSecondary} size="small" />
+        <ActivityIndicator color={c.textSecondary} size="small" />
       ) : (
         <>
           {icon}
-          <Text style={styles.ghostLabel}>{label}</Text>
+          <Text style={[styles.ghostLabel, { color: c.textSecondary }]}>{label}</Text>
         </>
       )}
     </TouchableOpacity>
@@ -148,35 +163,28 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
   },
-  secondary: {
-    backgroundColor: colors.card,
+  secondaryBase: {
     borderWidth: 1,
-    borderColor: colors.cardBorder,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xl,
     gap: spacing.sm,
   },
   secondaryLabel: {
     ...typography.bodyMedium,
-    color: colors.textPrimary,
     fontSize: 16,
   },
-  danger: {
-    backgroundColor: colors.expenseMuted,
+  dangerBase: {
     borderWidth: 1,
-    borderColor: `${colors.expense}40`,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xl,
     gap: spacing.sm,
   },
   dangerLabel: {
     ...typography.bodyMedium,
-    color: colors.expense,
     fontSize: 16,
   },
   ghostLabel: {
     ...typography.bodyMedium,
-    color: colors.textSecondary,
     fontSize: 16,
   },
 });

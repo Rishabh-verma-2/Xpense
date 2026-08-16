@@ -17,6 +17,7 @@ import { ConfirmModal } from '../../../shared/components/ConfirmModal';
 import { colors, typography, spacing, radius } from '../../../core/theme';
 import { ScreenHeader } from '../../../shared/components/ScreenHeader';
 import { AppButton } from '../../../shared/components/AppButton';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<SettingsStackParamList, 'CategoryManagement'>;
@@ -26,6 +27,8 @@ export default function CategoryManagementScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { categories, archiveCategory, unarchiveCategory, removeCategory } = useCategories();
   const { showInfo, showWarning, showError } = useToast();
+  const { theme } = useAppTheme();
+  const tc = theme.colors;
   const [selectedTab, setSelectedTab] = useState<'expense' | 'income'>('expense');
   const [deletingCategory, setDeletingCategory] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -55,24 +58,25 @@ export default function CategoryManagementScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-      <ScreenHeader title="Categories" onBack={() => navigation.goBack()} />
+    <View style={[styles.container, { backgroundColor: tc.background, paddingBottom: insets.bottom }]}>
+      <ScreenHeader title="Manage Categories" onBack={() => navigation.goBack()} />
 
-      {/* Tabs */}
-      <View style={styles.tabRow}>
+      <View style={[styles.tabRow, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
         <TouchableOpacity
-          style={[styles.tab, selectedTab === 'expense' && styles.tabActive]}
+          style={[styles.tab, selectedTab === 'expense' && [styles.tabActive, { backgroundColor: theme.accentColor }]]}
           onPress={() => setSelectedTab('expense')}
+          activeOpacity={0.8}
         >
-          <Text style={[styles.tabText, selectedTab === 'expense' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, { color: selectedTab === 'expense' ? '#FFFFFF' : tc.textSecondary }, selectedTab === 'expense' && styles.tabTextActive]}>
             Expense ({categories.filter((c) => c.type === 'expense').length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, selectedTab === 'income' && styles.tabActive]}
+          style={[styles.tab, selectedTab === 'income' && [styles.tabActive, { backgroundColor: theme.accentColor }]]}
           onPress={() => setSelectedTab('income')}
+          activeOpacity={0.8}
         >
-          <Text style={[styles.tabText, selectedTab === 'income' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, { color: selectedTab === 'income' ? '#FFFFFF' : tc.textSecondary }, selectedTab === 'income' && styles.tabTextActive]}>
             Income ({categories.filter((c) => c.type === 'income').length})
           </Text>
         </TouchableOpacity>
@@ -80,13 +84,13 @@ export default function CategoryManagementScreen({ navigation }: Props) {
 
       <ScrollView contentContainerStyle={styles.content}>
         {filtered.map((cat) => (
-          <View key={cat.id} style={[styles.catCard, cat.isArchived && styles.archivedCard]}>
+          <View key={cat.id} style={[styles.catCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }, cat.isArchived && styles.archivedCard]}>
             <View style={[styles.iconBg, { backgroundColor: `${cat.color}20` }]}>
               <Ionicons name={cat.icon as any} size={20} color={cat.color} />
             </View>
             <View style={styles.catInfo}>
-              <Text style={styles.catName}>{cat.name}</Text>
-              {cat.isSystem ? <Text style={styles.systemBadge}>System Default</Text> : null}
+              <Text style={[styles.catName, { color: tc.textPrimary }]}>{cat.name}</Text>
+              {cat.isSystem ? <Text style={[styles.systemBadge, { color: tc.textMuted }]}>System Default</Text> : null}
             </View>
             <View style={styles.actions}>
               <TouchableOpacity
@@ -97,17 +101,17 @@ export default function CategoryManagementScreen({ navigation }: Props) {
                 <Ionicons
                   name={cat.isArchived ? 'eye-outline' : 'eye-off-outline'}
                   size={18}
-                  color={colors.textMuted}
+                  color={tc.textMuted}
                 />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => navigation.navigate('AddEditCategory', { categoryId: cat.id })}
               >
-                <Ionicons name="create-outline" size={18} color={colors.primary} />
+                <Ionicons name="create-outline" size={18} color={theme.accentColor} />
               </TouchableOpacity>
               {!cat.isSystem ? (
                 <TouchableOpacity onPress={() => handleDeleteClick(cat.id, cat.name, cat.isSystem)}>
-                  <Ionicons name="trash-outline" size={18} color={colors.expense} />
+                  <Ionicons name="trash-outline" size={18} color={tc.expense} />
                 </TouchableOpacity>
               ) : null}
             </View>

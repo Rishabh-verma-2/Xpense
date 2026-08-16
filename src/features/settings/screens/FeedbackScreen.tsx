@@ -19,8 +19,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SettingsStackParamList } from '../../../core/navigation/types';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
-import { colors, typography, spacing, radius } from '../../../core/theme';
 import { ScreenHeader } from '../../../shared/components/ScreenHeader';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<SettingsStackParamList, 'Feedback'>;
@@ -42,20 +42,20 @@ const FEEDBACK_OPTIONS: FeedbackTypeOption[] = [
     label: 'Feature Request',
     icon: 'bulb-outline',
     placeholder: 'Describe the feature or improvement you would love to see in Xpense...',
-    badgeColor: '#7C3AED',
+    badgeColor: '#C084FC',
   },
   {
     type: 'bug',
     label: 'Bug Report',
     icon: 'bug-outline',
-    placeholder: 'What happened? Please describe the issue, what screen you were on, and steps to reproduce...',
-    badgeColor: '#EF4444',
+    placeholder: 'What happened? Describe the issue and steps to reproduce...',
+    badgeColor: '#F43F5E',
   },
   {
     type: 'praise',
     label: 'Experience & Praise',
     icon: 'star-outline',
-    placeholder: 'What do you love most about Xpense? Any suggestions to make it even better?',
+    placeholder: 'What do you love most about Xpense? Any suggestions to make it better?',
     badgeColor: '#F59E0B',
   },
   {
@@ -63,7 +63,7 @@ const FEEDBACK_OPTIONS: FeedbackTypeOption[] = [
     label: 'Help / Question',
     icon: 'help-circle-outline',
     placeholder: 'What questions do you have about using Xpense or managing your data?',
-    badgeColor: '#06B6D4',
+    badgeColor: '#38BDF8',
   },
 ];
 
@@ -79,6 +79,8 @@ export default function FeedbackScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { showSuccess, showError } = useToast();
+  const { theme } = useAppTheme();
+  const tc = theme.colors;
 
   const [selectedType, setSelectedType] = useState<FeedbackType>('feature');
   const [rating, setRating] = useState<number>(5);
@@ -97,9 +99,7 @@ export default function FeedbackScreen({ navigation }: Props) {
     }
 
     setSubmitting(true);
-
     try {
-      // Package feedback payload
       const feedbackPayload = {
         id: `fb_${Date.now()}`,
         type: selectedType,
@@ -108,24 +108,19 @@ export default function FeedbackScreen({ navigation }: Props) {
         email: email.trim() || user?.email || 'Anonymous',
         userName: user?.name || 'User',
         platform: Platform.OS,
-        appVersion: 'v1.0.0 (PWA)',
+        appVersion: 'v2.4.0 (PWA)',
         timestamp: new Date().toISOString(),
       };
 
-      // Store in local storage history
       const existingHistory = await AsyncStorage.getItem('@xpense_feedback_history');
       const parsed = existingHistory ? JSON.parse(existingHistory) : [];
       parsed.unshift(feedbackPayload);
       await AsyncStorage.setItem('@xpense_feedback_history', JSON.stringify(parsed.slice(0, 20)));
 
-      // Simulate network submission
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      await new Promise((resolve) => setTimeout(resolve, 600));
 
       setSubmitted(true);
-      showSuccess(
-        'Feedback Submitted! 🎉',
-        'Thank you for helping us make Xpense the best expense tracker.'
-      );
+      showSuccess('Feedback Submitted! 🎉', 'Thank you for helping us make Xpense better.');
     } catch {
       showError('Submission Failed', 'Could not save feedback. Please try again.');
     } finally {
@@ -140,7 +135,7 @@ export default function FeedbackScreen({ navigation }: Props) {
         <View style={styles.successWrapper}>
           <View style={styles.successCard}>
             <LinearGradient
-              colors={['#2D1B69', '#1A0A4A', '#0F0B24']}
+              colors={['#241245', '#150A2E', '#0B0618']}
               style={styles.successGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -159,10 +154,10 @@ export default function FeedbackScreen({ navigation }: Props) {
                 activeOpacity={0.85}
               >
                 <LinearGradient
-                  colors={[colors.primary, colors.primaryDark]}
+                  colors={['#7C3AED', '#6D28D9']}
                   style={styles.doneBtnGradient}
                   start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
+                  end={{ x: 1, y: 0 }}
                 >
                   <Text style={styles.doneBtnText}>Back to Settings</Text>
                 </LinearGradient>
@@ -179,7 +174,7 @@ export default function FeedbackScreen({ navigation }: Props) {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+      <View style={[styles.container, { backgroundColor: tc.background, paddingBottom: insets.bottom }]}>
         <ScreenHeader title="Send Feedback" onBack={() => navigation.goBack()} />
 
         <ScrollView
@@ -188,7 +183,7 @@ export default function FeedbackScreen({ navigation }: Props) {
           keyboardShouldPersistTaps="handled"
         >
           {/* ── Type Selector Pills ── */}
-          <Text style={styles.sectionLabel}>WHAT IS THIS ABOUT?</Text>
+          <Text style={[styles.sectionLabel, { color: tc.textMuted }]}>FEEDBACK CATEGORY</Text>
           <View style={styles.typeGrid}>
             {FEEDBACK_OPTIONS.map((opt) => {
               const isSelected = selectedType === opt.type;
@@ -197,9 +192,10 @@ export default function FeedbackScreen({ navigation }: Props) {
                   key={opt.type}
                   style={[
                     styles.typeChip,
+                    { backgroundColor: tc.card, borderColor: tc.cardBorder },
                     isSelected && {
-                      backgroundColor: 'rgba(124, 58, 237, 0.18)',
-                      borderColor: colors.primary,
+                      backgroundColor: `${theme.accentColor}22`,
+                      borderColor: theme.accentColor,
                     },
                   ]}
                   onPress={() => setSelectedType(opt.type)}
@@ -208,12 +204,13 @@ export default function FeedbackScreen({ navigation }: Props) {
                   <Ionicons
                     name={opt.icon}
                     size={16}
-                    color={isSelected ? colors.primaryLight : colors.textMuted}
+                    color={isSelected ? theme.accentColor : tc.textMuted}
                   />
                   <Text
                     style={[
                       styles.typeChipText,
-                      isSelected && { color: colors.primaryLight, fontWeight: '700' },
+                      { color: isSelected ? theme.accentColor : tc.textSecondary },
+                      isSelected && { fontWeight: '800' },
                     ]}
                   >
                     {opt.label}
@@ -224,8 +221,8 @@ export default function FeedbackScreen({ navigation }: Props) {
           </View>
 
           {/* ── Star Rating ── */}
-          <View style={styles.ratingCard}>
-            <Text style={styles.ratingTitle}>Rate your experience with Xpense</Text>
+          <View style={[styles.ratingCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+            <Text style={[styles.ratingTitle, { color: tc.textPrimary }]}>Rate your experience with Xpense</Text>
             <View style={styles.starsRow}>
               {[1, 2, 3, 4, 5].map((star) => (
                 <TouchableOpacity
@@ -237,24 +234,24 @@ export default function FeedbackScreen({ navigation }: Props) {
                   <Ionicons
                     name={star <= rating ? 'star' : 'star-outline'}
                     size={32}
-                    color={star <= rating ? '#F59E0B' : '#4B5563'}
+                    color={star <= rating ? '#F59E0B' : tc.cardBorder}
                   />
                 </TouchableOpacity>
               ))}
             </View>
-            <Text style={styles.ratingLabel}>{RATING_LABELS[rating]}</Text>
+            <Text style={[styles.ratingLabel, { color: theme.accentColor }]}>{RATING_LABELS[rating]}</Text>
           </View>
 
           {/* ── Message Area ── */}
           <View style={styles.inputGroup}>
             <View style={styles.inputHeaderRow}>
-              <Text style={styles.inputLabel}>YOUR MESSAGE</Text>
-              <Text style={styles.charCount}>{message.length} / 1000</Text>
+              <Text style={[styles.inputLabel, { color: tc.textMuted }]}>YOUR MESSAGE</Text>
+              <Text style={[styles.charCount, { color: tc.textMuted }]}>{message.length} / 1000</Text>
             </View>
             <TextInput
-              style={styles.textArea}
+              style={[styles.textArea, { backgroundColor: tc.card, borderColor: tc.cardBorder, color: tc.textPrimary }]}
               placeholder={activeOption.placeholder}
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={tc.textMuted}
               multiline
               maxLength={1000}
               value={message}
@@ -265,11 +262,11 @@ export default function FeedbackScreen({ navigation }: Props) {
 
           {/* ── Email Contact ── */}
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>REPLY EMAIL (OPTIONAL)</Text>
+            <Text style={[styles.inputLabel, { color: tc.textMuted }]}>REPLY EMAIL (OPTIONAL)</Text>
             <TextInput
-              style={styles.textInput}
+              style={[styles.textInput, { backgroundColor: tc.card, borderColor: tc.cardBorder, color: tc.textPrimary }]}
               placeholder="your.email@example.com"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={tc.textMuted}
               keyboardType="email-address"
               autoCapitalize="none"
               value={email}
@@ -278,18 +275,18 @@ export default function FeedbackScreen({ navigation }: Props) {
           </View>
 
           {/* ── Diagnostics Switch ── */}
-          <View style={styles.diagnosticsCard}>
+          <View style={[styles.diagnosticsCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
             <View style={styles.diagnosticsInfo}>
-              <Text style={styles.diagnosticsTitle}>Include App & Device Diagnostics</Text>
-              <Text style={styles.diagnosticsSub}>
-                Helps us pinpoint device issues (v1.0.0 • {Platform.OS.toUpperCase()})
+              <Text style={[styles.diagnosticsTitle, { color: tc.textPrimary }]}>Include App & Device Diagnostics</Text>
+              <Text style={[styles.diagnosticsSub, { color: tc.textMuted }]}>
+                Helps pinpoint issues (v1.0.0 • {Platform.OS.toUpperCase()})
               </Text>
             </View>
             <Switch
               value={includeDiagnostics}
               onValueChange={setIncludeDiagnostics}
-              trackColor={{ false: colors.surface, true: colors.primaryMuted }}
-              thumbColor={includeDiagnostics ? colors.primary : colors.textMuted}
+              trackColor={{ false: '#1A162B', true: `${theme.accentColor}55` }}
+              thumbColor={includeDiagnostics ? theme.accentColor : '#64748B'}
             />
           </View>
 
@@ -301,10 +298,10 @@ export default function FeedbackScreen({ navigation }: Props) {
             activeOpacity={0.85}
           >
             <LinearGradient
-              colors={[colors.primary, colors.primaryDark]}
+              colors={theme.accentGradient}
               style={styles.submitGradient}
               start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+              end={{ x: 1, y: 0 }}
             >
               {submitting ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
@@ -323,116 +320,114 @@ export default function FeedbackScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
+  flex: { flex: 1 },
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    // backgroundColor: '#07060E', // <- wired via theme.colors.background inline
   },
   scrollContent: {
-    padding: spacing.lg,
-    gap: spacing.lg,
-    paddingBottom: spacing.xxl,
+    paddingHorizontal: 16,
+    paddingBottom: 110, // Full clearance for floating bottom bar
+    gap: 14,
   },
-
   sectionLabel: {
-    ...typography.label,
-    color: colors.textSecondary,
-    letterSpacing: 1.1,
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 1,
+    marginLeft: 4,
   },
   typeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: 8,
   },
   typeChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: radius.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    backgroundColor: '#120F20',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     gap: 6,
   },
   typeChipText: {
-    ...typography.caption,
     fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: '500',
+    color: '#94A3B8',
+    fontWeight: '600',
   },
 
   // Rating Card
   ratingCard: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
+    backgroundColor: '#120F20',
+    borderRadius: 18,
+    padding: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    gap: spacing.sm,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    gap: 8,
   },
   ratingTitle: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-    fontWeight: '600',
+    fontSize: 13,
+    color: '#CBD5E1',
+    fontWeight: '700',
   },
   starsRow: {
     flexDirection: 'row',
-    gap: spacing.md,
-    marginVertical: spacing.xs,
+    gap: 12,
+    marginVertical: 2,
   },
   starBtn: {
     padding: 4,
   },
   ratingLabel: {
-    ...typography.caption,
-    color: colors.primaryLight,
-    fontWeight: '700',
     fontSize: 12,
+    color: '#C084FC',
+    fontWeight: '800',
   },
 
   // Inputs
   inputGroup: {
-    gap: spacing.xs,
+    gap: 6,
   },
   inputHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 4,
   },
   inputLabel: {
-    ...typography.label,
-    color: colors.textSecondary,
-    letterSpacing: 1,
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 0.8,
   },
   charCount: {
-    ...typography.caption,
     fontSize: 10,
-    color: colors.textMuted,
+    color: '#64748B',
   },
   textArea: {
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
+    backgroundColor: '#120F20',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    color: colors.textPrimary,
-    padding: spacing.md,
-    height: 120,
-    fontSize: 14,
-    lineHeight: 20,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    color: '#FFFFFF',
+    padding: 12,
+    height: 110,
+    fontSize: 13,
+    lineHeight: 18,
   },
   textInput: {
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
+    backgroundColor: '#120F20',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    color: colors.textPrimary,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 4,
-    fontSize: 14,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    color: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
   },
 
   // Diagnostics Card
@@ -440,44 +435,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: radius.md,
-    padding: spacing.md,
+    backgroundColor: '#120F20',
+    borderRadius: 14,
+    padding: 12,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    gap: spacing.md,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    gap: 12,
   },
   diagnosticsInfo: {
     flex: 1,
   },
   diagnosticsTitle: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
     fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   diagnosticsSub: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
     fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
   },
 
   // Submit Button
   submitBtn: {
-    borderRadius: radius.full,
+    borderRadius: 16,
     overflow: 'hidden',
-    marginTop: spacing.xs,
+    marginTop: 6,
   },
   submitGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
+    paddingVertical: 14,
+    gap: 8,
   },
   submitText: {
-    ...typography.bodyMedium,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '800',
     color: '#FFFFFF',
   },
 
@@ -485,10 +479,10 @@ const styles = StyleSheet.create({
   successWrapper: {
     flex: 1,
     justifyContent: 'center',
-    padding: spacing.lg,
+    padding: 16,
   },
   successCard: {
-    borderRadius: radius.xl,
+    borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(16, 185, 129, 0.3)',
@@ -499,39 +493,39 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   successGradient: {
-    padding: spacing.xl,
+    padding: 24,
     alignItems: 'center',
-    textAlign: 'center',
   },
   successIconBadge: {
-    marginBottom: spacing.md,
+    marginBottom: 12,
   },
   successTitle: {
-    ...typography.heading,
+    fontSize: 18,
+    fontWeight: '800',
     color: '#FFFFFF',
     textAlign: 'center',
-    marginBottom: spacing.xs,
+    marginBottom: 6,
   },
   successSubtitle: {
-    ...typography.body,
-    color: 'rgba(229, 231, 235, 0.85)',
+    fontSize: 13,
+    color: '#94A3B8',
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: spacing.xl,
+    lineHeight: 18,
+    marginBottom: 20,
   },
   doneBtn: {
     width: '100%',
-    borderRadius: radius.full,
+    borderRadius: 16,
     overflow: 'hidden',
   },
   doneBtnGradient: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.md,
+    paddingVertical: 14,
   },
   doneBtnText: {
-    ...typography.bodyMedium,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '800',
     color: '#FFFFFF',
   },
 });

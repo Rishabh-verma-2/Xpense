@@ -16,6 +16,7 @@ export interface UserProfile {
   phoneNumber?: string;
   name: string;
   currency: string;
+  avatar?: string;
   createdAt?: string;
 }
 
@@ -29,6 +30,7 @@ interface AuthContextValue {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   updateUserProfileName: (name: string) => Promise<void>;
+  updateAvatar: (base64OrUrl: string) => Promise<string>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
@@ -49,17 +51,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const storedToken = await secureStorage.getItem(TOKEN_KEY);
         const storedUserJson = await secureStorage.getItem(USER_KEY);
 
+        let parsedUser: UserProfile | null = null;
+        if (storedUserJson) {
+          try {
+            parsedUser = JSON.parse(storedUserJson);
+            setUser(parsedUser);
+          } catch {
+            // invalid json
+          }
+        }
+
         if (storedToken) {
           setToken(storedToken);
-          if (storedUserJson) {
-            setUser(JSON.parse(storedUserJson));
-          }
-          // Optionally verify token with backend
+
+          // Verify token and sync latest user profile from backend
           try {
             const res = await authApi.me();
             if (res.success && res.data) {
-              setUser(res.data);
-              await secureStorage.setItem(USER_KEY, JSON.stringify(res.data));
+              const backendUser = res.data;
+              // Preserve local avatar if backend returned empty but local has one
+              const mergedUser: UserProfile = {
+                ...parsedUser,
+                ...backendUser,
+                avatar: backendUser.avatar || parsedUser?.avatar || '',
+              };
+              setUser(mergedUser);
+              await secureStorage.setItem(USER_KEY, JSON.stringify(mergedUser));
             }
           } catch (e) {
             console.log('Session verification failed, using cached user if available');
@@ -154,8 +171,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const res = await authApi.me();
       if (res.success && res.data) {
-        setUser(res.data);
-        await secureStorage.setItem(USER_KEY, JSON.stringify(res.data));
+        setUser((prev) => {
+          const merged: UserProfile = {
+            ...prev,
+            ...res.data,
+            avatar: res.data.avatar || prev?.avatar || '',
+          };
+          secureStorage.setItem(USER_KEY, JSON.stringify(merged)).catch(console.error);
+          return merged;
+        });
       }
     } catch (e) {
       console.error('Failed to refresh user profile', e);
@@ -163,17 +187,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateUserProfileName = useCallback(async (newName: string) => {
-    if (user) {
-      const updatedUser = { ...user, name: newName };
-      setUser(updatedUser);
-      await secureStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
-      try {
-        await authApi.updateProfile({ name: newName });
-      } catch (e) {
-        console.warn('Backend name sync warning:', e);
-      }
+    setUser((prev) => {
+      if (!prev) return null;
+      const updatedUser = { ...prev, name: newName };
+      secureStorage.setItem(USER_KEY, JSON.stringify(updatedUser)).catch(console.error);
+      return updatedUser;
+    });
+
+    try {
+      await authApi.updateProfile({ name: newName });
+    } catch (e) {
+      console.warn('Backend name sync warning:', e);
     }
-  }, [user]);
+  }, []);
+
+  const updateAvatar = useCallback(async (base64OrUrl: string) => {
+    let finalAvatarUrl = base64OrUrl;
+
+    try {
+      const res = await authApi.uploadAvatar({ imageBase64: base64OrUrl });
+      if (res.success && res.data?.avatar !== undefined) {
+        finalAvatarUrl = res.data.avatar;
+      }
+    } catch (e: any) {
+      console.warn('Remote avatar upload fallback to local URI:', e?.message || e);
+    }
+
+    setUser((prev) => {
+      if (!prev) return null;
+      const updatedUser = { ...prev, avatar: finalAvatarUrl };
+      secureStorage.setItem(USER_KEY, JSON.stringify(updatedUser)).catch(console.error);
+      return updatedUser;
+    });
+
+    return finalAvatarUrl;
+  }, []);
 
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     const res = await authApi.changePassword({ currentPassword, newPassword });
@@ -194,6 +242,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         refreshUser,
         updateUserProfileName,
+        updateAvatar,
         changePassword,
       }}
     >

@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Alert,
   Platform,
   KeyboardAvoidingView,
   Modal,
@@ -31,6 +30,7 @@ import { TransactionType, PaymentMethod } from '../../../shared/types/transactio
 import { Category } from '../../../shared/types/category.types';
 import { CurrentMonthDatePickerModal } from '../../../shared/components/CurrentMonthDatePickerModal';
 import { AppButton } from '../../../shared/components/AppButton';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'AddTransaction'>;
@@ -70,6 +70,8 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
   const { getByType, addCategory } = useCategories();
   const { settings } = useSettings();
   const { showSuccess, showError, showWarning } = useToast();
+  const { theme } = useAppTheme();
+  const tc = theme.colors;
 
   const [type, setType] = useState<TransactionType>(route.params?.type ?? 'expense');
   const [amount, setAmount] = useState('0');
@@ -80,9 +82,9 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
   const [showDatePickerModal, setShowDatePickerModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(true);
 
-  // Per-Transaction Currency State (Defaults to Indian Rupee ₹ / INR or User Settings)
+  // Per-Transaction Currency State
   const [selectedCurrencySymbol, setSelectedCurrencySymbol] = useState(settings?.currencySymbol ?? '₹');
   const [selectedCurrencyCode, setSelectedCurrencyCode] = useState(settings?.currencyCode ?? 'INR');
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
@@ -176,7 +178,7 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
         notes,
         isRecurring: false,
       });
-      const formattedAmount = `${settings?.currencySymbol ?? '₹'}${parseFloat(amount).toLocaleString()}`;
+      const formattedAmount = `${selectedCurrencySymbol}${parseFloat(amount).toLocaleString()}`;
       showSuccess(
         `${type === 'expense' ? 'Expense' : 'Income'} Added! 🎉`,
         `${selectedCategory!.name} • ${formattedAmount}`
@@ -190,378 +192,315 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
   };
 
   const isExpense = type === 'expense';
-  const accentColor = isExpense ? colors.expense : colors.income;
-  const accentMuted = isExpense ? colors.expenseMuted : colors.incomeMuted;
+  const themeColor = isExpense ? '#F43F5E' : '#10B981';
+  const themeBgMuted = isExpense ? 'rgba(244, 63, 94, 0.14)' : 'rgba(16, 185, 129, 0.14)';
+
+  const parsedAmountNumber = parseFloat(amount) || 0;
 
   return (
     <KeyboardAvoidingView
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-        {/* Header */}
-        <View style={[styles.header, { paddingTop: topInset + spacing.sm }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeBtn}>
-            <Ionicons name="close" size={24} color={colors.textSecondary} />
+      <View style={[styles.container, { backgroundColor: tc.background, paddingBottom: insets.bottom }]}>
+        {/* Top App Header */}
+        <View style={[styles.header, { paddingTop: topInset + 6 }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.closeBtn, { backgroundColor: tc.card, borderColor: tc.cardBorder }]} activeOpacity={0.7}>
+            <Ionicons name="close" size={22} color={tc.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>New Transaction</Text>
+          <Text style={[styles.headerTitle, { color: tc.textPrimary }]}>New Transaction</Text>
           <View style={{ width: 40 }} />
         </View>
 
-        {/* Type Toggle */}
-        <View style={styles.typeToggle}>
-          {(['expense', 'income'] as TransactionType[]).map((t) => (
-            <TouchableOpacity
-              key={t}
-              style={[styles.typeBtn, type === t && { backgroundColor: t === 'expense' ? colors.expenseMuted : colors.incomeMuted }]}
-              onPress={() => switchType(t)}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name={t === 'expense' ? 'trending-down' : 'trending-up'}
-                size={16}
-                color={type === t ? (t === 'expense' ? colors.expense : colors.income) : colors.textMuted}
-              />
-              <Text
-                style={[
-                  styles.typeBtnText,
-                  type === t && { color: t === 'expense' ? colors.expense : colors.income },
-                ]}
-              >
-                {t === 'expense' ? 'Expense' : 'Income'}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        {/* ── Segmented Glass Type Switcher ── */}
+        <View style={[styles.typeSwitcherContainer, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+          <TouchableOpacity
+            style={[styles.typeSwitcherTab, isExpense && styles.typeSwitcherTabActiveExpense]}
+            onPress={() => switchType('expense')}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="arrow-up-circle"
+              size={18}
+              color={isExpense ? '#F43F5E' : tc.textMuted}
+            />
+            <Text style={[styles.typeSwitcherText, { color: isExpense ? '#F43F5E' : tc.textSecondary }, isExpense && styles.typeSwitcherTextActiveExpense]}>
+              Expense
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.typeSwitcherTab, !isExpense && styles.typeSwitcherTabActiveIncome]}
+            onPress={() => switchType('income')}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="arrow-down-circle"
+              size={18}
+              color={!isExpense ? '#10B981' : tc.textMuted}
+            />
+            <Text style={[styles.typeSwitcherText, { color: !isExpense ? '#10B981' : tc.textSecondary }, !isExpense && styles.typeSwitcherTextActiveIncome]}>
+              Income
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Top Prominent Date Picker Pill */}
-        <TouchableOpacity
-          style={styles.topDatePill}
-          onPress={() => setShowDatePickerModal(true)}
-          activeOpacity={0.8}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.topDatePillInner}>
-            <Ionicons name="calendar" size={15} color={colors.primaryLight} />
-            <Text style={styles.topDatePillText}>
-              Date:{' '}
-              <Text style={{ fontWeight: '800', color: colors.primaryLight }}>
-                {new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-              </Text>
-            </Text>
-            <Ionicons name="pencil" size={12} color={colors.primaryLight} style={{ marginLeft: 2 }} />
-          </View>
-        </TouchableOpacity>
-
-        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          {/* Amount Display Hero Card */}
-          <View style={[styles.amountCard, { borderColor: `${accentColor}40` }]}>
+          {/* ── Titanium Amount Hero Card ── */}
+          <View style={[styles.amountCard, { borderColor: `${themeColor}40` }]}>
             <LinearGradient
               colors={
                 isExpense
-                  ? ['rgba(239, 68, 68, 0.18)', 'rgba(239, 68, 68, 0.04)', 'rgba(0,0,0,0)']
-                  : ['rgba(16, 185, 129, 0.18)', 'rgba(16, 185, 129, 0.04)', 'rgba(0,0,0,0)']
+                  ? ['rgba(244, 63, 94, 0.2)', 'rgba(225, 29, 72, 0.05)', theme.mode === 'light' ? '#FFFFFF' : 'rgba(12, 8, 26, 0.95)']
+                  : ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.05)', theme.mode === 'light' ? '#FFFFFF' : 'rgba(12, 8, 26, 0.95)']
               }
               style={styles.amountGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <Text style={styles.amountLabel}>
-                {isExpense ? 'ENTER EXPENSE AMOUNT' : 'ENTER INCOME AMOUNT'}
-              </Text>
-
-              <View style={styles.amountDisplayRow}>
+              <View style={styles.amountHeaderRow}>
+                <Text style={styles.amountLabel}>
+                  {isExpense ? 'TOTAL OUTFLOW' : 'TOTAL INFLOW'}
+                </Text>
+                {/* Currency selector pill */}
                 <TouchableOpacity
-                  style={styles.currencyBadgeBtn}
+                  style={[styles.currencyBadge, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}
                   onPress={() => setShowCurrencyPicker(true)}
-                  activeOpacity={0.7}
+                  activeOpacity={0.75}
                 >
-                  <Text style={[styles.currencySymbol, { color: accentColor }]}>{selectedCurrencySymbol}</Text>
-                  <Ionicons name="chevron-down" size={14} color={accentColor} style={{ marginLeft: 2, marginBottom: 4 }} />
+                  <Text style={[styles.currencyBadgeText, { color: theme.accentColor }]}>{selectedCurrencyCode} ({selectedCurrencySymbol})</Text>
+                  <Ionicons name="chevron-down" size={12} color={theme.accentColor} />
                 </TouchableOpacity>
-                <Text style={[styles.amountDisplay, { color: accentColor }]} numberOfLines={1} adjustsFontSizeToFit>
-                  {parseFloat(amount).toLocaleString('en-IN', {
-                    minimumFractionDigits: amount.includes('.') ? amount.split('.')[1].length : 0,
-                    maximumFractionDigits: 2,
-                  })}
+              </View>
+
+              {/* Main Numbers */}
+              <View style={styles.amountNumbersRow}>
+                <Text style={[styles.currencyPrefix, { color: themeColor }]}>{currencySymbol}</Text>
+                <Text style={[styles.amountHeroText, { color: tc.textPrimary }]} numberOfLines={1} adjustsFontSizeToFit>
+                  {amount}
                 </Text>
               </View>
 
-              {/* Quick Amount Presets */}
+              {/* Quick Amount Addition Chips */}
               <View style={styles.presetsRow}>
                 {[100, 500, 1000, 2000].map((preset) => (
                   <TouchableOpacity
                     key={preset}
-                    style={[styles.presetChip, { borderColor: `${accentColor}40`, backgroundColor: `${accentColor}12` }]}
+                    style={[styles.presetChip, { borderColor: `${themeColor}40`, backgroundColor: `${themeColor}14` }]}
                     onPress={() => {
-                      const current = parseFloat(amount) || 0;
-                      setAmount((current + preset).toString());
+                      const cur = parseFloat(amount) || 0;
+                      setAmount((cur + preset).toString());
                     }}
                     activeOpacity={0.7}
                   >
-                    <Text style={[styles.presetText, { color: accentColor }]}>+{preset}</Text>
+                    <Text style={[styles.presetText, { color: themeColor }]}>+{preset}</Text>
                   </TouchableOpacity>
                 ))}
                 <TouchableOpacity
-                  style={styles.clearPresetChip}
+                  style={[styles.clearChip, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}
                   onPress={() => setAmount('0')}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.clearPresetText}>Clear</Text>
+                  <Text style={[styles.clearChipText, { color: tc.textMuted }]}>Clear</Text>
                 </TouchableOpacity>
               </View>
             </LinearGradient>
           </View>
           {errors.amount && <Text style={styles.errorText}>{errors.amount}</Text>}
 
-          {/* Modern Numpad */}
-          <View style={styles.numpadContainer}>
+          {/* ── Tactile Glass Numeric Keypad ── */}
+          <View style={styles.numpadWrapper}>
             <View style={styles.numpadGrid}>
               {NUM_PAD.map((key) => (
                 <TouchableOpacity
                   key={key}
-                  style={[
-                    styles.numKey,
-                    key === '⌫' && styles.backspaceKey,
-                  ]}
+                  style={[styles.numKey, { backgroundColor: tc.card, borderColor: tc.cardBorder }, key === '⌫' && styles.backspaceKey]}
                   onPress={() => handleNumpad(key)}
-                  activeOpacity={0.65}
+                  activeOpacity={0.6}
                 >
                   {key === '⌫' ? (
-                    <Ionicons name="backspace-outline" size={24} color={colors.textSecondary} />
+                    <Ionicons name="backspace-outline" size={22} color={tc.textPrimary} />
                   ) : (
-                    <Text style={styles.numKeyText}>{key}</Text>
+                    <Text style={[styles.numKeyText, { color: tc.textPrimary }]}>{key}</Text>
                   )}
                 </TouchableOpacity>
               ))}
             </View>
           </View>
 
-          {/* Category */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Category</Text>
-            <TouchableOpacity
-              style={[styles.pickerRow, errors.category && styles.fieldError]}
-              onPress={() => setShowCategoryPicker(!showCategoryPicker)}
-              activeOpacity={0.8}
-            >
-              {selectedCategory ? (
-                <>
-                  <View style={[styles.catIcon, { backgroundColor: `${selectedCategory.color}25` }]}>
-                    <Ionicons name={selectedCategory.icon as any} size={20} color={selectedCategory.color} />
-                  </View>
-                  <Text style={styles.pickerValue}>{selectedCategory.name}</Text>
-                </>
-              ) : (
-                <>
-                  <View style={[styles.catIcon, { backgroundColor: colors.card }]}>
-                    <Ionicons name="apps-outline" size={20} color={colors.textMuted} />
-                  </View>
-                  <Text style={styles.pickerPlaceholder}>Select category</Text>
-                </>
-              )}
-              <Ionicons
-                name={showCategoryPicker ? 'chevron-up' : 'chevron-down'}
-                size={18}
-                color={colors.textMuted}
-              />
-            </TouchableOpacity>
-            {errors.category && <Text style={styles.errorText}>{errors.category}</Text>}
+          {/* ── Category Selection ── */}
+          <View style={styles.sectionBlock}>
+            <View style={styles.sectionTitleRow}>
+              <Text style={[styles.sectionTitle, { color: tc.textMuted }]}>Select Category</Text>
+              <TouchableOpacity onPress={() => setShowAddCatModal(true)}>
+                <Text style={[styles.createCatText, { color: theme.accentColor }]}>+ Custom</Text>
+              </TouchableOpacity>
+            </View>
 
-            {showCategoryPicker && (
-              <View style={styles.categoryGrid}>
-                {categories.map((cat) => (
+            <View style={styles.categoriesGrid}>
+              {categories.map((cat) => {
+                const isSelected = selectedCategory?.id === cat.id;
+                return (
                   <TouchableOpacity
                     key={cat.id}
                     style={[
-                      styles.catChip,
-                      selectedCategory?.id === cat.id && { borderColor: cat.color, backgroundColor: `${cat.color}15` },
+                      styles.categoryCard,
+                      { backgroundColor: tc.card, borderColor: tc.cardBorder },
+                      isSelected && { borderColor: cat.color, backgroundColor: `${cat.color}22` },
                     ]}
-                    onPress={() => {
-                      setSelectedCategory(cat);
-                      setShowCategoryPicker(false);
-                    }}
-                    activeOpacity={0.7}
+                    onPress={() => setSelectedCategory(cat)}
+                    activeOpacity={0.75}
                   >
-                    <Ionicons name={cat.icon as any} size={18} color={cat.color} />
-                    <Text style={[styles.catChipText, selectedCategory?.id === cat.id && { color: cat.color }]}>
+                    <View
+                      style={[
+                        styles.catIconCircle,
+                        { backgroundColor: isSelected ? cat.color : `${cat.color}22` },
+                      ]}
+                    >
+                      <Ionicons
+                        name={cat.icon as any}
+                        size={18}
+                        color={isSelected ? '#FFFFFF' : cat.color}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.categoryCardName,
+                        { color: isSelected ? cat.color : tc.textSecondary },
+                        isSelected && { fontWeight: '800' },
+                      ]}
+                      numberOfLines={1}
+                    >
                       {cat.name}
                     </Text>
                   </TouchableOpacity>
-                ))}
-
-                {/* + New Category Option */}
-                <TouchableOpacity
-                  style={styles.addCustomCatChip}
-                  onPress={() => setShowAddCatModal(true)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="add-circle" size={18} color={colors.primaryLight} />
-                  <Text style={styles.addCustomCatChipText}>+ New Category</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+                );
+              })}
+            </View>
+            {errors.category && <Text style={styles.errorText}>{errors.category}</Text>}
           </View>
 
-          {/* Payment Method */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Payment Method</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-              {PAYMENT_METHODS.map((pm) => (
-                <TouchableOpacity
-                  key={pm.key}
-                  style={[styles.chip, paymentMethod === pm.key && styles.chipActive]}
-                  onPress={() => setPaymentMethod(pm.key as PaymentMethod)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={pm.icon as any}
-                    size={16}
-                    color={paymentMethod === pm.key ? colors.primary : colors.textMuted}
-                  />
-                  <Text style={[styles.chipText, paymentMethod === pm.key && styles.chipTextActive]}>
-                    {pm.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+          {/* ── Payment Method Chips ── */}
+          <View style={styles.sectionBlock}>
+            <Text style={[styles.sectionTitle, { color: tc.textMuted }]}>Payment Method</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.paymentMethodsRow}>
+              {PAYMENT_METHODS.map((pm) => {
+                const isSelected = paymentMethod === pm.key;
+                return (
+                  <TouchableOpacity
+                    key={pm.key}
+                    style={[
+                      styles.paymentChip,
+                      { backgroundColor: tc.card, borderColor: tc.cardBorder },
+                      isSelected && { borderColor: theme.accentColor, backgroundColor: `${theme.accentColor}22` },
+                    ]}
+                    onPress={() => setPaymentMethod(pm.key as PaymentMethod)}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons
+                      name={pm.icon as any}
+                      size={15}
+                      color={isSelected ? theme.accentColor : tc.textMuted}
+                    />
+                    <Text style={[styles.paymentChipText, { color: isSelected ? theme.accentColor : tc.textSecondary }, isSelected && styles.paymentChipTextActive]}>
+                      {pm.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
 
-          {/* Transaction Date (Current Month Only) */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Transaction Date (Current Month Only)</Text>
+          {/* ── Transaction Date Selector ── */}
+          <View style={styles.sectionBlock}>
+            <Text style={[styles.sectionTitle, { color: tc.textMuted }]}>Transaction Date</Text>
             <TouchableOpacity
-              style={styles.pickerRow}
+              style={[styles.dateSelectorRow, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}
               onPress={() => setShowDatePickerModal(true)}
               activeOpacity={0.8}
             >
-              <View style={[styles.catIcon, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
-                <Ionicons name="calendar-outline" size={18} color={colors.primaryLight} />
+              <View style={[styles.dateIconBg, { backgroundColor: `${theme.accentColor}22` }]}>
+                <Ionicons name="calendar" size={18} color={theme.accentColor} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.pickerValue}>
+                <Text style={[styles.dateValueText, { color: tc.textPrimary }]}>
                   {new Date(date).toLocaleDateString('en-US', {
                     month: 'short',
                     day: 'numeric',
                     year: 'numeric',
                   })}
                 </Text>
+                <Text style={[styles.dateSubText, { color: tc.textMuted }]}>Tap to change</Text>
               </View>
-              <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
+              <Ionicons name="chevron-forward" size={16} color={tc.textMuted} />
             </TouchableOpacity>
           </View>
 
-          {/* Notes */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Notes (optional)</Text>
-            <TextInput
-              style={[styles.notesInput, errors.notes && styles.fieldError]}
-              placeholder="Add a note..."
-              placeholderTextColor={colors.textMuted}
-              value={notes}
-              onChangeText={setNotes}
-              maxLength={500}
-              multiline
-            />
-            {errors.notes && <Text style={styles.errorText}>{errors.notes}</Text>}
+          {/* ── Notes Input ── */}
+          <View style={styles.sectionBlock}>
+            <Text style={[styles.sectionTitle, { color: tc.textMuted }]}>Notes & Description (Optional)</Text>
+            <View style={[styles.notesInputCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+              <Ionicons name="create-outline" size={18} color={tc.textMuted} style={styles.notesIcon} />
+              <TextInput
+                style={[styles.notesTextInput, { color: tc.textPrimary }]}
+                placeholder="What was this for? (e.g. Grocery store, dinner, invoice)"
+                placeholderTextColor={tc.textMuted}
+                value={notes}
+                onChangeText={setNotes}
+                maxLength={200}
+              />
+            </View>
           </View>
-
-          <View style={{ height: spacing.xxl }} />
         </ScrollView>
 
+        {/* ── Floating Gradient Submit Button ── */}
+        <View style={styles.floatingSaveBar}>
+          <TouchableOpacity
+            style={styles.saveButton}
+            onPress={handleSave}
+            disabled={loading}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={
+                isExpense
+                  ? ['#F43F5E', '#E11D48', '#BE123C']
+                  : ['#10B981', '#059669', '#047857']
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.saveButtonGrad}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <>
+                  <Text style={styles.saveButtonText}>
+                    Save {isExpense ? 'Expense' : 'Income'} ({currencySymbol}{parsedAmountNumber.toLocaleString()})
+                  </Text>
+                  <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" style={{ marginLeft: 8 }} />
+                </>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+
+        {/* Date Picker Modal */}
         <CurrentMonthDatePickerModal
           visible={showDatePickerModal}
           selectedDateIso={date}
-          onSelectDate={(newIso) => setDate(newIso)}
+          onSelectDate={(newDate) => {
+            setDate(newDate);
+            setShowDatePickerModal(false);
+          }}
           onClose={() => setShowDatePickerModal(false)}
         />
 
-        {/* Save Button */}
-        <View style={styles.saveRow}>
-          <AppButton label="Save Transaction" onPress={handleSave} loading={loading} />
-        </View>
-
-        {/* Quick Add Custom Category Modal */}
-        <Modal
-          visible={showAddCatModal}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowAddCatModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.catModalContainer}>
-              <View style={styles.catModalHeader}>
-                <Text style={styles.catModalTitle}>New {type === 'expense' ? 'Expense' : 'Income'} Category</Text>
-                <TouchableOpacity onPress={() => setShowAddCatModal(false)}>
-                  <Ionicons name="close" size={22} color={colors.textMuted} />
-                </TouchableOpacity>
-              </View>
-
-              <TextInput
-                style={styles.catNameInput}
-                placeholder="e.g. Coffee, Rent, Crypto..."
-                placeholderTextColor={colors.textMuted}
-                value={newCatName}
-                onChangeText={setNewCatName}
-                maxLength={40}
-                autoFocus
-              />
-
-              {/* Icon Picker */}
-              <Text style={styles.pickerSublabel}>Choose Icon</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.iconScroll}>
-                {QUICK_ICONS.map((ic) => (
-                  <TouchableOpacity
-                    key={ic}
-                    style={[
-                      styles.iconChip,
-                      newCatIcon === ic && { backgroundColor: `${newCatColor}25`, borderColor: newCatColor },
-                    ]}
-                    onPress={() => setNewCatIcon(ic)}
-                  >
-                    <Ionicons name={ic as any} size={20} color={newCatIcon === ic ? newCatColor : colors.textMuted} />
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              {/* Color Picker */}
-              <Text style={styles.pickerSublabel}>Choose Color</Text>
-              <View style={styles.colorRow}>
-                {QUICK_COLORS.map((col) => (
-                  <TouchableOpacity
-                    key={col}
-                    style={[styles.colorDot, { backgroundColor: col }, newCatColor === col && styles.colorDotSelected]}
-                    onPress={() => setNewCatColor(col)}
-                  />
-                ))}
-              </View>
-
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={styles.cancelBtn}
-                  onPress={() => setShowAddCatModal(false)}
-                  disabled={creatingCategory}
-                >
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.saveCatBtn, { backgroundColor: newCatColor }]}
-                  onPress={handleCreateCustomCategory}
-                  disabled={creatingCategory}
-                  activeOpacity={0.88}
-                >
-                  {creatingCategory ? (
-                    <ActivityIndicator color="#FFF" size="small" />
-                  ) : (
-                    <Text style={styles.saveCatBtnText}>Add & Select</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Per-Transaction Currency Selector Modal */}
+        {/* ── Currency Selection Modal ── */}
         <Modal
           visible={showCurrencyPicker}
           transparent
@@ -569,41 +508,116 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
           onRequestClose={() => setShowCurrencyPicker(false)}
         >
           <View style={styles.modalOverlay}>
-            <View style={styles.catModalContainer}>
-              <View style={styles.catModalHeader}>
-                <Text style={styles.catModalTitle}>Transaction Currency</Text>
-                <TouchableOpacity onPress={() => setShowCurrencyPicker(false)}>
-                  <Ionicons name="close" size={22} color={colors.textMuted} />
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeaderRow}>
+                <Text style={styles.modalHeading}>Select Currency</Text>
+                <TouchableOpacity onPress={() => setShowCurrencyPicker(false)} style={styles.modalCloseBtn}>
+                  <Ionicons name="close" size={20} color="#94A3B8" />
                 </TouchableOpacity>
               </View>
 
-              <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
-                {ALL_CURRENCIES.map((curr) => {
-                  const isSel = selectedCurrencyCode === curr.code;
+              <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+                {ALL_CURRENCIES.map((c) => {
+                  const isSelected = selectedCurrencyCode === c.code;
                   return (
                     <TouchableOpacity
-                      key={curr.code}
-                      style={[styles.currRow, isSel && styles.currRowSelected]}
+                      key={c.code}
+                      style={[styles.currencyRow, isSelected && styles.currencyRowActive]}
                       onPress={() => {
-                        setSelectedCurrencySymbol(curr.symbol);
-                        setSelectedCurrencyCode(curr.code);
+                        setSelectedCurrencySymbol(c.symbol);
+                        setSelectedCurrencyCode(c.code);
                         setShowCurrencyPicker(false);
                       }}
-                      activeOpacity={0.7}
+                      activeOpacity={0.75}
                     >
-                      <View style={[styles.currSymbolBg, isSel && { backgroundColor: `${accentColor}25` }]}>
-                        <Text style={[styles.currSymbolText, { color: isSel ? accentColor : colors.textPrimary }]}>
-                          {curr.symbol}
-                        </Text>
+                      <View style={styles.currencySymbolCircle}>
+                        <Text style={styles.currencySymbolCircleText}>{c.symbol}</Text>
                       </View>
-                      <Text style={styles.currNameText}>
-                        {curr.name} <Text style={{ color: colors.textMuted }}>({curr.code})</Text>
-                      </Text>
-                      {isSel && <Ionicons name="checkmark-circle" size={20} color={accentColor} />}
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.currencyNameText, isSelected && { color: '#C084FC', fontWeight: '800' }]}>
+                          {c.name}
+                        </Text>
+                        <Text style={styles.currencyCodeSubText}>{c.code}</Text>
+                      </View>
+                      {isSelected && <Ionicons name="checkmark-circle" size={20} color="#C084FC" />}
                     </TouchableOpacity>
                   );
                 })}
               </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* ── Custom Category Creator Modal ── */}
+        <Modal
+          visible={showAddCatModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowAddCatModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeaderRow}>
+                <Text style={styles.modalHeading}>New Custom Category</Text>
+                <TouchableOpacity onPress={() => setShowAddCatModal(false)} style={styles.modalCloseBtn}>
+                  <Ionicons name="close" size={20} color="#94A3B8" />
+                </TouchableOpacity>
+              </View>
+
+              <TextInput
+                style={styles.modalTextInput}
+                placeholder="Category Name (e.g. Pet Care, Subscriptions)"
+                placeholderTextColor="#64748B"
+                value={newCatName}
+                onChangeText={setNewCatName}
+                autoFocus
+              />
+
+              <Text style={styles.modalSubLabel}>Choose Color</Text>
+              <View style={styles.modalColorsRow}>
+                {QUICK_COLORS.map((clr) => (
+                  <TouchableOpacity
+                    key={clr}
+                    style={[
+                      styles.colorDot,
+                      { backgroundColor: clr },
+                      newCatColor === clr && styles.colorDotSelected,
+                    ]}
+                    onPress={() => setNewCatColor(clr)}
+                  />
+                ))}
+              </View>
+
+              <Text style={styles.modalSubLabel}>Choose Icon</Text>
+              <View style={styles.modalIconsRow}>
+                {QUICK_ICONS.map((ic) => (
+                  <TouchableOpacity
+                    key={ic}
+                    style={[
+                      styles.iconPill,
+                      newCatIcon === ic && { borderColor: newCatColor, backgroundColor: `${newCatColor}22` },
+                    ]}
+                    onPress={() => setNewCatIcon(ic)}
+                  >
+                    <Ionicons name={ic as any} size={20} color={newCatIcon === ic ? newCatColor : '#94A3B8'} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <TouchableOpacity
+                style={styles.modalSubmitBtn}
+                onPress={handleCreateCustomCategory}
+                disabled={creatingCategory}
+                activeOpacity={0.85}
+              >
+                <LinearGradient colors={['#7C3AED', '#6D28D9']} style={styles.modalSubmitBtnGrad}>
+                  {creatingCategory ? (
+                    <ActivityIndicator color="#FFF" size="small" />
+                  ) : (
+                    <Text style={styles.modalSubmitBtnText}>Create Category</Text>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>
@@ -616,444 +630,416 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    // backgroundColor: '#07060E', // <- wired via theme.colors.background inline
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
   },
   closeBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.card,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    ...typography.subheading,
-    color: colors.textPrimary,
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
   },
-  typeToggle: {
+
+  // Type Switcher
+  typeSwitcherContainer: {
     flexDirection: 'row',
-    marginHorizontal: spacing.lg,
-    backgroundColor: colors.card,
-    borderRadius: radius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginBottom: 14,
     padding: 4,
-    marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  typeBtn: {
+  typeSwitcherTab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
+    gap: 8,
+    paddingVertical: 10,
+    borderRadius: 12,
   },
-  typeBtnText: {
-    ...typography.bodyMedium,
-    color: colors.textMuted,
-    fontSize: 14,
-  },
-  // Amount Hero Card
-  amountCard: {
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.xs,
-    marginBottom: spacing.md,
-    borderRadius: radius.xl,
-    overflow: 'hidden',
+  typeSwitcherTabActiveExpense: {
+    backgroundColor: 'rgba(244, 63, 94, 0.18)',
     borderWidth: 1,
-    backgroundColor: colors.card,
+    borderColor: 'rgba(244, 63, 94, 0.4)',
+  },
+  typeSwitcherTabActiveIncome: {
+    backgroundColor: 'rgba(16, 185, 129, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.4)',
+  },
+  typeSwitcherText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  typeSwitcherTextActiveExpense: {
+    color: '#F43F5E',
+    fontWeight: '800',
+  },
+  typeSwitcherTextActiveIncome: {
+    color: '#10B981',
+    fontWeight: '800',
+  },
+
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 110,
+  },
+
+  // Amount Card
+  amountCard: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1.2,
+    marginBottom: 14,
+    backgroundColor: '#100C1F',
   },
   amountGradient: {
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.md,
+    padding: 18,
+  },
+  amountHeaderRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
   amountLabel: {
-    ...typography.caption,
-    color: colors.textMuted,
-    letterSpacing: 1.2,
     fontSize: 11,
-    textTransform: 'uppercase',
-    marginBottom: spacing.xs,
+    fontWeight: '800',
+    letterSpacing: 1,
+    color: '#94A3B8',
   },
-  amountDisplayRow: {
+  currencyBadge: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(168, 85, 247, 0.3)',
+  },
+  currencyBadgeText: {
+    fontSize: 11,
+    color: '#C084FC',
+    fontWeight: '700',
+  },
+  amountNumbersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
+    marginVertical: 6,
   },
-  currencySymbol: {
-    fontSize: 28,
-    fontWeight: '700',
+  currencyPrefix: {
+    fontSize: 34,
+    fontWeight: '900',
     marginRight: 4,
-    marginBottom: 6,
   },
-  amountDisplay: {
-    fontSize: 52,
-    fontWeight: '700',
-    letterSpacing: -1.5,
+  amountHeroText: {
+    fontSize: 42,
+    fontWeight: '900',
+    letterSpacing: -1,
   },
   presetsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xs,
-    width: '100%',
-    paddingTop: spacing.xs,
+    gap: 8,
+    marginTop: 14,
   },
   presetChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: radius.full,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
     borderWidth: 1,
   },
   presetText: {
-    ...typography.caption,
-    fontWeight: '700',
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: '800',
   },
-  clearPresetChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: radius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  clearChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  clearPresetText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontSize: 13,
+  clearChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94A3B8',
   },
 
-  // Numpad Container & Buttons
-  numpadContainer: {
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
+  // Tactile Numpad
+  numpadWrapper: {
+    backgroundColor: '#100C1F',
+    borderRadius: 20,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    marginBottom: 16,
   },
   numpadGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: spacing.xs + 2,
+    gap: 8,
   },
   numKey: {
     width: '31%',
-    height: 52,
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
+    height: 50,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   backspaceKey: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderColor: 'rgba(239, 68, 68, 0.25)',
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
   },
   numKeyText: {
-    ...typography.heading,
-    color: colors.textPrimary,
-    fontSize: 22,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
-  section: {
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-    gap: spacing.sm,
+
+  // Sections
+  sectionBlock: {
+    marginBottom: 16,
   },
-  sectionLabel: {
-    ...typography.label,
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  pickerRow: {
+  sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    padding: spacing.md,
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
-  fieldError: {
-    borderColor: colors.expense,
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#CBD5E1',
+    letterSpacing: 0.2,
+    marginBottom: 8,
   },
-  catIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
+  createCatText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#C084FC',
   },
-  pickerValue: {
-    flex: 1,
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-  },
-  pickerPlaceholder: {
-    flex: 1,
-    ...typography.body,
-    color: colors.textMuted,
-  },
-  categoryGrid: {
+
+  // Categories Grid
+  categoriesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
+    gap: 8,
   },
-  catChip: {
-    flexDirection: 'row',
+  categoryCard: {
+    width: '31.5%',
+    backgroundColor: '#100C1F',
+    borderRadius: 14,
+    padding: 10,
     alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  catChipText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  chipRow: {
-    gap: spacing.sm,
-    paddingRight: spacing.md,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  chipActive: {
-    backgroundColor: colors.primaryMuted,
-    borderColor: `${colors.primary}60`,
-  },
-  chipText: {
-    ...typography.caption,
-    color: colors.textMuted,
-  },
-  chipTextActive: {
-    color: colors.primary,
-  },
-  notesInput: {
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    padding: spacing.md,
-    ...typography.body,
-    color: colors.textPrimary,
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  errorText: {
-    ...typography.caption,
-    color: colors.expense,
-    marginTop: -spacing.xs,
-  },
-  saveRow: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.cardBorder,
-    backgroundColor: colors.background,
-  },
-
-  // Custom Category Chip
-  addCustomCatChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-    backgroundColor: 'rgba(124, 58, 237, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(124, 58, 237, 0.3)',
-  },
-  addCustomCatChipText: {
-    ...typography.caption,
-    color: colors.primaryLight,
-    fontWeight: '700',
-  },
-
-  // Custom Category Creation Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  catModalContainer: {
-    width: '100%',
-    maxWidth: 360,
-    backgroundColor: colors.card || '#1E1E2D',
-    borderRadius: radius.xl,
-    padding: spacing.xl,
     borderWidth: 1,
-    borderColor: colors.cardBorder || 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    gap: 6,
+  },
+  catIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryCardName: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+    textAlign: 'center',
+  },
+
+  // Payment Methods Row
+  paymentMethodsRow: {
+    gap: 8,
+  },
+  paymentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: '#100C1F',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  paymentChipActive: {
+    borderColor: '#C084FC',
+    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+  },
+  paymentChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  paymentChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+
+  // Date Row
+  dateSelectorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#100C1F',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    gap: 12,
+  },
+  dateIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(192, 132, 252, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dateValueText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  dateSubText: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
+  },
+
+  // Notes
+  notesInputCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#100C1F',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  notesIcon: {
+    marginRight: 8,
+  },
+  notesTextInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 13,
+    padding: 0,
+  },
+
+  // Floating Save Bar
+  floatingSaveBar: {
+    position: 'absolute',
+    bottom: 12,
+    left: 16,
+    right: 16,
+  },
+  saveButton: {
+    borderRadius: 20,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
     elevation: 10,
   },
-  catModalHeader: {
+  saveButtonGrad: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 20,
   },
-  catModalTitle: {
-    ...typography.subheading,
-    color: colors.textPrimary,
-    fontSize: 18,
-  },
-  catNameInput: {
-    backgroundColor: colors.surface || '#12121A',
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    paddingHorizontal: spacing.md,
-    height: 48,
-    color: colors.textPrimary,
+  saveButtonText: {
     fontSize: 15,
-    marginBottom: spacing.md,
-  },
-  pickerSublabel: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: spacing.xs,
-  },
-  iconScroll: {
-    gap: spacing.xs,
-    paddingBottom: spacing.md,
-  },
-  iconChip: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  colorRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xl,
-    paddingTop: spacing.xs,
-  },
-  colorDot: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-  },
-  colorDotSelected: {
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  cancelBtn: {
-    flex: 1,
-    height: 46,
-    borderRadius: radius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelBtnText: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-  },
-  saveCatBtn: {
-    flex: 1,
-    height: 46,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveCatBtnText: {
-    ...typography.bodyMedium,
+    fontWeight: '900',
     color: '#FFFFFF',
+    letterSpacing: -0.2,
+  },
+
+  errorText: {
+    color: '#F43F5E',
+    fontSize: 11,
     fontWeight: '700',
+    marginTop: 4,
+    marginLeft: 4,
   },
 
-  // Currency Badge & Selector Styles
-  currencyBadgeBtn: {
-    flexDirection: 'row',
+  // Modals
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(6, 6, 13, 0.85)',
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    paddingHorizontal: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#131024',
+    borderRadius: 24,
+    padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    marginRight: 6,
+    borderColor: 'rgba(168, 85, 247, 0.3)',
   },
-  currRow: {
+  modalHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    marginBottom: spacing.xs,
-    gap: spacing.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
-  currRowSelected: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  modalHeading: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
-
-  topDatePill: {
-    alignSelf: 'center',
-    marginBottom: spacing.xs,
+  modalCloseBtn: {
+    padding: 4,
   },
-  topDatePillInner: {
+  currencyRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: radius.full,
-    backgroundColor: 'rgba(168, 85, 247, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(168, 85, 247, 0.35)',
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
   },
-  topDatePillText: {
-    ...typography.caption,
-    color: colors.primaryLight,
-    fontSize: 12,
+  currencyRowActive: {
+    backgroundColor: 'rgba(168, 85, 247, 0.1)',
+    borderRadius: 10,
+    paddingHorizontal: 8,
   },
-
-  currSymbolBg: {
+  currencySymbolCircle: {
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -1061,14 +1047,80 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  currSymbolText: {
-    ...typography.bodyMedium,
+  currencySymbolCircleText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  currencyNameText: {
+    fontSize: 13,
+    color: '#FFFFFF',
     fontWeight: '700',
   },
-  currNameText: {
-    flex: 1,
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
+  currencyCodeSubText: {
+    fontSize: 11,
+    color: '#64748B',
+  },
+  modalTextInput: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: '#FFFFFF',
+    fontSize: 14,
+    marginBottom: 14,
+  },
+  modalSubLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#94A3B8',
+    marginBottom: 8,
+  },
+  modalColorsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 14,
+  },
+  colorDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  colorDotSelected: {
+    borderWidth: 2.5,
+    borderColor: '#FFFFFF',
+  },
+  modalIconsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 18,
+  },
+  iconPill: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  modalSubmitBtn: {
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  modalSubmitBtnGrad: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSubmitBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
     fontSize: 14,
   },
 });

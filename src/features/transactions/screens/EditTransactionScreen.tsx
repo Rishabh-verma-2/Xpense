@@ -6,12 +6,13 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Alert,
   Platform,
   KeyboardAvoidingView,
+  ActivityIndicator,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { HistoryStackParamList } from '../../../core/navigation/types';
@@ -26,8 +27,8 @@ import { PAYMENT_METHODS } from '../../../shared/constants/appConstants';
 import { validateAmount, validateNotes } from '../../../shared/utils/validators';
 import { PaymentMethod } from '../../../shared/types/transaction.types';
 import { Category } from '../../../shared/types/category.types';
-import { AppButton } from '../../../shared/components/AppButton';
 import { ScreenHeader } from '../../../shared/components/ScreenHeader';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<HistoryStackParamList, 'EditTransaction'>;
@@ -41,6 +42,8 @@ export default function EditTransactionScreen({ navigation, route }: Props) {
   const { getByType } = useCategories();
   const { settings } = useSettings();
   const { showSuccess, showError, showInfo } = useToast();
+  const { theme } = useAppTheme();
+  const tc = theme.colors;
 
   const transaction = transactions.find((t) => t.id === transactionId);
   if (!transaction) {
@@ -51,16 +54,19 @@ export default function EditTransactionScreen({ navigation, route }: Props) {
   const categories = getByType(transaction.type);
   const currencySymbol = settings?.currencySymbol ?? '₹';
 
-  const [amount, setAmount] = useState(transaction.amount.toFixed(2));
+  const [amount, setAmount] = useState(
+    typeof transaction?.amount === 'number' && !isNaN(transaction.amount)
+      ? transaction.amount.toString()
+      : '0'
+  );
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(
     categories.find((c) => c.id === transaction.categoryId) ?? null,
   );
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(transaction.paymentMethod);
-  const [notes, setNotes] = useState(transaction.notes);
+  const [notes, setNotes] = useState(transaction.notes || '');
   const [date, setDate] = useState(transaction.date);
   const [showDatePickerModal, setShowDatePickerModal] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -73,9 +79,13 @@ export default function EditTransactionScreen({ navigation, route }: Props) {
     const notesResult = validateNotes(notes);
     if (!notesResult.valid) newErrors.notes = notesResult.error!;
 
-    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
     setErrors({});
     setLoading(true);
+
     try {
       await updateTransaction(transaction.id, {
         amount: parseFloat(amount),
@@ -87,7 +97,7 @@ export default function EditTransactionScreen({ navigation, route }: Props) {
         notes,
         date,
       });
-      showSuccess('Transaction Saved! ✏️', `${selectedCategory!.name} updated`);
+      showSuccess('Transaction Updated! ✏️', `${selectedCategory!.name} • ${currencySymbol}${parseFloat(amount).toLocaleString()}`);
       navigation.goBack();
     } catch {
       showError('Error', "Couldn't update transaction.");
@@ -111,162 +121,252 @@ export default function EditTransactionScreen({ navigation, route }: Props) {
   };
 
   const isExpense = transaction.type === 'expense';
-  const accentColor = isExpense ? colors.expense : colors.income;
+  const themeColor = isExpense ? '#F43F5E' : '#10B981';
+  const parsedAmountNumber = parseFloat(amount) || 0;
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={[styles.container, { backgroundColor: tc.background, paddingBottom: insets.bottom }]}>
         <ScreenHeader
           title="Edit Transaction"
           onBack={() => navigation.goBack()}
           rightAction={{ icon: 'trash-outline', onPress: () => setShowDeleteModal(true) }}
         />
 
-        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          {/* Type Badge */}
-          <View style={styles.typeBadge}>
-            <Ionicons
-              name={isExpense ? 'trending-down' : 'trending-up'}
-              size={16}
-              color={accentColor}
-            />
-            <Text style={[styles.typeBadgeText, { color: accentColor }]}>
-              {isExpense ? 'Expense' : 'Income'}
-            </Text>
-          </View>
-
-          {/* Amount */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Amount</Text>
-            <View style={[styles.inputRow, errors.amount && styles.fieldError]}>
-              <Text style={styles.currencySymbol}>{currencySymbol}</Text>
-              <TextInput
-                style={styles.amountInput}
-                value={amount}
-                onChangeText={setAmount}
-                keyboardType="decimal-pad"
-                placeholderTextColor={colors.textMuted}
-                selectionColor={colors.primary}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* ── Type Tag Pill ── */}
+          <View style={styles.typeBadgeRow}>
+            <View style={[styles.typeBadge, { backgroundColor: isExpense ? 'rgba(244, 63, 94, 0.15)' : 'rgba(16, 185, 129, 0.15)' }]}>
+              <Ionicons
+                name={isExpense ? 'arrow-up-circle' : 'arrow-down-circle'}
+                size={16}
+                color={themeColor}
               />
+              <Text style={[styles.typeBadgeText, { color: themeColor }]}>
+                {isExpense ? 'Expense Entry' : 'Income Entry'}
+              </Text>
             </View>
-            {errors.amount && <Text style={styles.errorText}>{errors.amount}</Text>}
           </View>
 
-          {/* Category */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Category</Text>
-            <TouchableOpacity
-              style={[styles.pickerRow, errors.category && styles.fieldError]}
-              onPress={() => setShowCategoryPicker(!showCategoryPicker)}
-              activeOpacity={0.8}
+          {/* ── Amount Display Card ── */}
+          <View style={[styles.amountCard, { borderColor: `${themeColor}40` }]}>
+            <LinearGradient
+              colors={
+                isExpense
+                  ? ['rgba(244, 63, 94, 0.2)', 'rgba(225, 29, 72, 0.05)', theme.mode === 'light' ? '#FFFFFF' : 'rgba(12, 8, 26, 0.95)']
+                  : ['rgba(16, 185, 129, 0.2)', 'rgba(5, 150, 105, 0.05)', theme.mode === 'light' ? '#FFFFFF' : 'rgba(12, 8, 26, 0.95)']
+              }
+              style={styles.amountGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
             >
-              {selectedCategory ? (
-                <>
-                  <View style={[styles.catIcon, { backgroundColor: `${selectedCategory.color}25` }]}>
-                    <Ionicons name={selectedCategory.icon as any} size={18} color={selectedCategory.color} />
-                  </View>
-                  <Text style={styles.pickerValue}>{selectedCategory.name}</Text>
-                </>
-              ) : (
-                <Text style={styles.pickerPlaceholder}>Select category</Text>
-              )}
-              <Ionicons name={showCategoryPicker ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-            {errors.category && <Text style={styles.errorText}>{errors.category}</Text>}
-            {showCategoryPicker && (
-              <View style={styles.categoryGrid}>
-                {categories.map((cat) => (
+              <Text style={styles.amountLabel}>TRANSACTION AMOUNT</Text>
+
+              <View style={styles.amountInputRow}>
+                <Text style={[styles.currencyPrefix, { color: themeColor }]}>{currencySymbol}</Text>
+                <TextInput
+                  style={[styles.amountTextInput, { color: tc.textPrimary }]}
+                  value={amount}
+                  onChangeText={setAmount}
+                  keyboardType="decimal-pad"
+                  placeholderTextColor={tc.textMuted}
+                  selectionColor={themeColor}
+                />
+              </View>
+
+              {/* Quick Presets */}
+              <View style={styles.presetsRow}>
+                {[100, 500, 1000, 2000].map((preset) => (
                   <TouchableOpacity
-                    key={cat.id}
-                    style={[styles.catChip, selectedCategory?.id === cat.id && { borderColor: cat.color, backgroundColor: `${cat.color}15` }]}
-                    onPress={() => { setSelectedCategory(cat); setShowCategoryPicker(false); }}
+                    key={preset}
+                    style={[styles.presetChip, { borderColor: `${themeColor}40`, backgroundColor: `${themeColor}14` }]}
+                    onPress={() => {
+                      const cur = parseFloat(amount) || 0;
+                      setAmount((cur + preset).toString());
+                    }}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name={cat.icon as any} size={16} color={cat.color} />
-                    <Text style={[styles.catChipText, selectedCategory?.id === cat.id && { color: cat.color }]}>{cat.name}</Text>
+                    <Text style={[styles.presetText, { color: themeColor }]}>+{preset}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
-            )}
+            </LinearGradient>
+          </View>
+          {errors.amount && <Text style={styles.errorText}>{errors.amount}</Text>}
+
+          {/* ── Category Selection ── */}
+          <View style={styles.sectionBlock}>
+            <Text style={[styles.sectionTitle, { color: tc.textMuted }]}>Category</Text>
+            <View style={styles.categoriesGrid}>
+              {categories.map((cat) => {
+                const isSelected = selectedCategory?.id === cat.id;
+                return (
+                  <TouchableOpacity
+                    key={cat.id}
+                    style={[
+                      styles.categoryCard,
+                      { backgroundColor: tc.card, borderColor: tc.cardBorder },
+                      isSelected && { borderColor: cat.color, backgroundColor: `${cat.color}22` },
+                    ]}
+                    onPress={() => setSelectedCategory(cat)}
+                    activeOpacity={0.75}
+                  >
+                    <View
+                      style={[
+                        styles.catIconCircle,
+                        { backgroundColor: isSelected ? cat.color : `${cat.color}22` },
+                      ]}
+                    >
+                      <Ionicons
+                        name={cat.icon as any}
+                        size={18}
+                        color={isSelected ? '#FFFFFF' : cat.color}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.categoryCardName,
+                        { color: isSelected ? cat.color : tc.textSecondary },
+                        isSelected && { fontWeight: '800' },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {cat.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            {errors.category && <Text style={styles.errorText}>{errors.category}</Text>}
           </View>
 
-          {/* Payment Method */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Payment Method</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
-              {PAYMENT_METHODS.map((pm) => (
-                <TouchableOpacity
-                  key={pm.key}
-                  style={[styles.chip, paymentMethod === pm.key && styles.chipActive]}
-                  onPress={() => setPaymentMethod(pm.key as PaymentMethod)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name={pm.icon as any} size={15} color={paymentMethod === pm.key ? colors.primary : colors.textMuted} />
-                  <Text style={[styles.chipText, paymentMethod === pm.key && { color: colors.primary }]}>{pm.label}</Text>
-                </TouchableOpacity>
-              ))}
+          {/* ── Payment Method ── */}
+          <View style={styles.sectionBlock}>
+            <Text style={[styles.sectionTitle, { color: tc.textMuted }]}>Payment Method</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.paymentMethodsRow}>
+              {PAYMENT_METHODS.map((pm) => {
+                const isSelected = paymentMethod === pm.key;
+                return (
+                  <TouchableOpacity
+                    key={pm.key}
+                    style={[
+                      styles.paymentChip,
+                      { backgroundColor: tc.card, borderColor: tc.cardBorder },
+                      isSelected && { borderColor: theme.accentColor, backgroundColor: `${theme.accentColor}22` },
+                    ]}
+                    onPress={() => setPaymentMethod(pm.key as PaymentMethod)}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons
+                      name={pm.icon as any}
+                      size={15}
+                      color={isSelected ? theme.accentColor : tc.textMuted}
+                    />
+                    <Text style={[styles.paymentChipText, { color: isSelected ? theme.accentColor : tc.textSecondary }, isSelected && styles.paymentChipTextActive]}>
+                      {pm.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
 
-          {/* Transaction Date (Current Month Only) */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Transaction Date (Current Month Only)</Text>
+          {/* ── Date Selector ── */}
+          <View style={styles.sectionBlock}>
+            <Text style={[styles.sectionTitle, { color: tc.textMuted }]}>Transaction Date</Text>
             <TouchableOpacity
-              style={styles.pickerRow}
+              style={[styles.dateSelectorRow, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}
               onPress={() => setShowDatePickerModal(true)}
               activeOpacity={0.8}
             >
-              <View style={[styles.catIcon, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
-                <Ionicons name="calendar-outline" size={18} color={colors.primaryLight} />
+              <View style={[styles.dateIconBg, { backgroundColor: `${theme.accentColor}22` }]}>
+                <Ionicons name="calendar" size={18} color={theme.accentColor} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.pickerValue}>
+                <Text style={[styles.dateValueText, { color: tc.textPrimary }]}>
                   {new Date(date).toLocaleDateString('en-US', {
                     month: 'short',
                     day: 'numeric',
                     year: 'numeric',
                   })}
                 </Text>
+                <Text style={[styles.dateSubText, { color: tc.textMuted }]}>Tap to change</Text>
               </View>
-              <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
+              <Ionicons name="chevron-forward" size={16} color={tc.textMuted} />
             </TouchableOpacity>
           </View>
 
-          {/* Notes */}
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Notes</Text>
-            <TextInput
-              style={[styles.notesInput, errors.notes && styles.fieldError]}
-              placeholder="Add a note..."
-              placeholderTextColor={colors.textMuted}
-              value={notes}
-              onChangeText={setNotes}
-              maxLength={500}
-              multiline
-            />
-            {errors.notes && <Text style={styles.errorText}>{errors.notes}</Text>}
+          {/* ── Notes ── */}
+          <View style={styles.sectionBlock}>
+            <Text style={[styles.sectionTitle, { color: tc.textMuted }]}>Notes & Description</Text>
+            <View style={[styles.notesInputCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+              <Ionicons name="create-outline" size={18} color={tc.textMuted} style={{ marginRight: 8 }} />
+              <TextInput
+                style={[styles.notesTextInput, { color: tc.textPrimary }]}
+                placeholder="Add notes..."
+                placeholderTextColor={tc.textMuted}
+                value={notes}
+                onChangeText={setNotes}
+                maxLength={200}
+              />
+            </View>
           </View>
-          <View style={{ height: spacing.xxl }} />
+
+          {/* ── Save Action Button ── */}
+          <View style={styles.saveBtnWrap}>
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={handleSave}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={
+                  isExpense
+                    ? ['#F43F5E', '#E11D48', '#BE123C']
+                    : ['#10B981', '#059669', '#047857']
+                }
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.saveButtonGrad}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Text style={styles.saveButtonText}>
+                      Update {isExpense ? 'Expense' : 'Income'} ({currencySymbol}{parsedAmountNumber.toLocaleString()})
+                    </Text>
+                    <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" style={{ marginLeft: 8 }} />
+                  </>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
 
-        <View style={styles.saveRow}>
-          <AppButton label="Update Transaction" onPress={handleSave} loading={loading} />
-        </View>
-
+        {/* Date Picker Modal */}
         <CurrentMonthDatePickerModal
           visible={showDatePickerModal}
           selectedDateIso={date}
-          onSelectDate={(newIso) => setDate(newIso)}
+          onSelectDate={(newDate) => {
+            setDate(newDate);
+            setShowDatePickerModal(false);
+          }}
           onClose={() => setShowDatePickerModal(false)}
         />
 
+        {/* Delete Confirmation Modal */}
         <ConfirmModal
           visible={showDeleteModal}
-          title="Delete Transaction?"
+          title="Delete Transaction"
           message="Are you sure you want to delete this transaction? This action cannot be undone."
           confirmLabel="Delete"
           isDestructive
-          loading={deleting}
           onConfirm={confirmDelete}
           onCancel={() => setShowDeleteModal(false)}
         />
@@ -276,57 +376,242 @@ export default function EditTransactionScreen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
+  container: {
+    flex: 1,
+    // backgroundColor: '#07060E', // <- wired via theme.colors.background inline
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 110,
+  },
+  typeBadgeRow: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   typeBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
-    marginHorizontal: spacing.lg, marginBottom: spacing.md,
-    backgroundColor: colors.card, alignSelf: 'flex-start',
-    paddingHorizontal: spacing.md, paddingVertical: spacing.xs,
-    borderRadius: radius.full, borderWidth: 1, borderColor: colors.cardBorder,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  typeBadgeText: { ...typography.caption },
-  section: { paddingHorizontal: spacing.lg, marginBottom: spacing.lg, gap: spacing.sm },
-  sectionLabel: { ...typography.label, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1 },
-  inputRow: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1,
-    borderColor: colors.cardBorder, padding: spacing.md,
+  typeBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
   },
-  currencySymbol: { ...typography.subheading, color: colors.textSecondary },
-  amountInput: { flex: 1, ...typography.heading, color: colors.textPrimary, fontSize: 24 },
-  pickerRow: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1,
-    borderColor: colors.cardBorder, padding: spacing.md,
+
+  // Amount Card
+  amountCard: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1.2,
+    marginBottom: 16,
+    backgroundColor: '#100C1F',
   },
-  catIcon: { width: 32, height: 32, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
-  pickerValue: { flex: 1, ...typography.bodyMedium, color: colors.textPrimary },
-  pickerPlaceholder: { flex: 1, ...typography.body, color: colors.textMuted },
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
-  catChip: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
-    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-    borderRadius: radius.full, backgroundColor: colors.card,
-    borderWidth: 1, borderColor: colors.cardBorder,
+  amountGradient: {
+    padding: 18,
+    alignItems: 'center',
   },
-  catChipText: { ...typography.caption, color: colors.textSecondary },
-  chip: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
-    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-    borderRadius: radius.full, backgroundColor: colors.card,
-    borderWidth: 1, borderColor: colors.cardBorder,
+  amountLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+    color: '#94A3B8',
+    marginBottom: 8,
   },
-  chipActive: { backgroundColor: colors.primaryMuted, borderColor: `${colors.primary}60` },
-  chipText: { ...typography.caption, color: colors.textMuted },
-  notesInput: {
-    backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1,
-    borderColor: colors.cardBorder, padding: spacing.md,
-    ...typography.body, color: colors.textPrimary, minHeight: 80, textAlignVertical: 'top',
+  amountInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 4,
   },
-  fieldError: { borderColor: colors.expense },
-  errorText: { ...typography.caption, color: colors.expense },
-  saveRow: {
-    paddingHorizontal: spacing.lg, paddingTop: spacing.md,
-    borderTopWidth: 1, borderTopColor: colors.cardBorder, backgroundColor: colors.background,
+  currencyPrefix: {
+    fontSize: 34,
+    fontWeight: '900',
+    marginRight: 4,
+  },
+  amountTextInput: {
+    fontSize: 38,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    padding: 0,
+    minWidth: 120,
+    textAlign: 'center',
+  },
+  presetsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 14,
+  },
+  presetChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  presetText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+
+  // Section
+  sectionBlock: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#CBD5E1',
+    letterSpacing: 0.2,
+    marginBottom: 8,
+  },
+
+  // Categories Grid
+  categoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryCard: {
+    width: '31.5%',
+    backgroundColor: '#100C1F',
+    borderRadius: 14,
+    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    gap: 6,
+  },
+  catIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryCardName: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+    textAlign: 'center',
+  },
+
+  // Payment Methods
+  paymentMethodsRow: {
+    gap: 8,
+  },
+  paymentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: '#100C1F',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  paymentChipActive: {
+    borderColor: '#C084FC',
+    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+  },
+  paymentChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  paymentChipTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+
+  // Date Row
+  dateSelectorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#100C1F',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    gap: 12,
+  },
+  dateIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(192, 132, 252, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dateValueText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  dateSubText: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
+  },
+
+  // Notes
+  notesInputCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#100C1F',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  notesTextInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 13,
+    padding: 0,
+  },
+
+  // Save Button Container (Cleared of bottom bar)
+  saveBtnWrap: {
+    marginTop: 10,
+    marginBottom: 40,
+  },
+  saveButton: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  saveButtonGrad: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 20,
+  },
+  saveButtonText: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
+  },
+  errorText: {
+    color: '#F43F5E',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 4,
+    marginLeft: 4,
   },
 });

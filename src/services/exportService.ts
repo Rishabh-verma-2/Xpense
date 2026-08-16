@@ -1,6 +1,5 @@
 import { Platform } from 'react-native';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Transaction } from '../shared/types/transaction.types';
@@ -24,25 +23,30 @@ export function filterTransactionsByDateRange(
 ): Transaction[] {
   if (!transactions || transactions.length === 0) return [];
 
-  // Parse YYYY-MM-DD into local start & end boundaries
+  const nonDeleted = transactions.filter((t) => !t.deletedAt);
+
+  if (!startDate || !endDate || startDate === '1970-01-01' || startDate === 'all') {
+    return nonDeleted.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
+
   const [sYear, sMonth, sDay] = startDate.split('-').map(Number);
   const [eYear, eMonth, eDay] = endDate.split('-').map(Number);
 
   const start = new Date(sYear, (sMonth || 1) - 1, sDay || 1, 0, 0, 0, 0);
   const end = new Date(eYear, (eMonth || 1) - 1, eDay || 1, 23, 59, 59, 999);
 
-  return transactions.filter((t) => {
-    if (t.deletedAt) return false;
-    const tDate = new Date(t.date);
-    if (isNaN(tDate.getTime())) return false;
-    return tDate >= start && tDate <= end;
-  });
+  return nonDeleted
+    .filter((t) => {
+      const tDate = new Date(t.date);
+      if (isNaN(tDate.getTime())) return true;
+      return tDate >= start && tDate <= end;
+    })
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 /**
- * Generates and AUTOMATICALLY DOWNLOADS a clean, luxury PDF Financial Statement.
- * - On Web / PWA: Automatically triggers browser file download (e.g. Xpense_Statement_2026-08-15.pdf) with NO print dialog.
- * - On Native Mobile (iOS / Android): Saves to filesystem and opens native share sheet.
+ * Generates and shares a luxury PDF Financial Statement using native expo-print.
+ * 100% compatible with React Native Hermes engine (no jspdf / latin1 errors).
  */
 export async function generateAndSharePDF(
   transactions: Transaction[],
@@ -55,7 +59,6 @@ export async function generateAndSharePDF(
     userName = 'Xpense User',
   } = options;
 
-  // 1. Calculate Financial Summary
   let totalIncome = 0;
   let totalExpense = 0;
   const categoryTotals: Record<
@@ -102,7 +105,6 @@ export async function generateAndSharePDF(
 
     return {
       dateFormatted,
-      rawDate: txDate.getTime() || 0,
       categoryName: catName,
       type: t.type,
       paymentMethod: method,
@@ -126,304 +128,194 @@ export async function generateAndSharePDF(
     minute: '2-digit',
   });
 
-  const filename = `Xpense_Statement_${startDate}_to_${endDate}.pdf`;
+  // Generate HTML Template for High-End PDF Statement
+  const rowsHtml = cleanTransactions
+    .map(
+      (tx, idx) => `
+    <tr style="background-color: ${idx % 2 === 0 ? '#13111C' : '#0F0D17'}; border-bottom: 1px solid rgba(255,255,255,0.04);">
+      <td style="padding: 10px 12px; color: #E2E8F0; font-size: 11px;">${tx.dateFormatted}</td>
+      <td style="padding: 10px 12px; color: #FFFFFF; font-weight: 600; font-size: 11px;">${tx.categoryName}</td>
+      <td style="padding: 10px 12px; color: #94A3B8; font-size: 10px; text-transform: uppercase;">${tx.paymentMethod}</td>
+      <td style="padding: 10px 12px; color: #94A3B8; font-size: 11px;">${tx.notes}</td>
+      <td style="padding: 10px 12px; text-align: right; font-weight: 700; font-size: 12px; color: ${tx.type === 'income' ? '#10B981' : '#F43F5E'};">
+        ${tx.amountFormatted}
+      </td>
+    </tr>
+  `
+    )
+    .join('');
 
-  // 2. Initialize jsPDF Document (A4 format)
-  const doc = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4',
-  });
+  const catRowsHtml = Object.values(categoryTotals)
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 8)
+    .map(
+      (cat) => `
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px dashed rgba(255,255,255,0.06);">
+      <span style="font-size: 11px; color: #CBD5E1;">${cat.name} (${cat.count} txns)</span>
+      <span style="font-size: 12px; font-weight: 700; color: ${cat.type === 'income' ? '#10B981' : '#F43F5E'};">
+        ${cat.type === 'income' ? '+' : '-'}${formatCurrency(cat.amount, 'INR', currencySymbol)}
+      </span>
+    </div>
+  `
+    )
+    .join('');
 
-  const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
-  const margin = 14;
-
-  // ─── Header Banner ──────────────────────────────────────────────────────────
-  doc.setFillColor(30, 27, 75); // Dark Indigo
-  doc.rect(0, 0, pageWidth, 42, 'F');
-
-  doc.setFillColor(124, 58, 237); // Purple accent line
-  doc.rect(0, 41, pageWidth, 1.5, 'F');
-
-  // Brand Logo Text
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.setTextColor(255, 255, 255);
-  doc.text('XPENSE', margin, 18);
-
-  doc.setFontSize(18);
-  doc.setTextColor(192, 132, 252);
-  doc.text('.', margin + 31, 18);
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(196, 181, 253);
-  doc.text('EXECUTIVE FINANCIAL STATEMENT', margin, 25);
-  doc.text(`Generated: ${generatedDateStr}`, margin, 31);
-
-  // Statement Meta (Right Aligned)
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(255, 255, 255);
-  doc.text(`Account: ${userName}`, pageWidth - margin, 18, { align: 'right' });
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(226, 232, 240);
-  doc.text(`Period: ${startDate} to ${endDate}`, pageWidth - margin, 25, {
-    align: 'right',
-  });
-  doc.text(
-    `Total Records: ${cleanTransactions.length}`,
-    pageWidth - margin,
-    31,
-    { align: 'right' }
-  );
-
-  // ─── Financial KPI Cards ───────────────────────────────────────────────────
-  let currentY = 50;
-  const cardWidth = (pageWidth - margin * 2 - 9) / 4; // 4 cards with 3mm gap
-  const cardHeight = 20;
-
-  // Card 1: Total Income
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(margin, currentY, cardWidth, cardHeight, 2, 2, 'FD');
-  doc.setFillColor(16, 185, 129); // Green bar
-  doc.rect(margin, currentY, cardWidth, 1.5, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text('TOTAL INCOME', margin + 3, currentY + 6.5);
-  doc.setFontSize(11);
-  doc.setTextColor(5, 150, 105);
-  doc.text(
-    formatCurrency(totalIncome, 'INR', currencySymbol),
-    margin + 3,
-    currentY + 14.5
-  );
-
-  // Card 2: Total Expenses
-  const card2X = margin + cardWidth + 3;
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(card2X, currentY, cardWidth, cardHeight, 2, 2, 'FD');
-  doc.setFillColor(239, 68, 68); // Red bar
-  doc.rect(card2X, currentY, cardWidth, 1.5, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text('TOTAL EXPENSES', card2X + 3, currentY + 6.5);
-  doc.setFontSize(11);
-  doc.setTextColor(220, 38, 38);
-  doc.text(
-    formatCurrency(totalExpense, 'INR', currencySymbol),
-    card2X + 3,
-    currentY + 14.5
-  );
-
-  // Card 3: Net Balance
-  const card3X = card2X + cardWidth + 3;
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(card3X, currentY, cardWidth, cardHeight, 2, 2, 'FD');
-  doc.setFillColor(124, 58, 237); // Purple bar
-  doc.rect(card3X, currentY, cardWidth, 1.5, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text('NET BALANCE', card3X + 3, currentY + 6.5);
-  doc.setFontSize(11);
-  doc.setTextColor(netBalance >= 0 ? 5 : 220, netBalance >= 0 ? 150 : 38, netBalance >= 0 ? 105 : 38);
-  doc.text(
-    formatCurrency(netBalance, 'INR', currencySymbol),
-    card3X + 3,
-    currentY + 14.5
-  );
-
-  // Card 4: Savings Rate
-  const card4X = card3X + cardWidth + 3;
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(card4X, currentY, cardWidth, cardHeight, 2, 2, 'FD');
-  doc.setFillColor(59, 130, 246); // Blue bar
-  doc.rect(card4X, currentY, cardWidth, 1.5, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text('SAVINGS RATE', card4X + 3, currentY + 6.5);
-  doc.setFontSize(11);
-  doc.setTextColor(37, 99, 235);
-  doc.text(`${savingsRate}%`, card4X + 3, currentY + 14.5);
-
-  currentY += cardHeight + 8;
-
-  // ─── Category Summary Table ────────────────────────────────────────────────
-  const sortedCategories = Object.values(categoryTotals).sort(
-    (a, b) => b.amount - a.amount
-  );
-
-  if (sortedCategories.length > 0) {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(15, 23, 42);
-    doc.text('Category Summary Breakdown', margin, currentY);
-    currentY += 3;
-
-    const categoryTableData = sortedCategories.map((cat) => [
-      cat.name,
-      cat.type.toUpperCase(),
-      cat.count.toString(),
-      formatCurrency(cat.amount, 'INR', currencySymbol),
-    ]);
-
-    autoTable(doc, {
-      startY: currentY,
-      head: [['Category', 'Type', 'Count', 'Total Amount']],
-      body: categoryTableData,
-      theme: 'grid',
-      headStyles: {
-        fillColor: [241, 245, 249],
-        textColor: [71, 85, 105],
-        fontStyle: 'bold',
-        fontSize: 8.5,
-      },
-      bodyStyles: {
-        fontSize: 8.5,
-        textColor: [30, 41, 59],
-      },
-      columnStyles: {
-        0: { cellWidth: 'auto', fontStyle: 'bold' },
-        1: { cellWidth: 28, halign: 'center' },
-        2: { cellWidth: 20, halign: 'center' },
-        3: { cellWidth: 40, halign: 'right', fontStyle: 'bold' },
-      },
-      styles: {
-        cellPadding: 2.8,
-        lineColor: [226, 232, 240],
-        lineWidth: 0.2,
-      },
-      didParseCell: (data) => {
-        if (data.section === 'body' && data.column.index === 1) {
-          data.cell.styles.textColor =
-            data.cell.raw === 'INCOME' ? [5, 150, 105] : [220, 38, 38];
-        }
-      },
-      margin: { left: margin, right: margin },
-    });
-
-    currentY = (doc as any).lastAutoTable.finalY + 8;
-  }
-
-  // ─── Itemized Transaction Ledger ───────────────────────────────────────────
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(15, 23, 42);
-  doc.text(
-    `Itemized Transaction Ledger (${cleanTransactions.length} Records)`,
-    margin,
-    currentY
-  );
-  currentY += 3;
-
-  const sortedTxList = [...cleanTransactions].sort(
-    (a, b) => b.rawDate - a.rawDate
-  );
-
-  const transactionTableData =
-    sortedTxList.length > 0
-      ? sortedTxList.map((t) => [
-          t.dateFormatted,
-          t.categoryName,
-          t.paymentMethod,
-          t.notes,
-          t.amountFormatted,
-        ])
-      : [['—', 'No records found for selected period', '—', '—', '—']];
-
-  autoTable(doc, {
-    startY: currentY,
-    head: [['Date', 'Category', 'Method', 'Notes / Memo', 'Amount']],
-    body: transactionTableData,
-    theme: 'striped',
-    headStyles: {
-      fillColor: [241, 245, 249],
-      textColor: [71, 85, 105],
-      fontStyle: 'bold',
-      fontSize: 8.5,
-    },
-    bodyStyles: {
-      fontSize: 8,
-      textColor: [51, 65, 85],
-    },
-    alternateRowStyles: {
-      fillColor: [248, 250, 252],
-    },
-    columnStyles: {
-      0: { cellWidth: 26 },
-      1: { cellWidth: 32, fontStyle: 'bold' },
-      2: { cellWidth: 22, halign: 'center' },
-      3: { cellWidth: 'auto' },
-      4: { cellWidth: 34, halign: 'right', fontStyle: 'bold' },
-    },
-    styles: {
-      cellPadding: 2.6,
-      lineColor: [241, 245, 249],
-      lineWidth: 0.1,
-    },
-    didParseCell: (data) => {
-      if (data.section === 'body' && data.column.index === 4) {
-        const text = String(data.cell.raw || '');
-        data.cell.styles.textColor = text.startsWith('+')
-          ? [5, 150, 105]
-          : [220, 38, 38];
+  const html = `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="utf-8">
+    <title>Xpense Statement</title>
+    <style>
+      @page { margin: 16mm 14mm; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        background-color: #0B0A12;
+        color: #F8FAFC;
+        margin: 0;
+        padding: 0;
       }
-    },
-    margin: { left: margin, right: margin, bottom: 16 },
-  });
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #7C3AED;
+      }
+      .logo-title {
+        font-size: 26px;
+        font-weight: 900;
+        letter-spacing: -0.5px;
+        color: #FFFFFF;
+        margin: 0;
+      }
+      .logo-title span { color: #A855F7; }
+      .meta { text-align: right; font-size: 11px; color: #94A3B8; }
+      .cards-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin: 20px 0;
+      }
+      .card {
+        background: #141222;
+        border: 1px solid rgba(168,85,247,0.2);
+        border-radius: 10px;
+        padding: 12px;
+        text-align: center;
+      }
+      .card-label { font-size: 10px; text-transform: uppercase; color: #94A3B8; font-weight: 600; }
+      .card-val { font-size: 16px; font-weight: 800; margin-top: 4px; }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 16px;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      th {
+        background: #1E1B2E;
+        color: #C084FC;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 10px 12px;
+        text-align: left;
+        border-bottom: 1px solid rgba(168,85,247,0.3);
+      }
+      .footer {
+        margin-top: 24px;
+        text-align: center;
+        font-size: 10px;
+        color: #64748B;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255,255,255,0.06);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div>
+        <h1 class="logo-title">Xpense<span>.</span></h1>
+        <div style="font-size: 12px; color: #C084FC; font-weight: 600; margin-top: 2px;">Financial Statement Report</div>
+      </div>
+      <div class="meta">
+        <div><strong>Account:</strong> ${userName}</div>
+        <div><strong>Period:</strong> ${startDate} to ${endDate}</div>
+        <div><strong>Generated:</strong> ${generatedDateStr}</div>
+      </div>
+    </div>
 
-  // Footer on all pages
-  const totalPages = (doc.internal as any).getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(148, 163, 184);
-    doc.text(
-      'Generated automatically by Xpense Finance Companion • Confidential & Personal',
-      margin,
-      doc.internal.pageSize.getHeight() - 8
-    );
-    doc.text(
-      `Page ${i} of ${totalPages}`,
-      pageWidth - margin,
-      doc.internal.pageSize.getHeight() - 8,
-      { align: 'right' }
-    );
-  }
+    <div class="cards-grid">
+      <div class="card">
+        <div class="card-label">Total Inflow</div>
+        <div class="card-val" style="color: #10B981;">+${formatCurrency(totalIncome, 'INR', currencySymbol)}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Total Outflow</div>
+        <div class="card-val" style="color: #F43F5E;">-${formatCurrency(totalExpense, 'INR', currencySymbol)}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Net Balance</div>
+        <div class="card-val" style="color: ${netBalance >= 0 ? '#38BDF8' : '#F43F5E'};">${formatCurrency(netBalance, 'INR', currencySymbol)}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Savings Rate</div>
+        <div class="card-val" style="color: #F59E0B;">${savingsRate}%</div>
+      </div>
+    </div>
 
-  // ─── Web / PWA Direct Automatic Download Flow ────────────────────────────────
-  if (Platform.OS === 'web') {
-    if (typeof window !== 'undefined') {
-      doc.save(filename);
-      return filename;
+    ${
+      catRowsHtml
+        ? `
+    <div style="background: #141222; border: 1px solid rgba(168,85,247,0.15); border-radius: 10px; padding: 14px; margin-bottom: 20px;">
+      <div style="font-size: 12px; font-weight: 700; color: #E2E8F0; margin-bottom: 8px;">Top Categories Summary</div>
+      ${catRowsHtml}
+    </div>
+    `
+        : ''
     }
+
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Category</th>
+          <th>Method</th>
+          <th>Notes</th>
+          <th style="text-align: right;">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHtml || '<tr><td colspan="5" style="text-align:center; padding: 20px; color:#94A3B8;">No transactions found in selected period.</td></tr>'}
+      </tbody>
+    </table>
+
+    <div class="footer">
+      Generated automatically by Xpense Financial Tracker • Built with Privacy First • Page 1 of 1
+    </div>
+  </body>
+  </html>
+  `;
+
+  // On Web: Print or Direct View
+  if (Platform.OS === 'web') {
+    await Print.printAsync({ html });
+    return 'printed';
   }
 
-  // ─── Native (iOS/Android) Save & Share Sheet Flow ────────────────────────────
-  const pdfBase64 = doc.output('datauristring').split(',')[1];
-  const fileUri = `${FileSystem.documentDirectory}${filename}`;
-
-  await FileSystem.writeAsStringAsync(fileUri, pdfBase64, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
+  // On Native Mobile: Print to PDF File & Share
+  const { uri } = await Print.printToFileAsync({ html });
 
   if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(fileUri, {
+    await Sharing.shareAsync(uri, {
       mimeType: 'application/pdf',
       dialogTitle: 'Save Financial Statement PDF',
       UTI: 'com.adobe.pdf',
     });
   }
 
-  return fileUri;
+  return uri;
 }
 
 /**

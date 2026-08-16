@@ -34,6 +34,7 @@ export type SettingsStackParamList = {
   CategoryManagement: undefined;
   AddEditCategory: { categoryId?: string };
   CurrencySettings: undefined;
+  ThemeSettings: undefined;
   NotificationSettings: undefined;
   About: undefined;
   Export: undefined;

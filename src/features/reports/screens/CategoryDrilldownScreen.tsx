@@ -19,6 +19,7 @@ import { formatCurrency } from '../../../shared/utils/currencyUtils';
 import { formatTransactionDate, getMonthKey } from '../../../shared/utils/dateUtils';
 import { ScreenHeader } from '../../../shared/components/ScreenHeader';
 import { Transaction } from '../../../shared/types/transaction.types';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<ReportsStackParamList, 'CategoryDrilldown'>;
@@ -31,6 +32,8 @@ export default function CategoryDrilldownScreen({ navigation, route }: Props) {
   const { transactions } = useTransactions();
   const { getById } = useCategories();
   const { settings } = useSettings();
+  const { theme } = useAppTheme();
+  const tc = theme.colors;
   const currencySymbol = settings?.currencySymbol ?? '₹';
 
   const category = getById(categoryId);
@@ -46,20 +49,20 @@ export default function CategoryDrilldownScreen({ navigation, route }: Props) {
   }, [filtered]);
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+    <View style={[styles.container, { backgroundColor: tc.background, paddingBottom: insets.bottom }]}>
       <ScreenHeader
         title={category?.name ?? 'Category Drilldown'}
         subtitle={`Period: ${monthKey}`}
         onBack={() => navigation.goBack()}
       />
 
-      <View style={styles.summaryCard}>
-        <View style={[styles.iconBg, { backgroundColor: `${category?.color ?? colors.primary}20` }]}>
-          <Ionicons name={(category?.icon ?? 'apps-outline') as any} size={28} color={category?.color ?? colors.primary} />
+      <View style={[styles.summaryCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+        <View style={[styles.iconBg, { backgroundColor: `${category?.color ?? tc.primary}20` }]}>
+          <Ionicons name={(category?.icon ?? 'apps-outline') as any} size={28} color={category?.color ?? tc.primary} />
         </View>
-        <Text style={styles.totalLabel}>Total Spent</Text>
-        <Text style={styles.totalVal}>{formatCurrency(total, 'INR', currencySymbol)}</Text>
-        <Text style={styles.countText}>{filtered.length} Transactions</Text>
+        <Text style={[styles.totalLabel, { color: tc.textMuted }]}>Total Spent</Text>
+        <Text style={[styles.totalVal, { color: tc.textPrimary }]}>{formatCurrency(total, 'INR', currencySymbol)}</Text>
+        <Text style={[styles.countText, { color: tc.textSecondary }]}>{filtered.length} Transactions</Text>
       </View>
 
       <FlatList
@@ -67,16 +70,16 @@ export default function CategoryDrilldownScreen({ navigation, route }: Props) {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
         renderItem={({ item }: { item: Transaction }) => (
-          <View style={styles.txCard}>
+          <View style={[styles.txCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
             <View style={styles.txInfo}>
-              <Text style={styles.txTitle}>{item.notes || category?.name}</Text>
-              <Text style={styles.txSub}>{formatTransactionDate(item.date)}</Text>
+              <Text style={[styles.txTitle, { color: tc.textPrimary }]}>{item.notes || category?.name}</Text>
+              <Text style={[styles.txSub, { color: tc.textMuted }]}>{formatTransactionDate(item.date)}</Text>
             </View>
             <View style={styles.txRight}>
-              <Text style={styles.txAmount}>
+              <Text style={[styles.txAmount, { color: item.type === 'income' ? tc.income : tc.expense }]}>
                 {formatCurrency(item.amount, 'INR', currencySymbol)}
               </Text>
-              <Text style={styles.txMethod}>{(item.paymentMethod || 'cash').toUpperCase()}</Text>
+              <Text style={[styles.txMethod, { color: tc.textMuted }]}>{(item.paymentMethod || 'cash').toUpperCase()}</Text>
             </View>
           </View>
         )}

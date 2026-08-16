@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,6 +21,7 @@ import { promptGoogleNativeAuth } from '../../../services/googleAuth';
 import { ForgotPasswordModal } from '../../../shared/components/ForgotPasswordModal';
 import { colors, typography, spacing, radius } from '../../../core/theme';
 import { getSafeTopInset } from '../../../shared/utils/layoutUtils';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
@@ -29,6 +31,8 @@ export default function LoginScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const topInset = getSafeTopInset(insets);
   const { login } = useAuth();
+  const { theme } = useAppTheme();
+  const tc = theme.colors;
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -57,7 +61,7 @@ export default function LoginScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: insets.bottom }]}>
+    <View style={[styles.container, { backgroundColor: tc.background, paddingTop: topInset, paddingBottom: insets.bottom }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -70,7 +74,11 @@ export default function LoginScreen({ navigation }: Props) {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.logoBadge}>
-              <Ionicons name="wallet" size={32} color="#7C3AED" />
+              <Image
+                source={require('../../../../assets/icon.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
             <Text style={styles.title}>Welcome Back</Text>
             <Text style={styles.subtitle}>Sign in to continue managing your finances</Text>
@@ -202,12 +210,15 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 20,
-    backgroundColor: 'rgba(124, 58, 237, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(124, 58, 237, 0.3)',
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
+  },
+  logoImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
   },
   title: {
     ...typography.displayMedium,

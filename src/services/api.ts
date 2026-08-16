@@ -116,9 +116,18 @@ export const authApi = {
     }
   },
 
-  async updateProfile(payload: { name?: string; currency?: string }) {
+  async updateProfile(payload: { name?: string; currency?: string; avatar?: string }) {
     try {
       const { data } = await api.put('/api/auth/profile', payload);
+      return data;
+    } catch (err) {
+      throw new Error(extractMessage(err));
+    }
+  },
+
+  async uploadAvatar(payload: { imageBase64?: string; imageUrl?: string }) {
+    try {
+      const { data } = await api.post('/api/auth/avatar', payload);
       return data;
     } catch (err) {
       throw new Error(extractMessage(err));

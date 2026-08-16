@@ -9,6 +9,7 @@ import AboutScreen from '../../features/settings/screens/AboutScreen';
 import ExportScreen from '../../features/export/screens/ExportScreen';
 import FeedbackScreen from '../../features/settings/screens/FeedbackScreen';
 import HelpFaqScreen from '../../features/settings/screens/HelpFaqScreen';
+import ThemeSettingsScreen from '../../features/settings/screens/ThemeSettingsScreen';
 import { colors } from '../theme';
 
 import { SettingsStackParamList } from './types';
@@ -38,6 +39,7 @@ export function SettingsStackNavigator() {
         }}
       />
       <Stack.Screen name="CurrencySettings" component={CurrencySettingsScreen} />
+      <Stack.Screen name="ThemeSettings" component={ThemeSettingsScreen} />
       <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
       <Stack.Screen name="About" component={AboutScreen} />
       <Stack.Screen name="Export" component={ExportScreen} />

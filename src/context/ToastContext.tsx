@@ -14,6 +14,7 @@ import {
   Animated,
   TouchableOpacity,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,47 +48,60 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<ToastOptions | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const translateY = useRef(new Animated.Value(-120)).current;
+  const translateY = useRef(new Animated.Value(-60)).current;
   const opacity = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.85)).current;
   const progressAnim = useRef(new Animated.Value(1)).current;
 
   const hideToast = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     Animated.parallel([
       Animated.timing(translateY, {
-        toValue: -120,
-        duration: 250,
+        toValue: -50,
+        duration: 160,
         useNativeDriver: true,
       }),
       Animated.timing(opacity, {
         toValue: 0,
-        duration: 200,
+        duration: 140,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scale, {
+        toValue: 0.85,
+        duration: 140,
         useNativeDriver: true,
       }),
     ]).start(() => {
       setToast(null);
     });
-  }, [translateY, opacity]);
+  }, [translateY, opacity, scale]);
 
   const showToast = useCallback(
     (options: ToastOptions) => {
       if (timerRef.current) clearTimeout(timerRef.current);
 
       setToast(options);
-      translateY.setValue(-120);
+      translateY.setValue(-60);
       opacity.setValue(0);
+      scale.setValue(0.85);
       progressAnim.setValue(1);
 
       Animated.parallel([
         Animated.spring(translateY, {
           toValue: 0,
-          tension: 80,
-          friction: 9,
+          tension: 120,
+          friction: 8,
           useNativeDriver: true,
         }),
         Animated.timing(opacity, {
           toValue: 1,
-          duration: 200,
+          duration: 160,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scale, {
+          toValue: 1,
+          tension: 120,
+          friction: 8,
           useNativeDriver: true,
         }),
       ]).start();
@@ -103,7 +117,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         hideToast();
       }, duration);
     },
-    [translateY, opacity, progressAnim, hideToast]
+    [translateY, opacity, scale, progressAnim, hideToast]
   );
 
   const showSuccess = useCallback(
@@ -130,32 +144,36 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     switch (type) {
       case 'success':
         return {
-          icon: 'checkmark-circle' as const,
+          icon: 'checkmark' as const,
           iconColor: '#10B981',
-          gradient: ['rgba(16, 185, 129, 0.22)', 'rgba(5, 150, 105, 0.08)'],
-          borderColor: 'rgba(16, 185, 129, 0.4)',
+          avatarBg: 'rgba(16, 185, 129, 0.2)',
+          borderColor: 'rgba(16, 185, 129, 0.45)',
+          glowColor: '#10B981',
         };
       case 'error':
         return {
-          icon: 'alert-circle' as const,
-          iconColor: '#EF4444',
-          gradient: ['rgba(239, 68, 68, 0.22)', 'rgba(220, 38, 38, 0.08)'],
-          borderColor: 'rgba(239, 68, 68, 0.4)',
+          icon: 'close' as const,
+          iconColor: '#F43F5E',
+          avatarBg: 'rgba(244, 63, 94, 0.2)',
+          borderColor: 'rgba(244, 63, 94, 0.45)',
+          glowColor: '#F43F5E',
         };
       case 'warning':
         return {
-          icon: 'warning' as const,
+          icon: 'alert' as const,
           iconColor: '#F59E0B',
-          gradient: ['rgba(245, 158, 11, 0.22)', 'rgba(217, 119, 6, 0.08)'],
-          borderColor: 'rgba(245, 158, 11, 0.4)',
+          avatarBg: 'rgba(245, 158, 11, 0.2)',
+          borderColor: 'rgba(245, 158, 11, 0.45)',
+          glowColor: '#F59E0B',
         };
       case 'info':
       default:
         return {
-          icon: 'information-circle' as const,
-          iconColor: '#A855F7',
-          gradient: ['rgba(168, 85, 247, 0.22)', 'rgba(124, 58, 237, 0.08)'],
-          borderColor: 'rgba(168, 85, 247, 0.4)',
+          icon: 'sparkles' as const,
+          iconColor: '#C084FC',
+          avatarBg: 'rgba(168, 85, 247, 0.2)',
+          borderColor: 'rgba(192, 132, 252, 0.45)',
+          glowColor: '#C084FC',
         };
     }
   };
@@ -177,43 +195,82 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           style={[
             styles.toastWrapper,
             {
-              top: (insets?.top || 40) + spacing.sm,
+              top: Math.max(insets?.top || 44, 40) + 4,
               opacity,
-              transform: [{ translateY }],
+              transform: [{ translateY }, { scale }],
             },
           ]}
           pointerEvents="box-none"
         >
           {(() => {
             const details = getTypeDetails(toast.type);
+            const progressWidth = progressAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: ['0%', '100%'],
+            });
+
             return (
               <TouchableOpacity
                 activeOpacity={0.9}
                 onPress={hideToast}
-                style={[styles.toastContainer, { borderColor: details.borderColor }]}
+                style={[
+                  styles.dynamicIslandPill,
+                  {
+                    borderColor: details.borderColor,
+                    shadowColor: details.glowColor,
+                  },
+                ]}
               >
                 <LinearGradient
-                  colors={details.gradient as [string, string, ...string[]]}
-                  style={styles.toastGradient}
+                  colors={['rgba(24, 18, 40, 0.96)', 'rgba(11, 8, 20, 0.98)']}
+                  style={styles.pillGradient}
                   start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
+                  end={{ x: 0, y: 1 }}
                 >
-                  <View style={[styles.iconBg, { backgroundColor: `${details.iconColor}20` }]}>
-                    <Ionicons name={details.icon} size={22} color={details.iconColor} />
-                  </View>
+                  {/* Top Specular Rim */}
+                  <View style={styles.specularRim} />
 
-                  <View style={styles.textContainer}>
-                    <Text style={styles.titleText} numberOfLines={1}>
-                      {toast.title}
-                    </Text>
-                    {toast.message ? (
-                      <Text style={styles.messageText} numberOfLines={2}>
-                        {toast.message}
+                  <View style={styles.contentRow}>
+                    {/* Neon Micro Avatar */}
+                    <View
+                      style={[
+                        styles.neonAvatar,
+                        { backgroundColor: details.avatarBg, borderColor: `${details.iconColor}50` },
+                      ]}
+                    >
+                      <Ionicons name={details.icon} size={15} color={details.iconColor} />
+                    </View>
+
+                    {/* Text Details */}
+                    <View style={styles.textCol}>
+                      <Text style={styles.titleText} numberOfLines={1}>
+                        {toast.title}
                       </Text>
-                    ) : null}
+                      {toast.message ? (
+                        <Text style={styles.messageText} numberOfLines={1}>
+                          {toast.message}
+                        </Text>
+                      ) : null}
+                    </View>
+
+                    {/* Close dismiss dot */}
+                    <View style={styles.dismissDot}>
+                      <Ionicons name="close" size={12} color="#94A3B8" />
+                    </View>
                   </View>
 
-                  <Ionicons name="close" size={18} color="rgba(156, 163, 175, 0.7)" />
+                  {/* Micro Progress Bar */}
+                  <View style={styles.progressTrack}>
+                    <Animated.View
+                      style={[
+                        styles.progressFill,
+                        {
+                          width: progressWidth,
+                          backgroundColor: details.iconColor,
+                        },
+                      ]}
+                    />
+                  </View>
                 </LinearGradient>
               </TouchableOpacity>
             );
@@ -233,53 +290,95 @@ export function useToast() {
 const styles = StyleSheet.create({
   toastWrapper: {
     position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
+    left: 0,
+    right: 0,
     zIndex: 99999,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
   },
-  toastContainer: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: '#0F0E17',
-    borderRadius: radius.lg,
-    borderWidth: 1,
+  dynamicIslandPill: {
+    alignSelf: 'center',
+    maxWidth: 370,
+    minWidth: 260,
+    borderRadius: 26,
+    borderWidth: 1.2,
     overflow: 'hidden',
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45,
-    shadowRadius: 16,
-    elevation: 16,
+    shadowOpacity: 0.55,
+    shadowRadius: 18,
+    elevation: 18,
+    backgroundColor: '#0B0814',
+    ...(Platform.OS === 'web'
+      ? {
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+        }
+      : {}),
   },
-  toastGradient: {
+  pillGradient: {
+    paddingTop: 8,
+    paddingBottom: 0,
+    paddingHorizontal: 12,
+    position: 'relative',
+  },
+  specularRim: {
+    position: 'absolute',
+    top: 0,
+    left: 24,
+    right: 24,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  contentRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md - 2,
-    gap: spacing.md,
+    gap: 10,
+    paddingBottom: 8,
   },
-  iconBg: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.md,
+  neonAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
   },
-  textContainer: {
+  textCol: {
     flex: 1,
+    justifyContent: 'center',
   },
   titleText: {
-    ...typography.bodyMedium,
+    fontSize: 13,
+    fontWeight: '800',
     color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14,
+    letterSpacing: -0.2,
   },
   messageText: {
-    ...typography.caption,
-    color: 'rgba(209, 213, 219, 0.85)',
-    fontSize: 12,
-    marginTop: 2,
-    lineHeight: 16,
+    fontSize: 11,
+    color: '#CBD5E1',
+    marginTop: 1,
+    fontWeight: '500',
+    letterSpacing: 0.1,
+  },
+  dismissDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 2,
+  },
+  progressTrack: {
+    height: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    width: '100%',
+    overflow: 'hidden',
+    borderBottomLeftRadius: 26,
+    borderBottomRightRadius: 26,
+  },
+  progressFill: {
+    height: '100%',
   },
 });
-

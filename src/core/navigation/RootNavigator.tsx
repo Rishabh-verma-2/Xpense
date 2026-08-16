@@ -3,6 +3,7 @@ import { BackHandler } from 'react-native';
 import {
   NavigationContainer,
   DarkTheme,
+  DefaultTheme,
   useNavigationContainerRef,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -14,22 +15,10 @@ import SignupScreen from '../../features/auth/screens/SignupScreen';
 import NameSetupScreen from '../../features/auth/screens/NameSetupScreen';
 import AddTransactionScreen from '../../features/transactions/screens/AddTransactionScreen';
 import { LandingScreen } from '../../features/landing/screens/LandingScreen';
-import { colors } from '../theme';
+import { useAppTheme } from '../../context/ThemeContext';
 import type { RootStackParamList } from './types';
 
 export type { RootStackParamList };
-
-const appTheme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    background: colors.background,
-    card: colors.surface,
-    text: colors.textPrimary,
-    border: colors.cardBorder,
-    primary: colors.primary,
-  },
-};
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -84,6 +73,21 @@ const linking = {
 
 export default function RootNavigator() {
   const navigationRef = useNavigationContainerRef();
+  const { theme } = useAppTheme();
+  const c = theme.colors;
+  const isLight = theme.mode === 'light';
+
+  const navTheme = {
+    ...(isLight ? DefaultTheme : DarkTheme),
+    colors: {
+      ...(isLight ? DefaultTheme.colors : DarkTheme.colors),
+      background: c.background,
+      card: c.surface,
+      text: c.textPrimary,
+      border: c.cardBorder,
+      primary: c.primary,
+    },
+  };
 
   // ─── Hardware Back Button Handling (Native Android) ──────────────────────
   useEffect(() => {
@@ -106,7 +110,7 @@ export default function RootNavigator() {
   return (
     <NavigationContainer
       ref={navigationRef}
-      theme={appTheme}
+      theme={navTheme}
       linking={linking}
     >
       <Stack.Navigator
@@ -114,7 +118,7 @@ export default function RootNavigator() {
         screenOptions={{
           headerShown: false,
           animation: 'default',
-          contentStyle: { backgroundColor: colors.background },
+          contentStyle: { backgroundColor: c.background },
         }}
       >
         <Stack.Screen name="Splash" component={SplashScreen} />

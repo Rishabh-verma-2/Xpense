@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ReportsStackParamList } from '../../../core/navigation/types';
 import { useTransactions } from '../../../context/TransactionContext';
 import { useSettings } from '../../../context/SettingsContext';
+import { useAppTheme } from '../../../context/ThemeContext';
 import { colors, typography, spacing, radius } from '../../../core/theme';
 import { getSafeTopInset } from '../../../shared/utils/layoutUtils';
 import { getMonthKey, shiftMonth, getMonthLabel } from '../../../shared/utils/dateUtils';
@@ -36,6 +37,8 @@ export default function MonthlyReportScreen({ navigation }: Props) {
   const [showExportModal, setShowExportModal] = useState(false);
   const { transactions } = useTransactions();
   const { settings } = useSettings();
+  const { theme } = useAppTheme();
+  const tc = theme.colors;
   const currencySymbol = settings?.currencySymbol ?? '₹';
 
   const prevMonthKey = shiftMonth(monthKey, -1);
@@ -85,9 +88,9 @@ export default function MonthlyReportScreen({ navigation }: Props) {
 
   const pieData = useMemo(() => {
     return stats.categoryBreakdown.map((item) => ({
-      value: item.amount,
-      color: item.categoryColor,
-      text: `${item.percentage.toFixed(0)}%`,
+      value: typeof item.amount === 'number' && !isNaN(item.amount) ? item.amount : 0,
+      color: item.categoryColor || '#7C3AED',
+      text: `${(typeof item.percentage === 'number' && !isNaN(item.percentage) ? item.percentage : 0).toFixed(0)}%`,
     }));
   }, [stats.categoryBreakdown]);
 
@@ -96,7 +99,7 @@ export default function MonthlyReportScreen({ navigation }: Props) {
       const isPeak = peakDay && item.date === peakDay.date;
       return {
         value: item.amount,
-        label: item.date.slice(8), // Day number
+        label: item.date.slice(8),
         frontColor: isPeak ? '#F59E0B' : '#7C3AED',
       };
     });
@@ -105,12 +108,12 @@ export default function MonthlyReportScreen({ navigation }: Props) {
   const topCategory = stats.categoryBreakdown[0] ?? null;
 
   return (
-    <View style={[styles.container, { paddingTop: topInset }]}>
+    <View style={[styles.container, { backgroundColor: tc.background, paddingTop: topInset }]}>
       {/* ── Top Header ── */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>Analytics & Reports</Text>
-          <Text style={styles.headerSubtitle}>{getMonthLabel(monthKey)}</Text>
+          <Text style={[styles.headerTitle, { color: tc.textPrimary }]}>Financial Reports</Text>
+          <Text style={[styles.headerSubtitle, { color: tc.textMuted }]}>{getMonthLabel(monthKey)}</Text>
         </View>
 
         <View style={styles.headerActions}>
@@ -120,21 +123,21 @@ export default function MonthlyReportScreen({ navigation }: Props) {
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={['rgba(168, 85, 247, 0.25)', 'rgba(124, 58, 237, 0.12)']}
+              colors={[`${theme.accentColor}33`, `${tc.primary}1A`]}
               style={styles.exportGradient}
             >
-              <Ionicons name="download-outline" size={16} color={colors.primaryLight} />
-              <Text style={styles.exportText}>Export</Text>
+              <Ionicons name="download-outline" size={15} color={theme.accentColor} />
+              <Text style={[styles.exportText, { color: theme.accentColor }]}>Export</Text>
             </LinearGradient>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.yearlyToggleBtn}
+            style={[styles.yearlyToggleBtn, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}
             onPress={() => navigation.navigate('YearlyReport', { year: monthKey.slice(0, 4) })}
             activeOpacity={0.8}
           >
-            <Text style={styles.yearlyToggleText}>Yearly</Text>
-            <Ionicons name="calendar-outline" size={14} color={colors.primary} />
+            <Text style={[styles.yearlyToggleText, { color: theme.accentColor }]}>Yearly</Text>
+            <Ionicons name="calendar-outline" size={14} color={theme.accentColor} />
           </TouchableOpacity>
         </View>
       </View>
@@ -145,20 +148,24 @@ export default function MonthlyReportScreen({ navigation }: Props) {
       <ExportModal visible={showExportModal} onClose={() => setShowExportModal(false)} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* ── Glassmorphic Hero Overview Card ── */}
-        <View style={styles.heroCard}>
+        {/* ── Luxury Theme Hero Overview Card ── */}
+        <View style={[styles.heroCard, { borderColor: theme.colors.cardBorderActive }]}>
           <LinearGradient
-            colors={['#1F1147', '#120831', '#0A051D']}
+            colors={theme.heroGradient}
             style={styles.heroGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            <View style={styles.decorRing1} />
-            <View style={styles.decorRing2} />
+            <View style={[styles.decorGlow1, { backgroundColor: theme.colors.mesh1 }]} />
+            <View style={[styles.decorGlow2, { backgroundColor: theme.colors.mesh2 }]} />
+            <View style={styles.specularTopLine} />
 
             {/* Top row: Label & MoM Pill */}
             <View style={styles.heroHeaderRow}>
-              <Text style={styles.heroLabel}>TOTAL SPENT</Text>
+              <View style={styles.tagRow}>
+                <View style={styles.pulseDot} />
+                <Text style={styles.heroLabel}>MONTHLY OUTFLOW</Text>
+              </View>
 
               {momExpenseChange ? (
                 <View
@@ -166,10 +173,10 @@ export default function MonthlyReportScreen({ navigation }: Props) {
                     styles.momPill,
                     {
                       backgroundColor: momExpenseChange.isIncreased
-                        ? 'rgba(239, 68, 68, 0.18)'
+                        ? 'rgba(244, 63, 94, 0.18)'
                         : 'rgba(16, 185, 129, 0.18)',
                       borderColor: momExpenseChange.isIncreased
-                        ? 'rgba(239, 68, 68, 0.35)'
+                        ? 'rgba(244, 63, 94, 0.35)'
                         : 'rgba(16, 185, 129, 0.35)',
                     },
                   ]}
@@ -177,15 +184,15 @@ export default function MonthlyReportScreen({ navigation }: Props) {
                   <Ionicons
                     name={momExpenseChange.isIncreased ? 'trending-up' : 'trending-down'}
                     size={12}
-                    color={momExpenseChange.isIncreased ? '#EF4444' : '#10B981'}
+                    color={momExpenseChange.isIncreased ? '#F43F5E' : '#10B981'}
                   />
                   <Text
                     style={[
                       styles.momPillText,
-                      { color: momExpenseChange.isIncreased ? '#EF4444' : '#10B981' },
+                      { color: momExpenseChange.isIncreased ? '#F43F5E' : '#10B981' },
                     ]}
                   >
-                    {momExpenseChange.percentage}% {momExpenseChange.isIncreased ? 'more' : 'less'}
+                    {momExpenseChange.percentage}% {momExpenseChange.isIncreased ? 'more' : 'less'} vs last mo
                   </Text>
                 </View>
               ) : null}
@@ -199,9 +206,9 @@ export default function MonthlyReportScreen({ navigation }: Props) {
             {/* Sub Metrics Grid */}
             <View style={styles.heroGrid}>
               <View style={styles.heroMetricItem}>
-                <Text style={styles.metricLabel}>Income</Text>
-                <Text style={[styles.metricVal, { color: colors.income }]}>
-                  {formatCurrency(stats.totalIncome, 'INR', currencySymbol)}
+                <Text style={styles.metricLabel}>Total Inflow</Text>
+                <Text style={[styles.metricVal, { color: '#10B981' }]}>
+                  +{formatCurrency(stats.totalIncome, 'INR', currencySymbol)}
                 </Text>
               </View>
 
@@ -212,7 +219,7 @@ export default function MonthlyReportScreen({ navigation }: Props) {
                 <Text
                   style={[
                     styles.metricVal,
-                    { color: stats.netBalance >= 0 ? colors.income : colors.expense },
+                    { color: stats.netBalance >= 0 ? '#38BDF8' : '#F43F5E' },
                   ]}
                 >
                   {formatCurrency(stats.netBalance, 'INR', currencySymbol)}
@@ -222,26 +229,26 @@ export default function MonthlyReportScreen({ navigation }: Props) {
               <View style={styles.gridDivider} />
 
               <View style={styles.heroMetricItem}>
-                <Text style={styles.metricLabel}>Avg / Day</Text>
-                <Text style={[styles.metricVal, { color: colors.primaryLight }]}>
-                  {formatCurrency(dailyAverage, 'INR', currencySymbol)}
+                <Text style={styles.metricLabel}>Daily Burn</Text>
+                <Text style={[styles.metricVal, { color: theme.accentColor }]}>
+                  {formatCurrency(dailyAverage, 'INR', currencySymbol)}/d
                 </Text>
               </View>
             </View>
           </LinearGradient>
         </View>
 
-        {/* ── Category Breakdown Ring & Progress Bars ── */}
+        {/* ── Category Breakdown Ring & Progress Cards ── */}
         {stats.categoryBreakdown.length > 0 ? (
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
             <View style={styles.cardHeaderRow}>
               <View style={styles.cardHeaderTitleRow}>
-                <View style={[styles.cardHeaderIconBg, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
-                  <Ionicons name="pie-chart-outline" size={18} color="#C084FC" />
+                <View style={[styles.cardHeaderIconBg, { backgroundColor: `${theme.accentColor}22` }]}>
+                  <Ionicons name="pie-chart-outline" size={18} color={theme.accentColor} />
                 </View>
-                <Text style={styles.cardTitle}>Spending by Category</Text>
+                <Text style={[styles.cardTitle, { color: tc.textPrimary }]}>Spending by Category</Text>
               </View>
-              <Text style={styles.cardSubtitleCount}>
+              <Text style={[styles.cardSubtitleCount, { color: tc.textMuted }]}>
                 {stats.categoryBreakdown.length} Categories
               </Text>
             </View>
@@ -251,15 +258,15 @@ export default function MonthlyReportScreen({ navigation }: Props) {
               <PieChart
                 data={pieData}
                 donut
-                radius={82}
-                innerRadius={58}
-                innerCircleColor={colors.surface}
+                radius={84}
+                innerRadius={60}
+                innerCircleColor={tc.card}
                 centerLabelComponent={() => (
                   <View style={{ alignItems: 'center' }}>
-                    <Text style={{ ...typography.caption, color: colors.textMuted, fontSize: 11 }}>
+                    <Text style={{ fontSize: 10, color: tc.textMuted, fontWeight: '600', textTransform: 'uppercase' }}>
                       Spent
                     </Text>
-                    <Text style={{ ...typography.bodyMedium, color: colors.textPrimary, fontWeight: '700' }}>
+                    <Text style={{ fontSize: 14, color: tc.textPrimary, fontWeight: '900', marginTop: 2 }}>
                       {formatCurrency(stats.totalExpense, 'INR', currencySymbol)}
                     </Text>
                   </View>
@@ -272,7 +279,7 @@ export default function MonthlyReportScreen({ navigation }: Props) {
               {stats.categoryBreakdown.map((item) => (
                 <TouchableOpacity
                   key={item.categoryId}
-                  style={styles.catCard}
+                  style={[styles.catCard, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}
                   activeOpacity={0.8}
                   onPress={() =>
                     navigation.navigate('CategoryDrilldown', {
@@ -295,19 +302,21 @@ export default function MonthlyReportScreen({ navigation }: Props) {
                           color={item.categoryColor}
                         />
                       </View>
-                      <Text style={styles.catName}>{item.categoryName}</Text>
+                      <Text style={[styles.catName, { color: tc.textPrimary }]}>{item.categoryName}</Text>
                     </View>
 
                     <View style={styles.catCardRight}>
-                      <Text style={styles.catAmount}>
+                      <Text style={[styles.catAmount, { color: tc.textPrimary }]}>
                         {formatCurrency(item.amount, 'INR', currencySymbol)}
                       </Text>
-                      <Text style={styles.catPercent}>{item.percentage.toFixed(1)}%</Text>
+                      <Text style={[styles.catPercent, { color: tc.textMuted }]}>
+                        {(typeof item.percentage === 'number' && !isNaN(item.percentage) ? item.percentage : 0).toFixed(1)}%
+                      </Text>
                     </View>
                   </View>
 
                   {/* Animated Category Progress Bar */}
-                  <View style={styles.catProgressBg}>
+                  <View style={[styles.catProgressBg, { backgroundColor: theme.mode === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(255, 255, 255, 0.08)' }]}>
                     <View
                       style={[
                         styles.catProgressFill,
@@ -323,12 +332,12 @@ export default function MonthlyReportScreen({ navigation }: Props) {
             </View>
           </View>
         ) : (
-          <View style={styles.emptyCard}>
-            <View style={styles.emptyIconBg}>
-              <Ionicons name="bar-chart-outline" size={32} color={colors.textMuted} />
+          <View style={[styles.emptyCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+            <View style={[styles.emptyIconBg, { backgroundColor: tc.surface }]}>
+              <Ionicons name="bar-chart-outline" size={32} color={tc.textMuted} />
             </View>
-            <Text style={styles.emptyTitle}>No Spending Records</Text>
-            <Text style={styles.emptyDesc}>
+            <Text style={[styles.emptyTitle, { color: tc.textPrimary }]}>No Spending Records</Text>
+            <Text style={[styles.emptyDesc, { color: tc.textSecondary }]}>
               Log transactions for {getMonthLabel(monthKey)} to unlock detailed category analytics.
             </Text>
           </View>
@@ -336,23 +345,23 @@ export default function MonthlyReportScreen({ navigation }: Props) {
 
         {/* ── Daily Spending Trend Bar Chart ── */}
         {barData.length > 0 && stats.totalExpense > 0 ? (
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
             <View style={styles.cardHeaderRow}>
               <View style={styles.cardHeaderTitleRow}>
                 <View style={[styles.cardHeaderIconBg, { backgroundColor: 'rgba(59, 130, 246, 0.15)' }]}>
                   <Ionicons name="stats-chart-outline" size={18} color="#60A5FA" />
                 </View>
-                <Text style={styles.cardTitle}>Daily Spending Trend</Text>
+                <Text style={[styles.cardTitle, { color: tc.textPrimary }]}>Daily Spending Trend</Text>
               </View>
             </View>
 
             {/* Peak Day Callout */}
             {peakDay ? (
-              <View style={styles.peakCalloutRow}>
+              <View style={[styles.peakCalloutRow, { backgroundColor: `${tc.primary}12`, borderColor: `${tc.primary}33` }]}>
                 <Ionicons name="flame" size={16} color="#F59E0B" />
-                <Text style={styles.peakCalloutText}>
+                <Text style={[styles.peakCalloutText, { color: tc.textSecondary }]}>
                   Peak Spend:{' '}
-                  <Text style={{ fontWeight: '700', color: '#F59E0B' }}>
+                  <Text style={{ fontWeight: '800', color: '#F59E0B' }}>
                     {formatCurrency(peakDay.amount, 'INR', currencySymbol)}
                   </Text>{' '}
                   on Day {peakDay.date.slice(8)}
@@ -360,7 +369,7 @@ export default function MonthlyReportScreen({ navigation }: Props) {
               </View>
             ) : null}
 
-            <View style={{ marginTop: spacing.md, overflow: 'hidden', alignItems: 'center' }}>
+            <View style={{ marginTop: 14, overflow: 'hidden', alignItems: 'center' }}>
               <BarChart
                 data={barData}
                 barWidth={10}
@@ -369,8 +378,8 @@ export default function MonthlyReportScreen({ navigation }: Props) {
                 hideRules
                 xAxisThickness={0}
                 yAxisThickness={0}
-                yAxisTextStyle={{ color: colors.textMuted, fontSize: 10 }}
-                xAxisLabelTextStyle={{ color: colors.textMuted, fontSize: 10 }}
+                yAxisTextStyle={{ color: tc.textMuted, fontSize: 10 }}
+                xAxisLabelTextStyle={{ color: tc.textMuted, fontSize: 10 }}
                 noOfSections={3}
                 barBorderRadius={4}
               />
@@ -380,12 +389,12 @@ export default function MonthlyReportScreen({ navigation }: Props) {
 
         {/* ── Smart Financial Insights & Nudges ── */}
         {stats.totalExpense > 0 ? (
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
             <View style={styles.cardHeaderTitleRow}>
               <View style={[styles.cardHeaderIconBg, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
                 <Ionicons name="bulb-outline" size={18} color="#F59E0B" />
               </View>
-              <Text style={styles.cardTitle}>Smart Financial Insights</Text>
+              <Text style={[styles.cardTitle, { color: tc.textPrimary }]}>Smart Financial Insights</Text>
             </View>
 
             <View style={styles.insightsList}>
@@ -394,14 +403,14 @@ export default function MonthlyReportScreen({ navigation }: Props) {
                 <View style={styles.insightItem}>
                   <View style={[styles.insightDot, { backgroundColor: topCategory.categoryColor }]} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.insightTitle}>Primary Spending Driver</Text>
-                    <Text style={styles.insightDesc}>
-                      <Text style={{ fontWeight: '700', color: colors.textPrimary }}>
+                    <Text style={[styles.insightTitle, { color: tc.textPrimary }]}>Primary Spending Driver</Text>
+                    <Text style={[styles.insightDesc, { color: tc.textSecondary }]}>
+                      <Text style={{ fontWeight: '800', color: tc.textPrimary }}>
                         {topCategory.categoryName}
                       </Text>{' '}
                       makes up{' '}
-                      <Text style={{ fontWeight: '700', color: topCategory.categoryColor }}>
-                        {topCategory.percentage.toFixed(0)}%
+                      <Text style={{ fontWeight: '800', color: topCategory.categoryColor }}>
+                        {(typeof topCategory.percentage === 'number' && !isNaN(topCategory.percentage) ? topCategory.percentage : 0).toFixed(0)}%
                       </Text>{' '}
                       of your total monthly expenses.
                     </Text>
@@ -411,15 +420,15 @@ export default function MonthlyReportScreen({ navigation }: Props) {
 
               {/* Insight 2: Daily Pace */}
               <View style={styles.insightItem}>
-                <View style={[styles.insightDot, { backgroundColor: '#3B82F6' }]} />
+                <View style={[styles.insightDot, { backgroundColor: '#38BDF8' }]} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.insightTitle}>Daily Burn Velocity</Text>
-                  <Text style={styles.insightDesc}>
+                  <Text style={[styles.insightTitle, { color: tc.textPrimary }]}>Daily Burn Velocity</Text>
+                  <Text style={[styles.insightDesc, { color: tc.textSecondary }]}>
                     You are spending an average of{' '}
-                    <Text style={{ fontWeight: '700', color: colors.textPrimary }}>
+                    <Text style={{ fontWeight: '800', color: tc.textPrimary }}>
                       {formatCurrency(dailyAverage, 'INR', currencySymbol)}
                     </Text>{' '}
-                    per day this month.
+                    per active day this month.
                   </Text>
                 </View>
               </View>
@@ -429,27 +438,27 @@ export default function MonthlyReportScreen({ navigation }: Props) {
                 <View
                   style={[
                     styles.insightDot,
-                    { backgroundColor: stats.netBalance >= 0 ? '#10B981' : '#EF4444' },
+                    { backgroundColor: stats.netBalance >= 0 ? '#10B981' : '#F43F5E' },
                   ]}
                 />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.insightTitle}>Net Cashflow Status</Text>
-                  <Text style={styles.insightDesc}>
+                  <Text style={[styles.insightTitle, { color: tc.textPrimary }]}>Net Cashflow Status</Text>
+                  <Text style={[styles.insightDesc, { color: tc.textSecondary }]}>
                     {stats.netBalance >= 0 ? (
                       <Text style={{ color: '#10B981' }}>
-                        Great job! You have saved{' '}
-                        <Text style={{ fontWeight: '700' }}>
+                        Great job! You retained{' '}
+                        <Text style={{ fontWeight: '800' }}>
                           {formatCurrency(stats.netBalance, 'INR', currencySymbol)}
                         </Text>{' '}
-                        this month.
+                        more than you spent this month.
                       </Text>
                     ) : (
-                      <Text style={{ color: '#EF4444' }}>
-                        Your expenses exceed income by{' '}
-                        <Text style={{ fontWeight: '700' }}>
+                      <Text style={{ color: '#F43F5E' }}>
+                        Expenses exceeded total income by{' '}
+                        <Text style={{ fontWeight: '800' }}>
                           {formatCurrency(Math.abs(stats.netBalance), 'INR', currencySymbol)}
                         </Text>
-                        .
+                        . Consider reviewing category budgets.
                       </Text>
                     )}
                   </Text>
@@ -466,350 +475,371 @@ export default function MonthlyReportScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    // backgroundColor: '#07060E', // <- wired via theme.colors.background inline
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   headerTitle: {
-    ...typography.heading,
-    color: colors.textPrimary,
-    fontSize: 20,
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
   },
   headerSubtitle: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: 2,
     fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 2,
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs + 2,
+    gap: 8,
   },
   exportBtn: {
-    borderRadius: radius.full,
+    borderRadius: 12,
     overflow: 'hidden',
   },
   exportGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    height: 34,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.full,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(168, 85, 247, 0.35)',
-    justifyContent: 'center',
+    borderColor: 'rgba(168, 85, 247, 0.3)',
   },
   exportText: {
-    ...typography.caption,
-    color: colors.primaryLight,
-    fontWeight: '700',
     fontSize: 12,
+    color: '#C084FC',
+    fontWeight: '700',
   },
   yearlyToggleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    height: 34,
-    backgroundColor: colors.primaryMuted,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(124, 58, 237, 0.3)',
-    justifyContent: 'center',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   yearlyToggleText: {
-    ...typography.caption,
-    color: colors.primary,
-    fontWeight: '700',
     fontSize: 12,
+    color: '#C084FC',
+    fontWeight: '700',
   },
   content: {
-    padding: spacing.lg,
-    gap: spacing.lg,
+    paddingHorizontal: 16,
+    paddingBottom: 100, // Safe padding for popped-out glass bottom bar
+    gap: 14,
   },
 
   // Hero Card
   heroCard: {
-    borderRadius: radius.xl,
+    borderRadius: 24,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(168, 85, 247, 0.3)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(192, 132, 252, 0.3)',
     shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.35,
     shadowRadius: 20,
-    elevation: 16,
+    elevation: 12,
   },
   heroGradient: {
-    padding: spacing.xl,
+    padding: 20,
     position: 'relative',
   },
-  decorRing1: {
+  decorGlow1: {
     position: 'absolute',
     top: -40,
     right: -40,
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: 'rgba(168, 85, 247, 0.12)',
+    backgroundColor: 'rgba(168, 85, 247, 0.2)',
   },
-  decorRing2: {
+  decorGlow2: {
     position: 'absolute',
-    bottom: -30,
-    left: -30,
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: 'rgba(124, 58, 237, 0.08)',
+    bottom: -40,
+    left: -40,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(124, 58, 237, 0.15)',
+  },
+  specularTopLine: {
+    position: 'absolute',
+    top: 0,
+    left: 20,
+    right: 20,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
   },
   heroHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.xs,
+    marginBottom: 8,
+  },
+  tagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#F43F5E',
   },
   heroLabel: {
-    ...typography.label,
-    color: 'rgba(216, 180, 254, 0.85)',
+    fontSize: 11,
+    fontWeight: '800',
     letterSpacing: 1.2,
+    color: '#D8B4FE',
   },
   momPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: 4,
-    borderRadius: radius.full,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
     borderWidth: 1,
   },
   momPillText: {
-    ...typography.caption,
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '800',
   },
   heroAmount: {
-    ...typography.heading,
-    fontSize: 34,
-    fontWeight: '800',
+    fontSize: 32,
+    fontWeight: '900',
     color: '#FFFFFF',
-    marginBottom: spacing.lg,
+    letterSpacing: -0.8,
+    marginVertical: 4,
   },
   heroGrid: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: radius.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   heroMetricItem: {
     flex: 1,
     alignItems: 'center',
   },
   metricLabel: {
-    ...typography.caption,
-    color: 'rgba(209, 213, 219, 0.75)',
-    fontSize: 11,
+    fontSize: 10,
+    color: '#94A3B8',
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   metricVal: {
-    ...typography.bodyMedium,
-    fontWeight: '700',
-    marginTop: 3,
     fontSize: 13,
+    fontWeight: '800',
+    marginTop: 2,
   },
   gridDivider: {
     width: 1,
-    height: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    height: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
 
-  // Card Container
+  // Cards
   card: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
+    backgroundColor: '#120F20',
+    borderRadius: 20,
+    padding: 16,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+    marginBottom: 14,
   },
   cardHeaderTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 8,
   },
   cardHeaderIconBg: {
     width: 32,
     height: 32,
-    borderRadius: radius.sm,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardTitle: {
-    ...typography.subheading,
-    color: colors.textPrimary,
-    fontSize: 16,
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
   },
   cardSubtitleCount: {
-    ...typography.caption,
-    color: colors.textMuted,
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '600',
   },
   pieWrapper: {
     alignItems: 'center',
-    marginVertical: spacing.md,
+    justifyContent: 'center',
+    marginVertical: 12,
   },
 
-  // Category Progress Card List
+  // Category List
   catList: {
-    gap: spacing.md,
-    marginTop: spacing.sm,
+    gap: 8,
+    marginTop: 8,
   },
   catCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
-    borderRadius: radius.md,
-    padding: spacing.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 14,
+    padding: 12,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   catCardTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.xs + 2,
+    marginBottom: 8,
   },
   catCardLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 8,
   },
   catIconBg: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.sm,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
   },
   catName: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   catCardRight: {
     alignItems: 'flex-end',
   },
   catAmount: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   catPercent: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontSize: 11,
+    fontSize: 10,
+    color: '#94A3B8',
+    fontWeight: '700',
     marginTop: 1,
   },
   catProgressBg: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     overflow: 'hidden',
-    marginTop: 2,
   },
   catProgressFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 2,
   },
 
   // Peak Callout
   peakCalloutRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: radius.md,
+    gap: 6,
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: 'rgba(245, 158, 11, 0.25)',
-    marginVertical: spacing.xs,
   },
   peakCalloutText: {
-    ...typography.caption,
-    color: colors.textSecondary,
+    fontSize: 11,
+    color: '#CBD5E1',
   },
 
   // Insights List
   insightsList: {
-    gap: spacing.md,
-    marginTop: spacing.md,
+    gap: 12,
+    marginTop: 12,
   },
   insightItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: spacing.sm,
+    gap: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    padding: spacing.md,
-    borderRadius: radius.md,
+    borderRadius: 14,
+    padding: 12,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   insightDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    marginTop: 5,
+    marginTop: 4,
   },
   insightTitle: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-    fontWeight: '700',
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
     marginBottom: 2,
   },
   insightDesc: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    lineHeight: 18,
+    fontSize: 11,
+    color: '#94A3B8',
+    lineHeight: 16,
   },
 
-  // Empty State Card
+  // Empty State
   emptyCard: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    padding: spacing.xxl,
+    backgroundColor: '#120F20',
+    borderRadius: 20,
+    padding: 24,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   emptyIconBg: {
     width: 56,
     height: 56,
-    borderRadius: 20,
+    borderRadius: 28,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: 12,
   },
   emptyTitle: {
-    ...typography.subheading,
-    color: colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   emptyDesc: {
-    ...typography.caption,
-    color: colors.textMuted,
+    fontSize: 12,
+    color: '#94A3B8',
     textAlign: 'center',
     marginTop: 4,
     lineHeight: 18,

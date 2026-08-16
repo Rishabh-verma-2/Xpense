@@ -20,6 +20,7 @@ import { getYearKey, shiftYear, getMonthLabel } from '../../../shared/utils/date
 import { formatCurrency } from '../../../shared/utils/currencyUtils';
 import { computeYearlyTotals } from '../services/reportEngine';
 import { BarChart } from 'react-native-gifted-charts';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<ReportsStackParamList, 'YearlyReport'>;
@@ -32,6 +33,8 @@ export default function YearlyReportScreen({ navigation, route }: Props) {
   const [year, setYear] = useState(route.params?.year ?? getYearKey(new Date()));
   const { transactions } = useTransactions();
   const { settings } = useSettings();
+  const { theme } = useAppTheme();
+  const tc = theme.colors;
   const currencySymbol = settings?.currencySymbol ?? '₹';
 
   const monthlyTotals = useMemo(() => {
@@ -69,40 +72,46 @@ export default function YearlyReportScreen({ navigation, route }: Props) {
     return data;
   }, [monthlyTotals]);
 
+  const monthlyData = monthlyTotals;
+
   return (
-    <View style={[styles.container, { paddingTop: topInset }]}>
+    <View style={[styles.container, { backgroundColor: tc.background }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+      <View style={[styles.header, { paddingTop: topInset }]}>
+        <TouchableOpacity
+          style={[styles.backBtn, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="arrow-back" size={20} color={tc.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Yearly Comparison ({year})</Text>
+        <Text style={[styles.headerTitle, { color: tc.textPrimary }]}>Yearly Analytics</Text>
       </View>
 
-      {/* Year Switcher */}
-      <View style={styles.yearRow}>
+      {/* Year Selector */}
+      <View style={[styles.yearRow, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
         <TouchableOpacity
           style={styles.yearBtn}
           onPress={() => setYear(shiftYear(year, -1))}
           activeOpacity={0.8}
         >
-          <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
+          <Ionicons name="chevron-back" size={20} color={tc.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.yearText}>{year}</Text>
+        <Text style={[styles.yearText, { color: tc.textPrimary }]}>{year}</Text>
         <TouchableOpacity
           style={styles.yearBtn}
           onPress={() => setYear(shiftYear(year, 1))}
           activeOpacity={0.8}
         >
-          <Ionicons name="chevron-forward" size={20} color={colors.textPrimary} />
+          <Ionicons name="chevron-forward" size={20} color={tc.textPrimary} />
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Glassmorphic Total Summary Hero */}
-        <View style={styles.heroCard}>
+        <View style={[styles.heroCard, { borderColor: theme.colors.cardBorderActive }]}>
           <LinearGradient
-            colors={['#1F1147', '#120831', '#0A051D']}
+            colors={theme.heroGradient}
             style={styles.heroGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -115,8 +124,8 @@ export default function YearlyReportScreen({ navigation, route }: Props) {
             <View style={styles.heroGrid}>
               <View style={styles.gridItem}>
                 <Text style={styles.gridLabel}>Annual Income</Text>
-                <Text style={[styles.gridVal, { color: colors.income }]}>
-                  {formatCurrency(yearlyIncome, 'INR', currencySymbol)}
+                <Text style={[styles.gridVal, { color: '#10B981' }]}>
+                  +{formatCurrency(yearlyIncome, 'INR', currencySymbol)}
                 </Text>
               </View>
 
@@ -127,7 +136,7 @@ export default function YearlyReportScreen({ navigation, route }: Props) {
                 <Text
                   style={[
                     styles.gridVal,
-                    { color: yearlyNet >= 0 ? colors.income : colors.expense },
+                    { color: yearlyNet >= 0 ? '#10B981' : '#F43F5E' },
                   ]}
                 >
                   {formatCurrency(yearlyNet, 'INR', currencySymbol)}
@@ -138,25 +147,25 @@ export default function YearlyReportScreen({ navigation, route }: Props) {
         </View>
 
         {/* 12-month Grouped Bar Chart */}
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Income vs Expense by Month</Text>
+            <Text style={[styles.cardTitle, { color: tc.textPrimary }]}>Income vs Expense by Month</Text>
             <View style={styles.legendRow}>
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
-                <Text style={styles.legendText}>Income</Text>
+                <Text style={[styles.legendText, { color: tc.textSecondary }]}>Income</Text>
               </View>
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
-                <Text style={styles.legendText}>Expense</Text>
+                <Text style={[styles.legendText, { color: tc.textSecondary }]}>Expense</Text>
               </View>
             </View>
           </View>
 
           {peakMonth ? (
-            <View style={styles.peakBadge}>
+            <View style={[styles.peakBadge, { backgroundColor: `${tc.primary}12`, borderColor: `${tc.primary}33` }]}>
               <Ionicons name="flame" size={16} color="#F59E0B" />
-              <Text style={styles.peakText}>
+              <Text style={[styles.peakText, { color: tc.textSecondary }]}>
                 Highest Expense Month:{' '}
                 <Text style={{ fontWeight: '700', color: '#F59E0B' }}>
                   {getMonthLabel(peakMonth.month)} ({formatCurrency(peakMonth.expense, 'INR', currencySymbol)})
@@ -175,25 +184,26 @@ export default function YearlyReportScreen({ navigation, route }: Props) {
               hideRules
               xAxisThickness={0}
               yAxisThickness={0}
-              yAxisTextStyle={{ color: colors.textMuted, fontSize: 9 }}
-              xAxisLabelTextStyle={{ color: colors.textMuted, fontSize: 9 }}
+              yAxisTextStyle={{ color: tc.textMuted, fontSize: 10 }}
+              xAxisLabelTextStyle={{ color: tc.textMuted, fontSize: 10 }}
               noOfSections={3}
+              barBorderRadius={3}
             />
           </View>
         </View>
 
         {/* Monthly Breakdown List */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Monthly Breakdown ({year})</Text>
+        <View style={[styles.card, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+          <Text style={[styles.cardTitle, { color: tc.textPrimary, marginBottom: spacing.md }]}>Monthly Breakdown</Text>
           <View style={styles.monthList}>
-            {monthlyTotals.map((m) => (
-              <View key={m.month} style={styles.monthRow}>
-                <Text style={styles.monthName}>{getMonthLabel(m.month)}</Text>
+            {monthlyData.map((m) => (
+              <View key={m.month} style={[styles.monthRow, { borderBottomColor: tc.cardBorder }]}>
+                <Text style={[styles.monthName, { color: tc.textPrimary }]}>{getMonthLabel(m.month)}</Text>
                 <View style={styles.monthVals}>
-                  <Text style={[styles.monthIncome, { color: colors.income }]}>
+                  <Text style={[styles.monthIncome, { color: '#10B981' }]}>
                     +{formatCurrency(m.income, 'INR', currencySymbol)}
                   </Text>
-                  <Text style={[styles.monthExpense, { color: colors.expense }]}>
+                  <Text style={[styles.monthExpense, { color: '#F43F5E' }]}>
                     -{formatCurrency(m.expense, 'INR', currencySymbol)}
                   </Text>
                 </View>

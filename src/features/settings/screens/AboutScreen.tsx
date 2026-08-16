@@ -9,6 +9,7 @@ import {
   Linking,
   Easing,
   Platform,
+  Image,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SettingsStackParamList } from '../../../core/navigation/types';
 import { colors, typography, spacing, radius } from '../../../core/theme';
 import { ScreenHeader } from '../../../shared/components/ScreenHeader';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<SettingsStackParamList, 'About'>;
@@ -28,319 +30,204 @@ const FEATURES = [
     color: '#10B981',
     bg: 'rgba(16, 185, 129, 0.12)',
     title: '100% Privacy & Local-First Security',
-    desc: 'Your data belongs strictly to you. All transactions are securely stored locally with optional encrypted MongoDB Atlas cloud synchronization.',
+    desc: 'Your financial data is stored securely on your device with optional encrypted MongoDB Atlas cloud synchronization.',
   },
   {
     icon: 'flash-outline',
     color: '#F59E0B',
     bg: 'rgba(245, 158, 11, 0.12)',
     title: 'Lightning 1-Tap Expense Logging',
-    desc: 'Add transactions in under 3 seconds with customizable categories, payment method pills, smart numpad, and instant calculations.',
+    desc: 'Add transactions in under 3 seconds with customizable categories, quick presets, and tactile glass numpad.',
   },
   {
     icon: 'pie-chart-outline',
-    color: '#8B5CF6',
-    bg: 'rgba(139, 92, 246, 0.12)',
+    color: '#C084FC',
+    bg: 'rgba(192, 132, 252, 0.12)',
     title: 'Visual Financial Intelligence',
-    desc: 'Interactive monthly & annual cashflow charts, category distribution bars, MoM spending comparisons, and budget limit alerts.',
+    desc: 'Interactive cashflow charts, category distribution donut, MoM spending comparisons, and budget limit alerts.',
   },
   {
     icon: 'document-text-outline',
-    color: '#06B6D4',
-    bg: 'rgba(6, 182, 212, 0.12)',
+    color: '#38BDF8',
+    bg: 'rgba(56, 189, 248, 0.12)',
     title: 'Executive PDF Statements & CSV',
-    desc: 'Generate and automatically download formatted financial statements with KPI cards, category breakdown charts, or raw Excel-ready CSV files.',
+    desc: 'Generate and share formatted financial statements with category charts or raw Excel-compatible CSV files.',
   },
   {
     icon: 'phone-portrait-outline',
     color: '#EC4899',
     bg: 'rgba(236, 72, 153, 0.12)',
-    title: 'Universal PWA Experience',
-    desc: 'Installable directly from Chrome or Safari to your mobile home screen with full-screen native feel, offline caching, and zero app store delays.',
+    title: 'Universal Native & PWA Experience',
+    desc: 'Fluid animations, offline caching, and responsive glass styling across mobile and web platforms.',
   },
   {
     icon: 'globe-outline',
     color: '#3B82F6',
     bg: 'rgba(59, 130, 246, 0.12)',
     title: 'Global Multi-Currency Support',
-    desc: 'Supports 30+ international currencies (defaulting to INR ₹), custom user categories, and granular budget allocation.',
+    desc: 'Supports 30+ international currencies with instant live conversion and formatting.',
   },
 ];
 
 const STATS = [
   { label: 'Privacy', value: '100%' },
   { label: 'Currencies', value: '30+' },
-  { label: 'Categories', value: '23' },
+  { label: 'Categories', value: '25+' },
   { label: 'Ads & Bloat', value: '0' },
 ];
 
-const HIGHLIGHTS = [
-  {
-    icon: 'cloud-offline-outline',
-    title: 'Offline Sync Engine',
-    desc: 'Log expenses anywhere without network. Changes automatically queue and sync once online.',
-  },
-  {
-    icon: 'lock-closed-outline',
-    title: 'JWT & SSL Email Reset',
-    desc: 'Protected with cryptographic JWT tokens and 6-digit OTP verification via Gmail SMTP.',
-  },
-  {
-    icon: 'speedometer-outline',
-    title: 'Zero Latency Performance',
-    desc: 'Built with React Native Web and Expo 54 for silky 60fps animations and instant interaction.',
-  },
-];
-
 export default function AboutScreen({ navigation }: Props) {
+  const { theme } = useAppTheme();
+  const tc = theme.colors;
   const insets = useSafeAreaInsets();
 
-  // Entrance Animations
-  const logoScale = useRef(new Animated.Value(0.2)).current;
-  const logoOpacity = useRef(new Animated.Value(0)).current;
-
-  const headerFade = useRef(new Animated.Value(0)).current;
-  const headerTranslateY = useRef(new Animated.Value(20)).current;
-
-  const contentFade = useRef(new Animated.Value(0)).current;
-  const contentTranslateY = useRef(new Animated.Value(30)).current;
-
   const glowScale = useRef(new Animated.Value(0.9)).current;
+  const logoScale = useRef(new Animated.Value(0.92)).current;
 
   useEffect(() => {
-    // Ambient Glow Loop
     Animated.loop(
       Animated.sequence([
         Animated.timing(glowScale, {
-          toValue: 1.2,
-          duration: 2000,
+          toValue: 1.15,
+          duration: 2200,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(glowScale, {
           toValue: 0.9,
-          duration: 2000,
+          duration: 2200,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
       ])
     ).start();
 
-    // Staggered Entrance
-    Animated.sequence([
-      Animated.parallel([
-        Animated.spring(logoScale, {
-          toValue: 1,
-          tension: 80,
-          friction: 6,
-          useNativeDriver: true,
-        }),
-        Animated.timing(logoOpacity, {
-          toValue: 1,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-      ]),
-      Animated.parallel([
-        Animated.timing(headerFade, {
-          toValue: 1,
-          duration: 450,
-          useNativeDriver: true,
-        }),
-        Animated.spring(headerTranslateY, {
-          toValue: 0,
-          tension: 70,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]),
-      Animated.parallel([
-        Animated.timing(contentFade, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.spring(contentTranslateY, {
-          toValue: 0,
-          tension: 70,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-  }, []);
+    Animated.spring(logoScale, {
+      toValue: 1,
+      tension: 70,
+      friction: 7,
+      useNativeDriver: true,
+    }).start();
+  }, [glowScale, logoScale]);
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+    <View style={[styles.container, { backgroundColor: tc.background, paddingBottom: insets.bottom }]}>
       <ScreenHeader title="About Xpense" onBack={() => navigation.goBack()} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Animated Hero Header */}
-        <View style={styles.heroSection}>
-          {/* Ambient Glow */}
-          <Animated.View style={[styles.glowRing, { transform: [{ scale: glowScale }] }]} />
-
-          {/* Logo Badge */}
-          <Animated.View
-            style={[
-              styles.logoBadge,
-              {
-                opacity: logoOpacity,
-                transform: [{ scale: logoScale }],
-              },
-            ]}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── App Badge Hero Card ── */}
+        <View style={[styles.heroCard, { borderColor: theme.colors.cardBorderActive }]}>
+          <LinearGradient
+            colors={theme.heroGradient}
+            style={styles.heroGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
           >
-            <LinearGradient
-              colors={['#A855F7', '#7C3AED', '#4C1D95']}
-              style={styles.logoGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <Ionicons name="wallet-outline" size={42} color="#FFFFFF" />
-            </LinearGradient>
-          </Animated.View>
+            <View style={styles.specularLine} />
 
-          {/* Title & Version */}
-          <Animated.View
-            style={{
-              opacity: headerFade,
-              transform: [{ translateY: headerTranslateY }],
-              alignItems: 'center',
-            }}
-          >
-            <Text style={styles.appName}>
-              Xpense<Text style={styles.dot}>.</Text>
-            </Text>
+            {/* Glowing Logo Icon */}
+            <View style={styles.logoWrap}>
+              <Animated.View
+                style={[
+                  styles.logoGlowRing,
+                  { transform: [{ scale: glowScale }] },
+                ]}
+              />
+              <Animated.View style={[styles.logoCircle, { transform: [{ scale: logoScale }] }]}>
+                <Image
+                  source={require('../../../../assets/icon.png')}
+                  style={styles.heroLogoImage}
+                  resizeMode="contain"
+                />
+              </Animated.View>
+            </View>
+
+            <Text style={styles.appName}>Xpense</Text>
+            <Text style={styles.appTagline}>Personal Finance & Wealth Intelligence</Text>
 
             <View style={styles.versionBadge}>
-              <Ionicons name="sparkles" size={13} color="#C084FC" style={{ marginRight: 4 }} />
-              <Text style={styles.versionText}>v1.0.0 — Executive Edition (PWA)</Text>
+              <View style={styles.liveDot} />
+              <Text style={styles.versionText}>v1.0.0 • Production Ready</Text>
             </View>
-
-            <Text style={styles.tagline}>
-              Empowering you to master your personal finance with clarity, privacy, and effortless tracking across web and mobile devices.
-            </Text>
-          </Animated.View>
+          </LinearGradient>
         </View>
 
-        {/* Animated Main Content */}
-        <Animated.View
-          style={{
-            opacity: contentFade,
-            transform: [{ translateY: contentTranslateY }],
-            gap: spacing.lg,
-          }}
-        >
-          {/* Stats Bar */}
-          <View style={styles.statsRow}>
-            {STATS.map((s) => (
-              <View key={s.label} style={styles.statCard}>
-                <Text style={styles.statValue}>{s.value}</Text>
-                <Text style={styles.statLabel}>{s.label}</Text>
-              </View>
-            ))}
-          </View>
+        {/* ── Key Statistics Row ── */}
+        <View style={styles.statsRow}>
+          {STATS.map((stat) => (
+            <View key={stat.label} style={[styles.statCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+              <Text style={[styles.statVal, { color: tc.textPrimary }]}>{stat.value}</Text>
+              <Text style={[styles.statLabel, { color: tc.textMuted }]}>{stat.label}</Text>
+            </View>
+          ))}
+        </View>
 
-          {/* Mission Card */}
-          <View style={styles.missionCard}>
-            <LinearGradient
-              colors={['rgba(124, 58, 237, 0.18)', 'rgba(124, 58, 237, 0.04)']}
-              style={styles.missionGrad}
-            >
-              <Text style={styles.sectionHeader}>OUR PHILOSOPHY</Text>
-              <Text style={styles.missionTitle}>Smart Financial Control Without Compromise</Text>
-              <Text style={styles.missionText}>
-                Xpense was engineered from the ground up to eliminate the friction of personal budgeting. No invasive advertisements, no selling of user financial data, and no slow loading times — just a beautiful, fast, and secure money companion.
-              </Text>
-            </LinearGradient>
-          </View>
-
-          {/* Core Feature Cards */}
-          <Text style={styles.sectionHeader}>KEY CAPABILITIES</Text>
+        {/* ── Core Features Grid ── */}
+        <View style={styles.sectionBlock}>
+          <Text style={[styles.sectionHeaderTitle, { color: tc.textMuted }]}>CORE CAPABILITIES</Text>
           <View style={styles.featuresList}>
             {FEATURES.map((feat) => (
-              <View key={feat.title} style={styles.featureCard}>
-                <View style={[styles.featureIconBg, { backgroundColor: feat.bg }]}>
-                  <Ionicons name={feat.icon as any} size={22} color={feat.color} />
+              <View key={feat.title} style={[styles.featureCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+                <View style={[styles.featIconBg, { backgroundColor: feat.bg }]}>
+                  <Ionicons name={feat.icon as any} size={20} color={feat.color} />
                 </View>
-                <View style={styles.featureInfo}>
-                  <Text style={styles.featureTitle}>{feat.title}</Text>
-                  <Text style={styles.featureDesc}>{feat.desc}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.featTitle, { color: tc.textPrimary }]}>{feat.title}</Text>
+                  <Text style={[styles.featDesc, { color: tc.textSecondary }]}>{feat.desc}</Text>
                 </View>
               </View>
             ))}
           </View>
+        </View>
 
-          {/* Technical Architecture Highlights */}
-          <Text style={styles.sectionHeader}>ENGINEERING & SECURITY</Text>
-          <View style={styles.highlightsList}>
-            {HIGHLIGHTS.map((h) => (
-              <View key={h.title} style={styles.highlightCard}>
-                <View style={styles.highlightHeader}>
-                  <View style={styles.highlightIcon}>
-                    <Ionicons name={h.icon as any} size={18} color="#C084FC" />
-                  </View>
-                  <Text style={styles.highlightTitle}>{h.title}</Text>
-                </View>
-                <Text style={styles.highlightDesc}>{h.desc}</Text>
+        {/* ── Architectural Highlights ── */}
+        <View style={styles.sectionBlock}>
+          <Text style={[styles.sectionHeaderTitle, { color: tc.textMuted }]}>ARCHITECTURAL HIGHLIGHTS</Text>
+          <View style={[styles.sectionCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+            <View style={styles.techRow}>
+              <View style={styles.techIconWrap}>
+                <Ionicons name="code-slash" size={16} color={theme.accentColor} />
               </View>
-            ))}
-          </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.techTitle, { color: tc.textPrimary }]}>React Native (Expo 54) + TypeScript</Text>
+                <Text style={[styles.techDesc, { color: tc.textSecondary }]}>Strict type safety and 60fps native performance.</Text>
+              </View>
+            </View>
 
-          {/* Tech Stack Info Card */}
-          <View style={styles.techCard}>
-            <Text style={styles.sectionHeader}>BUILT WITH MODERN WEB & MOBILE TECH</Text>
-            <View style={styles.techPillsRow}>
-              {[
-                'React Native Web',
-                'PWA Service Worker v4',
-                'jsPDF Direct Exporter',
-                'Nodemailer SSL Transport',
-                'Expo SDK 54',
-                'MongoDB Atlas',
-                'TypeScript',
-                'Node.js & Express',
-              ].map((t) => (
-                <View key={t} style={styles.techPill}>
-                  <Text style={styles.techPillText}>{t}</Text>
-                </View>
-              ))}
+            <View style={[styles.divider, { backgroundColor: tc.cardBorder }]} />
+
+            <View style={styles.techRow}>
+              <View style={styles.techIconWrap}>
+                <Ionicons name="cloud-done-outline" size={16} color="#10B981" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.techTitle, { color: tc.textPrimary }]}>Cloudinary & MongoDB Atlas Sync</Text>
+                <Text style={[styles.techDesc, { color: tc.textSecondary }]}>Encrypted profile photo and transaction synchronization.</Text>
+              </View>
+            </View>
+
+            <View style={[styles.divider, { backgroundColor: tc.cardBorder }]} />
+
+            <View style={styles.techRow}>
+              <View style={styles.techIconWrap}>
+                <Ionicons name="sparkles-outline" size={16} color="#F59E0B" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.techTitle, { color: tc.textPrimary }]}>Luxury Adaptive Design System</Text>
+                <Text style={[styles.techDesc, { color: tc.textSecondary }]}>Custom tailored HSL color tokens, dark & light themes, and spring physics.</Text>
+              </View>
             </View>
           </View>
+        </View>
 
-          {/* Help & Feedback Card */}
-          <View style={styles.aboutActionsCard}>
-            <Text style={styles.sectionHeader}>SUPPORT & COMMUNITY</Text>
-            <View style={styles.aboutBtnRow}>
-              <TouchableOpacity
-                style={styles.aboutActionBtn}
-                onPress={() => navigation.navigate('Feedback')}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="chatbubbles-outline" size={18} color={colors.primaryLight} />
-                <Text style={styles.aboutActionBtnText}>Send Feedback</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.aboutActionBtn}
-                onPress={() => navigation.navigate('HelpFaq')}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="help-circle-outline" size={18} color={colors.primaryLight} />
-                <Text style={styles.aboutActionBtnText}>Help & FAQs</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Footer */}
-          <View style={styles.footerContainer}>
-            <View style={styles.footerHeartRow}>
-              <Ionicons name="heart" size={16} color="#EC4899" />
-              <Text style={styles.footerText}>Crafted for Financial Freedom & Simplicity</Text>
-            </View>
-            <Text style={styles.copyrightText}>© 2026 Xpense Finance. All rights reserved.</Text>
-          </View>
-        </Animated.View>
+        {/* ── Footer ── */}
+        <View style={styles.footerWrap}>
+          <Text style={styles.footerLoveText}>Crafted with precision for smart financial management</Text>
+          <Text style={styles.footerCopyText}>© {new Date().getFullYear()} Xpense Inc. All rights reserved.</Text>
+        </View>
       </ScrollView>
     </View>
   );
@@ -349,285 +236,219 @@ export default function AboutScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    // backgroundColor: '#07060E', // <- wired via theme.colors.background inline
   },
   scrollContent: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl,
-    gap: spacing.lg,
+    paddingHorizontal: 16,
+    paddingBottom: 110, // Full clearance for floating bottom bar
+    gap: 16,
   },
-  heroSection: {
+
+  // Hero Card
+  heroCard: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    borderWidth: 1.2,
+    borderColor: 'rgba(192, 132, 252, 0.3)',
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  heroGradient: {
+    padding: 24,
     alignItems: 'center',
-    paddingVertical: spacing.md,
     position: 'relative',
   },
-  glowRing: {
+  specularLine: {
     position: 'absolute',
     top: 0,
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: 'rgba(124, 58, 237, 0.12)',
+    left: 20,
+    right: 20,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
   },
-  logoBadge: {
-    width: 88,
-    height: 88,
-    borderRadius: 28,
-    marginBottom: spacing.md,
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.5,
-    shadowRadius: 24,
-    elevation: 16,
-  },
-  logoGradient: {
-    width: 88,
-    height: 88,
-    borderRadius: 28,
+  logoWrap: {
+    position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(192, 132, 252, 0.4)',
+    marginBottom: 14,
+  },
+  logoGlowRing: {
+    position: 'absolute',
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: 'rgba(168, 85, 247, 0.25)',
+  },
+  logoCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 20,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroLogoImage: {
+    width: 68,
+    height: 68,
+    borderRadius: 20,
   },
   appName: {
-    fontSize: 38,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    letterSpacing: -1,
-    marginBottom: spacing.xs,
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -0.4,
   },
-  dot: {
-    color: colors.primaryLight,
+  appTagline: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 3,
+    marginBottom: 12,
   },
   versionBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
+    gap: 6,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: radius.full,
-    backgroundColor: 'rgba(168, 85, 247, 0.12)',
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(168, 85, 247, 0.3)',
-    marginBottom: spacing.md,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
   },
   versionText: {
-    ...typography.caption,
-    color: '#D8B4FE',
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#CBD5E1',
   },
-  tagline: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    maxWidth: 320,
-    lineHeight: 22,
-    fontSize: 13,
-  },
+
+  // Stats Row
   statsRow: {
     flexDirection: 'row',
-    gap: spacing.xs,
-    justifyContent: 'space-between',
+    gap: 8,
   },
   statCard: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.md,
+    backgroundColor: '#120F20',
+    borderRadius: 14,
+    paddingVertical: 10,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.primaryLight,
+  statVal: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#FFFFFF',
   },
   statLabel: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontSize: 11,
-    marginTop: 2,
+    fontSize: 10,
+    color: '#94A3B8',
     fontWeight: '600',
+    marginTop: 2,
   },
-  missionCard: {
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: 'rgba(124, 58, 237, 0.25)',
-    overflow: 'hidden',
+
+  // Section
+  sectionBlock: {
+    gap: 8,
   },
-  missionGrad: {
-    padding: spacing.lg,
-  },
-  sectionHeader: {
-    ...typography.caption,
-    color: colors.textMuted,
-    letterSpacing: 1.2,
+  sectionHeaderTitle: {
     fontSize: 11,
-    marginBottom: spacing.xs,
-    fontWeight: '700',
-  },
-  missionTitle: {
-    ...typography.subheading,
-    color: colors.textPrimary,
-    fontSize: 17,
-    marginBottom: spacing.sm,
-  },
-  missionText: {
-    ...typography.body,
-    color: colors.textSecondary,
-    lineHeight: 22,
-    fontSize: 13,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 1,
+    marginLeft: 4,
   },
   featuresList: {
-    gap: spacing.md,
+    gap: 8,
   },
   featureCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.md,
+    backgroundColor: '#120F20',
+    borderRadius: 16,
+    padding: 12,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    gap: spacing.md,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    gap: 12,
   },
-  featureIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
+  featIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  featureInfo: {
-    flex: 1,
-  },
-  featureTitle: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-    fontSize: 15,
-    marginBottom: 4,
-    fontWeight: '700',
-  },
-  featureDesc: {
-    ...typography.body,
-    color: colors.textSecondary,
+  featTitle: {
     fontSize: 13,
-    lineHeight: 19,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginBottom: 2,
   },
-  highlightsList: {
-    gap: spacing.sm,
-  },
-  highlightCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    gap: spacing.xs,
-  },
-  highlightHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  highlightIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: radius.sm,
-    backgroundColor: 'rgba(168, 85, 247, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  highlightTitle: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  highlightDesc: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontSize: 12,
-    lineHeight: 18,
-    paddingLeft: 36,
-  },
-  techCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  techPillsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-    marginTop: spacing.xs,
-  },
-  techPill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-  },
-  techPillText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontSize: 12,
-  },
-  aboutActionsCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    gap: spacing.sm,
-  },
-  aboutBtnRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  aboutActionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primaryMuted,
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(124, 58, 237, 0.3)',
-    gap: 6,
-  },
-  aboutActionBtnText: {
-    ...typography.caption,
-    fontWeight: '700',
-    color: colors.primaryLight,
-    fontSize: 12,
-  },
-  footerContainer: {
-    alignItems: 'center',
-    paddingVertical: spacing.lg,
-    gap: spacing.xs,
-  },
-  footerHeartRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  footerText: {
-    ...typography.bodyMedium,
-    color: colors.textSecondary,
-    fontSize: 13,
-  },
-  copyrightText: {
-    ...typography.caption,
-    color: colors.textMuted,
+  featDesc: {
     fontSize: 11,
+    color: '#94A3B8',
+    lineHeight: 16,
+  },
+
+  // Section Card
+  sectionCard: {
+    backgroundColor: '#120F20',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    gap: 10,
+  },
+  techRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  techIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  techTitle: {
+    fontSize: 12.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  techDesc: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+  },
+
+  // Footer
+  footerWrap: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 4,
+  },
+  footerLoveText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    textAlign: 'center',
+  },
+  footerCopyText: {
+    fontSize: 10,
+    color: '#64748B',
   },
 });

@@ -11,6 +11,7 @@ import { useToast } from '../../../context/ToastContext';
 import { colors, typography, spacing, radius } from '../../../core/theme';
 import { ScreenHeader } from '../../../shared/components/ScreenHeader';
 import { generateAndSharePDF, generateAndShareCSV, filterTransactionsByDateRange } from '../../../services/exportService';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<SettingsStackParamList, 'Export'>;
@@ -24,6 +25,8 @@ export default function ExportScreen({ navigation }: Props) {
   const { settings } = useSettings();
   const { user } = useAuth();
   const { showSuccess, showWarning, showError } = useToast();
+  const { theme } = useAppTheme();
+  const tc = theme.colors;
 
   const [preset, setPreset] = useState<PresetKey>('this_month');
   const [loadingType, setLoadingType] = useState<'pdf' | 'csv' | null>(null);

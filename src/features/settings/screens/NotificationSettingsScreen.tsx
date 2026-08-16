@@ -11,10 +11,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import type { SettingsStackParamList } from '../../../core/navigation/SettingsStackNavigator';
+import type { SettingsStackParamList } from '../../../core/navigation/types';
 import { useToast } from '../../../context/ToastContext';
-import { colors, typography, spacing, radius } from '../../../core/theme';
 import { ScreenHeader } from '../../../shared/components/ScreenHeader';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<SettingsStackParamList, 'NotificationSettings'>;
@@ -37,16 +37,16 @@ const UPCOMING_FEATURES: UpcomingFeature[] = [
     iconColor: '#F59E0B',
     iconBg: 'rgba(245, 158, 11, 0.15)',
     title: 'Smart Budget Alerts',
-    description: 'Instant warning notifications when you reach 70%, 90%, or 100% of any category budget limit.',
+    description: 'Instant warning notifications when you reach 80% or 100% of any category budget limit.',
     tag: 'Next Update',
   },
   {
     id: 'daily_reminder',
     icon: 'alarm-outline',
-    iconColor: '#7C3AED',
-    iconBg: 'rgba(124, 58, 237, 0.15)',
-    title: 'Daily Expense Logging Ping',
-    description: 'A customizable daily evening reminder to log your cash spends, invoices, and receipts before bed.',
+    iconColor: '#C084FC',
+    iconBg: 'rgba(192, 132, 252, 0.15)',
+    title: 'Daily Evening Expense Ping',
+    description: 'A customizable daily evening reminder to log your cash spends and invoices before bed.',
     tag: 'Next Update',
   },
   {
@@ -61,8 +61,8 @@ const UPCOMING_FEATURES: UpcomingFeature[] = [
   {
     id: 'bill_reminders',
     icon: 'calendar-outline',
-    iconColor: '#3B82F6',
-    iconBg: 'rgba(59, 130, 246, 0.15)',
+    iconColor: '#38BDF8',
+    iconBg: 'rgba(56, 189, 248, 0.15)',
     title: 'Bill & Due Date Reminders',
     description: 'Proactive reminders before recurring subscriptions, utility bills, and EMI payments are due.',
     tag: 'Planned',
@@ -72,6 +72,8 @@ const UPCOMING_FEATURES: UpcomingFeature[] = [
 export default function NotificationSettingsScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { showSuccess, showInfo } = useToast();
+  const { theme } = useAppTheme();
+  const tc = theme.colors;
   const [notifyEarlyAccess, setNotifyEarlyAccess] = useState(true);
 
   const handleToggleWaitlist = (val: boolean) => {
@@ -90,99 +92,108 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-      <ScreenHeader title="Notifications" onBack={() => navigation.goBack()} />
+    <View style={[styles.container, { backgroundColor: tc.background, paddingBottom: insets.bottom }]}>
+      <ScreenHeader title="Notifications & Alerts" onBack={() => navigation.goBack()} />
 
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Hero "Coming Soon" Banner ── */}
-        <View style={styles.heroCard}>
+        <View style={[styles.heroCard, { borderColor: theme.colors.cardBorderActive }]}>
           <LinearGradient
-            colors={['#2D1B69', '#1A0A4A', '#0F0B24']}
+            colors={theme.heroGradient}
             style={styles.heroGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            {/* Background glowing circles */}
-            <View style={styles.decorGlow1} />
-            <View style={styles.decorGlow2} />
+            <View style={styles.specularLine} />
 
             <View style={styles.heroHeader}>
               <View style={styles.bellIconContainer}>
                 <LinearGradient
-                  colors={[colors.primaryLight, colors.primaryDark]}
+                  colors={theme.accentGradient}
                   style={styles.bellIconGradient}
                 >
-                  <Ionicons name="notifications" size={28} color="#FFFFFF" />
+                  <Ionicons name="notifications" size={26} color="#FFFFFF" />
                 </LinearGradient>
                 <View style={styles.pulseDot} />
               </View>
 
-              <View style={styles.comingSoonPill}>
-                <Text style={styles.comingSoonPillText}>⚡ COMING SOON</Text>
+              <View style={[styles.comingSoonPill, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
+                <Text style={styles.comingSoonPillText}>NEXT MAJOR UPDATE</Text>
               </View>
             </View>
 
-            <Text style={styles.heroTitle}>Push Notifications & Alerts</Text>
-            <Text style={styles.heroSubtitle}>
-              We are actively developing an intelligent, battery-efficient notification
-              engine to keep your budget on track without needing to open the app every hour.
+            <Text style={styles.heroTitle}>Proactive Alert Center</Text>
+            <Text style={styles.heroDescription}>
+              We are building a smart push notification engine with local alarms to give you real-time spend warnings and gentle reminders.
             </Text>
 
-            {/* Early Access toggle row */}
-            <View style={styles.waitlistCard}>
-              <View style={styles.waitlistInfo}>
+            {/* Early access toggle */}
+            <View style={[styles.waitlistRow, { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
+              <View style={styles.waitlistTextCol}>
                 <Text style={styles.waitlistTitle}>Notify Me on Launch</Text>
-                <Text style={styles.waitlistSub}>
-                  Get early beta access and instant activation when ready.
-                </Text>
+                <Text style={styles.waitlistSub}>Be the first to test smart budget & bill reminders</Text>
               </View>
               <Switch
                 value={notifyEarlyAccess}
                 onValueChange={handleToggleWaitlist}
-                trackColor={{ false: '#2A2A3A', true: colors.primary }}
-                thumbColor="#FFFFFF"
+                trackColor={{ false: '#1A162B', true: `${theme.accentColor}55` }}
+                thumbColor={notifyEarlyAccess ? theme.accentColor : '#64748B'}
               />
             </View>
           </LinearGradient>
         </View>
 
-        {/* ── Upcoming Features Section ── */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionHeaderTitle}>What’s In The Works</Text>
-          <View style={styles.tagPreview}>
-            <Text style={styles.tagPreviewText}>PREVIEW</Text>
+        {/* ── Roadmap Feature Cards ── */}
+        <View style={styles.sectionBlock}>
+          <Text style={[styles.sectionHeaderTitle, { color: tc.textMuted }]}>ALERT ROADMAP</Text>
+          <View style={styles.featuresList}>
+            {UPCOMING_FEATURES.map((item) => (
+              <View key={item.id} style={[styles.featureCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+                <View style={[styles.iconWrapper, { backgroundColor: item.iconBg }]}>
+                  <Ionicons name={item.icon} size={20} color={item.iconColor} />
+                </View>
+
+                <View style={styles.featureInfo}>
+                  <View style={styles.featureTitleRow}>
+                    <Text style={[styles.featureTitle, { color: tc.textPrimary }]}>{item.title}</Text>
+                    <View
+                      style={[
+                        styles.tagPill,
+                        item.tag === 'Next Update' ? styles.tagNext : styles.tagPlanned,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.tagText,
+                          item.tag === 'Next Update' ? styles.tagTextNext : styles.tagTextPlanned,
+                        ]}
+                      >
+                        {item.tag}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.featureDescription, { color: tc.textSecondary }]}>{item.description}</Text>
+                </View>
+              </View>
+            ))}
           </View>
         </View>
 
-        <View style={styles.featuresList}>
-          {UPCOMING_FEATURES.map((item) => (
-            <View key={item.id} style={styles.featureCard}>
-              <View style={[styles.featureIconBg, { backgroundColor: item.iconBg }]}>
-                <Ionicons name={item.icon} size={22} color={item.iconColor} />
-              </View>
-              <View style={styles.featureInfo}>
-                <View style={styles.featureTitleRow}>
-                  <Text style={styles.featureTitle}>{item.title}</Text>
-                  <View style={styles.statusBadge}>
-                    <Text style={styles.statusBadgeText}>{item.tag}</Text>
-                  </View>
-                </View>
-                <Text style={styles.featureDesc}>{item.description}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        {/* ── Help / Status Note ── */}
-        <View style={styles.footerNote}>
-          <Ionicons name="sparkles-outline" size={16} color={colors.primaryLight} />
-          <Text style={styles.footerNoteText}>
-            Have ideas for notifications or custom alerts? Reach out via About & Feedback!
+        {/* ── Help / Suggestions Footer Callout ── */}
+        <TouchableOpacity
+          style={[styles.footerCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}
+          onPress={() => navigation.navigate('Feedback')}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="bulb-outline" size={18} color={theme.accentColor} />
+          <Text style={[styles.footerText, { color: tc.textSecondary }]}>
+            Have a custom alert idea? Suggest it to our engineering team!
           </Text>
-        </View>
+          <Ionicons name="chevron-forward" size={16} color={tc.textMuted} />
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -191,62 +202,51 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    // backgroundColor: '#07060E', // <- wired via theme.colors.background inline
   },
   content: {
-    padding: spacing.lg,
-    gap: spacing.lg,
-    paddingBottom: spacing.xxl,
+    paddingHorizontal: 16,
+    paddingBottom: 110, // Full clearance for floating bottom bar
+    gap: 16,
   },
 
   // Hero Card
   heroCard: {
-    borderRadius: radius.xl,
+    borderRadius: 24,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(168, 85, 247, 0.35)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(192, 132, 252, 0.3)',
     shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.35,
     shadowRadius: 20,
     elevation: 12,
   },
   heroGradient: {
-    padding: spacing.xl,
+    padding: 20,
     position: 'relative',
-    overflow: 'hidden',
   },
-  decorGlow1: {
+  specularLine: {
     position: 'absolute',
-    top: -30,
-    right: -30,
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: 'rgba(168, 85, 247, 0.15)',
-  },
-  decorGlow2: {
-    position: 'absolute',
-    bottom: -20,
-    left: -20,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(124, 58, 237, 0.12)',
+    top: 0,
+    left: 20,
+    right: 20,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
   },
   heroHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.md,
+    marginBottom: 14,
   },
   bellIconContainer: {
     position: 'relative',
   },
   bellIconGradient: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -254,119 +254,97 @@ const styles = StyleSheet.create({
   },
   pulseDot: {
     position: 'absolute',
-    top: 2,
-    right: 2,
+    top: 0,
+    right: 0,
     width: 12,
     height: 12,
     borderRadius: 6,
     backgroundColor: '#10B981',
     borderWidth: 2,
-    borderColor: '#1A0A4A',
+    borderColor: '#150A2E',
   },
   comingSoonPill: {
     backgroundColor: 'rgba(168, 85, 247, 0.2)',
     borderWidth: 1,
     borderColor: 'rgba(168, 85, 247, 0.45)',
-    paddingHorizontal: spacing.sm + 4,
-    paddingVertical: 5,
-    borderRadius: radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   comingSoonPillText: {
-    ...typography.caption,
     fontSize: 10,
     fontWeight: '800',
     color: '#D8B4FE',
     letterSpacing: 0.8,
   },
   heroTitle: {
-    ...typography.heading,
+    fontSize: 18,
+    fontWeight: '900',
     color: '#FFFFFF',
-    fontSize: 22,
-    marginBottom: spacing.xs,
+    marginBottom: 4,
   },
-  heroSubtitle: {
-    ...typography.body,
-    color: 'rgba(229, 231, 235, 0.85)',
-    fontSize: 13,
-    lineHeight: 19,
-    marginBottom: spacing.lg,
+  heroDescription: {
+    fontSize: 12,
+    color: '#94A3B8',
+    lineHeight: 18,
+    marginBottom: 16,
   },
-  waitlistCard: {
+  waitlistRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: radius.lg,
-    padding: spacing.md,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    gap: spacing.md,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    gap: 12,
   },
-  waitlistInfo: {
+  waitlistTextCol: {
     flex: 1,
   },
   waitlistTitle: {
-    ...typography.bodyMedium,
+    fontSize: 13,
+    fontWeight: '800',
     color: '#FFFFFF',
-    fontWeight: '700',
   },
   waitlistSub: {
-    ...typography.caption,
-    color: 'rgba(209, 213, 219, 0.75)',
-    marginTop: 2,
     fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 2,
   },
 
-  // Section Header
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.xs,
+  // Roadmap Section
+  sectionBlock: {
+    gap: 8,
   },
   sectionHeaderTitle: {
-    ...typography.label,
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 1.1,
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 1,
+    marginLeft: 4,
   },
-  tagPreview: {
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.full,
-  },
-  tagPreviewText: {
-    ...typography.caption,
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.textMuted,
-    letterSpacing: 0.8,
-  },
-
-  // Features List
   featuresList: {
-    gap: spacing.sm + 2,
+    gap: 8,
   },
   featureCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    padding: spacing.md,
+    backgroundColor: '#120F20',
+    borderRadius: 16,
+    padding: 12,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    gap: spacing.md,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    gap: 12,
   },
-  featureIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
+  iconWrapper: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
   },
   featureInfo: {
     flex: 1,
@@ -376,49 +354,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 4,
-    gap: spacing.xs,
   },
   featureTitle: {
-    ...typography.bodyMedium,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    flex: 1,
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
-  statusBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: spacing.xs + 3,
+  tagPill: {
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: radius.full,
+    borderRadius: 8,
   },
-  statusBadgeText: {
-    ...typography.caption,
-    fontSize: 9,
-    fontWeight: '600',
-    color: colors.textSecondary,
+  tagNext: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
   },
-  featureDesc: {
-    ...typography.caption,
-    color: colors.textMuted,
-    lineHeight: 17,
+  tagPlanned: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  tagText: {
+    fontSize: 9.5,
+    fontWeight: '800',
+  },
+  tagTextNext: {
+    color: '#34D399',
+  },
+  tagTextPlanned: {
+    color: '#94A3B8',
+  },
+  featureDescription: {
+    fontSize: 11.5,
+    color: '#94A3B8',
+    lineHeight: 16,
   },
 
-  // Footer Note
-  footerNote: {
+  // Footer Card
+  footerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(124, 58, 237, 0.08)',
-    borderRadius: radius.md,
-    padding: spacing.md,
+    backgroundColor: '#120F20',
+    borderRadius: 16,
+    padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(124, 58, 237, 0.2)',
-    gap: spacing.sm,
+    borderColor: 'rgba(168, 85, 247, 0.25)',
+    gap: 10,
   },
-  footerNoteText: {
-    ...typography.caption,
-    color: colors.primaryLight,
+  footerText: {
     flex: 1,
-    lineHeight: 16,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#CBD5E1',
   },
 });

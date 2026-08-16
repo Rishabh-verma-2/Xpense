@@ -21,6 +21,7 @@ import { useSettings } from '../../../context/SettingsContext';
 import { colors, typography, spacing, radius } from '../../../core/theme';
 import { getSafeTopInset } from '../../../shared/utils/layoutUtils';
 import { AppButton } from '../../../shared/components/AppButton';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'NameSetup'>;
@@ -31,6 +32,8 @@ export default function NameSetupScreen({ navigation }: Props) {
   const topInset = getSafeTopInset(insets);
   const { user, updateUserProfileName } = useAuth();
   const { updateSettings } = useSettings();
+  const { theme } = useAppTheme();
+  const tc = theme.colors;
 
   const [fullName, setFullName] = useState(
     user?.name && user.name !== 'Google User' && user.name !== 'User' ? user.name : ''
@@ -64,7 +67,7 @@ export default function NameSetupScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: insets.bottom }]}>
+    <View style={[styles.container, { backgroundColor: tc.background, paddingTop: topInset, paddingBottom: insets.bottom }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}

@@ -6,6 +6,7 @@ import { config } from '../config/env';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { verifyFirebaseIdToken, initFirebaseAdmin } from '../config/firebaseAdmin';
 import { sendPasswordResetEmail } from '../services/emailService';
+import { uploadImageToCloudinary } from '../services/cloudinary';
 
 const router = Router();
 
@@ -98,6 +99,8 @@ router.post('/register', async (req: Request, res: Response) => {
           phoneNumber: user.phoneNumber,
           name: user.name,
           currency: user.currency,
+          authProvider: user.authProvider,
+          avatar: user.avatar || '',
           createdAt: user.createdAt,
         },
         token,
@@ -161,6 +164,8 @@ router.post('/login', async (req: Request, res: Response) => {
           phoneNumber: user.phoneNumber,
           name: user.name,
           currency: user.currency,
+          authProvider: user.authProvider,
+          avatar: user.avatar || '',
           createdAt: user.createdAt,
         },
         token,
@@ -282,7 +287,7 @@ router.post('/google', async (req: Request, res: Response) => {
           name: user.name,
           currency: user.currency,
           authProvider: user.authProvider,
-          avatar: user.avatar,
+          avatar: user.avatar || '',
           createdAt: user.createdAt,
         },
         token,
@@ -312,6 +317,8 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
         phoneNumber: user.phoneNumber,
         name: user.name,
         currency: user.currency,
+        authProvider: user.authProvider,
+        avatar: user.avatar || '',
         createdAt: user.createdAt,
       },
     });
@@ -324,17 +331,124 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
 // ─── PUT /api/auth/profile ────────────────────────────────────────────────────
 router.put('/profile', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { name, currency } = req.body;
+    const { name, currency, avatar } = req.body;
     const user = await User.findByIdAndUpdate(
       req.userId,
-      { ...(name && { name }), ...(currency && { currency }) },
+      {
+        ...(name && { name }),
+        ...(currency && { currency }),
+        ...(avatar !== undefined && { avatar }),
+      },
       { new: true, runValidators: true }
     ).select('-passwordHash');
 
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-    return res.json({ success: true, data: user });
+    return res.json({
+      success: true,
+      data: {
+        id: user._id,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        name: user.name,
+        currency: user.currency,
+        authProvider: user.authProvider,
+        avatar: user.avatar || '',
+        createdAt: user.createdAt,
+      },
+    });
   } catch (err) {
     return res.status(500).json({ success: false, message: 'Failed to update profile' });
+  }
+});
+
+// ─── POST /api/auth/avatar (Cloudinary Upload / Update) ─────────────────────────
+router.post('/avatar', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { imageBase64, imageUrl } = req.body;
+
+    // Handle clearing/removing avatar
+    if (imageBase64 === '' || imageUrl === '' || (!imageBase64 && !imageUrl && req.body.remove)) {
+      const user = await User.findByIdAndUpdate(
+        req.userId,
+        { avatar: '' },
+        { new: true }
+      ).select('-passwordHash');
+
+      return res.json({
+        success: true,
+        data: {
+          avatar: '',
+          user,
+        },
+        message: 'Profile photo removed successfully',
+      });
+    }
+
+    if (!imageBase64 && !imageUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide an imageBase64 or imageUrl to upload.',
+      });
+    }
+
+    const fileToUpload = imageBase64 || imageUrl;
+    let secureUrl = '';
+
+    try {
+      secureUrl = await uploadImageToCloudinary(fileToUpload, 'xpense_avatars');
+    } catch (cloudErr: any) {
+      console.warn('[Cloudinary Upload Warning, using direct persist]:', cloudErr?.message || cloudErr);
+      if (fileToUpload.startsWith('data:') || fileToUpload.startsWith('http')) {
+        secureUrl = fileToUpload;
+      } else {
+        secureUrl = `data:image/jpeg;base64,${fileToUpload}`;
+      }
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.userId,
+      { avatar: secureUrl },
+      { new: true }
+    ).select('-passwordHash');
+
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    return res.json({
+      success: true,
+      data: {
+        avatar: secureUrl,
+        user,
+      },
+      message: 'Profile photo updated successfully',
+    });
+  } catch (err: any) {
+    console.error('[Avatar Upload Error]:', err);
+    return res.status(500).json({
+      success: false,
+      message: err.message || 'Failed to upload profile photo',
+    });
+  }
+});
+
+// ─── DELETE /api/auth/avatar ──────────────────────────────────────────────────
+router.delete('/avatar', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.userId,
+      { avatar: '' },
+      { new: true }
+    ).select('-passwordHash');
+
+    return res.json({
+      success: true,
+      data: {
+        avatar: '',
+        user,
+      },
+      message: 'Profile photo removed successfully',
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: 'Failed to remove avatar' });
   }
 });
 

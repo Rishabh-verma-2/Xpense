@@ -11,6 +11,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, spacing, typography } from '../../core/theme';
+import { useAppTheme } from '../../context/ThemeContext';
 
 export function MobileInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);

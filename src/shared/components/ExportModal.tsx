@@ -7,39 +7,41 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  Alert,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, radius } from '../../core/theme';
+import { useAppTheme } from '../../context/ThemeContext';
 import { useTransactions } from '../../context/TransactionContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { formatCurrency } from '../../shared/utils/currencyUtils';
 import {
   filterTransactionsByDateRange,
   generateAndSharePDF,
   generateAndShareCSV,
 } from '../../services/exportService';
 
-type PresetKey = 'this_month' | 'last_30_days' | 'last_90_days' | 'this_year' | 'all_time' | 'custom';
+type PresetKey = 'all_time' | 'this_month' | 'last_30_days' | 'last_90_days' | 'this_year' | 'custom';
 
 interface Props {
   visible: boolean;
   onClose: () => void;
 }
 
-import { Animated } from 'react-native';
-
 export function ExportModal({ visible, onClose }: Props) {
   const { transactions } = useTransactions();
   const { settings } = useSettings();
   const { user } = useAuth();
   const { showSuccess, showWarning, showError } = useToast();
+  const currencySymbol = settings?.currencySymbol ?? '₹';
 
   const [showModal, setShowModal] = useState(visible);
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.92)).current;
+  const scaleAnim = useRef(new Animated.Value(0.94)).current;
 
   useEffect(() => {
     if (visible) {
@@ -65,7 +67,7 @@ export function ExportModal({ visible, onClose }: Props) {
           useNativeDriver: true,
         }),
         Animated.timing(scaleAnim, {
-          toValue: 0.92,
+          toValue: 0.94,
           duration: 180,
           useNativeDriver: true,
         }),
@@ -75,75 +77,44 @@ export function ExportModal({ visible, onClose }: Props) {
     }
   }, [visible, fadeAnim, scaleAnim]);
 
-  const [preset, setPreset] = useState<PresetKey>('this_month');
+  // Default to 'all_time' so users immediately see and export all their transactions
+  const [preset, setPreset] = useState<PresetKey>('all_time');
   const [exportFormat, setExportFormat] = useState<'pdf' | 'csv'>('pdf');
   const [loading, setLoading] = useState(false);
 
-  // Helper to format Date to YYYY-MM-DD
   const formatDateString = (d: Date) => d.toISOString().split('T')[0];
 
-  // Derive initial dates based on preset
-  const defaultDates = useMemo(() => {
-    const now = new Date();
-    const today = formatDateString(now);
+  const now = new Date();
+  const today = formatDateString(now);
 
-    switch (preset) {
-      case 'this_month': {
-        const start = new Date(now.getFullYear(), now.getMonth(), 1);
-        return { start: formatDateString(start), end: today };
-      }
-      case 'last_30_days': {
-        const start = new Date();
-        start.setDate(now.getDate() - 30);
-        return { start: formatDateString(start), end: today };
-      }
-      case 'last_90_days': {
-        const start = new Date();
-        start.setDate(now.getDate() - 90);
-        return { start: formatDateString(start), end: today };
-      }
-      case 'this_year': {
-        const start = new Date(now.getFullYear(), 0, 1);
-        return { start: formatDateString(start), end: today };
-      }
-      case 'all_time': {
-        return { start: '2020-01-01', end: today };
-      }
-      default: {
-        const start = new Date(now.getFullYear(), now.getMonth(), 1);
-        return { start: formatDateString(start), end: today };
-      }
-    }
-  }, [preset]);
-
-  const [startDate, setStartDate] = useState(defaultDates.start);
-  const [endDate, setEndDate] = useState(defaultDates.end);
+  const [startDate, setStartDate] = useState('1970-01-01');
+  const [endDate, setEndDate] = useState(today);
 
   // Sync custom start/end when preset changes
   const handlePresetSelect = (p: PresetKey) => {
     setPreset(p);
-    const now = new Date();
-    const today = formatDateString(now);
+    const currentDate = new Date();
+    const todayStr = formatDateString(currentDate);
 
-    if (p === 'this_month') {
-      setStartDate(formatDateString(new Date(now.getFullYear(), now.getMonth(), 1)));
-      setEndDate(today);
+    if (p === 'all_time') {
+      setStartDate('1970-01-01');
+      setEndDate(todayStr);
+    } else if (p === 'this_month') {
+      setStartDate(formatDateString(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)));
+      setEndDate(todayStr);
     } else if (p === 'last_30_days') {
       const s = new Date();
-      s.setDate(now.getDate() - 30);
+      s.setDate(currentDate.getDate() - 30);
       setStartDate(formatDateString(s));
-      setEndDate(today);
+      setEndDate(todayStr);
     } else if (p === 'last_90_days') {
       const s = new Date();
-      s.setDate(now.getDate() - 90);
+      s.setDate(currentDate.getDate() - 90);
       setStartDate(formatDateString(s));
-      setEndDate(today);
+      setEndDate(todayStr);
     } else if (p === 'this_year') {
-      setStartDate(formatDateString(new Date(now.getFullYear(), 0, 1)));
-      setEndDate(today);
-    } else if (p === 'all_time') {
-      setStartDate('2020-01-01');
-      setEndDate(today);
+      setStartDate(formatDateString(new Date(currentDate.getFullYear(), 0, 1)));
+      setEndDate(todayStr);
     }
   };
 
@@ -151,6 +122,47 @@ export function ExportModal({ visible, onClose }: Props) {
   const matchingTransactions = useMemo(() => {
     return filterTransactionsByDateRange(transactions, startDate, endDate);
   }, [transactions, startDate, endDate]);
+
+  // Compute preset transaction count badges
+  const presetCounts = useMemo(() => {
+    const d = new Date();
+    const todayStr = formatDateString(d);
+
+    return {
+      all_time: filterTransactionsByDateRange(transactions, '1970-01-01', todayStr).length,
+      this_month: filterTransactionsByDateRange(
+        transactions,
+        formatDateString(new Date(d.getFullYear(), d.getMonth(), 1)),
+        todayStr
+      ).length,
+      last_30_days: filterTransactionsByDateRange(
+        transactions,
+        formatDateString(new Date(d.getTime() - 30 * 24 * 60 * 60 * 1000)),
+        todayStr
+      ).length,
+      last_90_days: filterTransactionsByDateRange(
+        transactions,
+        formatDateString(new Date(d.getTime() - 90 * 24 * 60 * 60 * 1000)),
+        todayStr
+      ).length,
+      this_year: filterTransactionsByDateRange(
+        transactions,
+        formatDateString(new Date(d.getFullYear(), 0, 1)),
+        todayStr
+      ).length,
+    };
+  }, [transactions]);
+
+  // Financial summary of filtered scope
+  const scopeSummary = useMemo(() => {
+    let income = 0;
+    let expense = 0;
+    for (const t of matchingTransactions) {
+      if (t.type === 'income') income += t.amount;
+      else expense += t.amount;
+    }
+    return { income, expense, net: income - expense };
+  }, [matchingTransactions]);
 
   const handleExport = async () => {
     if (!startDate.trim() || !endDate.trim()) {
@@ -171,10 +183,10 @@ export function ExportModal({ visible, onClose }: Props) {
     setLoading(true);
     try {
       const options = {
-        startDate,
+        startDate: preset === 'all_time' ? 'All_Time' : startDate,
         endDate,
         format: exportFormat,
-        currencySymbol: settings?.currencySymbol ?? '₹',
+        currencySymbol,
         userName: user?.name || 'Xpense User',
       };
 
@@ -206,33 +218,38 @@ export function ExportModal({ visible, onClose }: Props) {
           <View style={styles.header}>
             <View style={styles.headerTitleRow}>
               <View style={styles.headerIconBg}>
-                <Ionicons name="document-text" size={20} color={colors.primaryLight} />
+                <Ionicons name="document-text" size={20} color="#C084FC" />
               </View>
-              <Text style={styles.title}>Export Financial Report</Text>
+              <View>
+                <Text style={styles.title}>Export Financial Report</Text>
+                <Text style={styles.subtitle}>Download formatted statement or raw data</Text>
+              </View>
             </View>
-            <TouchableOpacity onPress={onClose} disabled={loading}>
-              <Ionicons name="close" size={22} color={colors.textMuted} />
+            <TouchableOpacity onPress={onClose} disabled={loading} style={styles.closeBtn}>
+              <Ionicons name="close" size={20} color="#94A3B8" />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
             {/* Format Selection */}
-            <Text style={styles.sectionLabel}>CHOOSE FORMAT</Text>
+            <Text style={styles.sectionLabel}>CHOOSE EXPORT FORMAT</Text>
             <View style={styles.formatRow}>
               <TouchableOpacity
                 style={[styles.formatCard, exportFormat === 'pdf' && styles.formatCardActive]}
                 onPress={() => setExportFormat('pdf')}
                 activeOpacity={0.8}
               >
-                <Ionicons
-                  name="document-text"
-                  size={24}
-                  color={exportFormat === 'pdf' ? colors.primaryLight : colors.textMuted}
-                />
+                <View style={[styles.formatIconCircle, { backgroundColor: exportFormat === 'pdf' ? '#7C3AED' : 'rgba(255,255,255,0.06)' }]}>
+                  <Ionicons
+                    name="document-text"
+                    size={20}
+                    color={exportFormat === 'pdf' ? '#FFFFFF' : '#94A3B8'}
+                  />
+                </View>
                 <Text style={[styles.formatText, exportFormat === 'pdf' && styles.formatTextActive]}>
                   PDF Statement
                 </Text>
-                <Text style={styles.formatSub}>Formatted PDF Report</Text>
+                <Text style={styles.formatSub}>Luxury Styled PDF Report</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -240,28 +257,30 @@ export function ExportModal({ visible, onClose }: Props) {
                 onPress={() => setExportFormat('csv')}
                 activeOpacity={0.8}
               >
-                <Ionicons
-                  name="stats-chart"
-                  size={24}
-                  color={exportFormat === 'csv' ? colors.primaryLight : colors.textMuted}
-                />
+                <View style={[styles.formatIconCircle, { backgroundColor: exportFormat === 'csv' ? '#0284C7' : 'rgba(255,255,255,0.06)' }]}>
+                  <Ionicons
+                    name="grid-outline"
+                    size={20}
+                    color={exportFormat === 'csv' ? '#FFFFFF' : '#94A3B8'}
+                  />
+                </View>
                 <Text style={[styles.formatText, exportFormat === 'csv' && styles.formatTextActive]}>
                   CSV Spreadsheet
                 </Text>
-                <Text style={styles.formatSub}>Raw Excel / CSV Data</Text>
+                <Text style={styles.formatSub}>Excel / Sheets Compatible</Text>
               </TouchableOpacity>
             </View>
 
             {/* Date Range Presets */}
-            <Text style={styles.sectionLabel}>DATE RANGE PRESETS</Text>
+            <Text style={styles.sectionLabel}>SCOPE & DATE PRESETS</Text>
             <View style={styles.presetGrid}>
               {[
-                { key: 'this_month', label: 'This Month' },
-                { key: 'last_30_days', label: 'Last 30 Days' },
-                { key: 'last_90_days', label: 'Last 90 Days' },
-                { key: 'this_year', label: 'This Year' },
-                { key: 'all_time', label: 'All Time' },
-                { key: 'custom', label: 'Custom' },
+                { key: 'all_time', label: 'All Time', count: presetCounts.all_time },
+                { key: 'this_month', label: 'This Month', count: presetCounts.this_month },
+                { key: 'last_30_days', label: 'Last 30 Days', count: presetCounts.last_30_days },
+                { key: 'last_90_days', label: 'Last 90 Days', count: presetCounts.last_90_days },
+                { key: 'this_year', label: 'This Year', count: presetCounts.this_year },
+                { key: 'custom', label: 'Custom Range', count: null },
               ].map((p) => {
                 const isSelected = preset === p.key;
                 return (
@@ -274,79 +293,104 @@ export function ExportModal({ visible, onClose }: Props) {
                     <Text style={[styles.presetChipText, isSelected && styles.presetChipTextActive]}>
                       {p.label}
                     </Text>
+                    {p.count !== null ? (
+                      <View style={[styles.presetCountBadge, isSelected && styles.presetCountBadgeActive]}>
+                        <Text style={[styles.presetCountText, isSelected && styles.presetCountTextActive]}>
+                          {p.count}
+                        </Text>
+                      </View>
+                    ) : null}
                   </TouchableOpacity>
                 );
               })}
             </View>
 
-            {/* Date Pickers / Custom Inputs */}
-            <Text style={styles.sectionLabel}>SPECIFY DATES (YYYY-MM-DD)</Text>
-            <View style={styles.datesRow}>
-              <View style={styles.dateCol}>
-                <Text style={styles.inputLabel}>From Date</Text>
-                <TextInput
-                  style={styles.dateInput}
-                  value={startDate}
-                  onChangeText={(val) => {
-                    setStartDate(val);
-                    setPreset('custom');
-                  }}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="numbers-and-punctuation"
-                />
+            {/* Custom Date Pickers */}
+            {preset === 'custom' && (
+              <View style={styles.customDateSection}>
+                <Text style={styles.sectionLabel}>CUSTOM DATES (YYYY-MM-DD)</Text>
+                <View style={styles.datesRow}>
+                  <View style={styles.dateCol}>
+                    <Text style={styles.inputLabel}>From Date</Text>
+                    <TextInput
+                      style={styles.dateInput}
+                      value={startDate === '1970-01-01' ? '' : startDate}
+                      onChangeText={setStartDate}
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor="#64748B"
+                    />
+                  </View>
+                  <View style={styles.dateCol}>
+                    <Text style={styles.inputLabel}>To Date</Text>
+                    <TextInput
+                      style={styles.dateInput}
+                      value={endDate}
+                      onChangeText={setEndDate}
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor="#64748B"
+                    />
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Live Financial Scope Summary Card */}
+            <View style={styles.scopeCard}>
+              <View style={styles.scopeHeaderRow}>
+                <View style={styles.scopeTag}>
+                  <Ionicons name="receipt-outline" size={14} color="#C084FC" />
+                  <Text style={styles.scopeTagText}>
+                    <Text style={{ fontWeight: '900', color: '#FFFFFF' }}>{matchingTransactions.length}</Text> Records Selected
+                  </Text>
+                </View>
+                <Text style={styles.scopeNetText}>
+                  Net: {formatCurrency(scopeSummary.net, 'INR', currencySymbol)}
+                </Text>
               </View>
 
-              <View style={styles.dateCol}>
-                <Text style={styles.inputLabel}>To Date</Text>
-                <TextInput
-                  style={styles.dateInput}
-                  value={endDate}
-                  onChangeText={(val) => {
-                    setEndDate(val);
-                    setPreset('custom');
-                  }}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="numbers-and-punctuation"
-                />
+              <View style={styles.scopePillsRow}>
+                <View style={styles.scopePill}>
+                  <Text style={styles.scopePillLabel}>Inflow</Text>
+                  <Text style={styles.scopePillValIncome}>+{formatCurrency(scopeSummary.income, 'INR', currencySymbol)}</Text>
+                </View>
+                <View style={styles.scopeDivider} />
+                <View style={styles.scopePill}>
+                  <Text style={styles.scopePillLabel}>Outflow</Text>
+                  <Text style={styles.scopePillValExpense}>-{formatCurrency(scopeSummary.expense, 'INR', currencySymbol)}</Text>
+                </View>
               </View>
-            </View>
-
-            {/* Preview Matching Badge */}
-            <View style={styles.previewBadge}>
-              <Ionicons name="filter" size={16} color={colors.primaryLight} />
-              <Text style={styles.previewBadgeText}>
-                <Text style={{ fontWeight: '700', color: colors.textPrimary }}>
-                  {matchingTransactions.length}
-                </Text>{' '}
-                transactions found in selected range
-              </Text>
             </View>
           </ScrollView>
 
           {/* Action Buttons */}
           <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={onClose} disabled={loading}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={onClose} disabled={loading} activeOpacity={0.8}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.exportBtn}
+              style={styles.exportSubmitBtn}
               onPress={handleExport}
-              disabled={loading}
+              disabled={loading || matchingTransactions.length === 0}
               activeOpacity={0.88}
             >
-              {loading ? (
-                <ActivityIndicator color="#FFF" size="small" />
-              ) : (
-                <>
-                  <Ionicons name="download-outline" size={18} color="#FFF" />
-                  <Text style={styles.exportText}>
-                    Export {exportFormat.toUpperCase()}
-                  </Text>
-                </>
-              )}
+              <LinearGradient
+                colors={['#7C3AED', '#6D28D9', '#5B21B6']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.exportSubmitGrad}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFF" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="download-outline" size={18} color="#FFF" />
+                    <Text style={styles.exportSubmitText}>
+                      Export {matchingTransactions.length} Items ({exportFormat.toUpperCase()})
+                    </Text>
+                  </>
+                )}
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -358,196 +402,301 @@ export function ExportModal({ visible, onClose }: Props) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.78)',
+    backgroundColor: 'rgba(6, 6, 13, 0.85)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: 16,
   },
   container: {
     width: '100%',
     maxWidth: 400,
-    maxHeight: '85%',
-    backgroundColor: colors.card || '#1E1E2D',
-    borderRadius: radius.xl,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.6,
-    shadowRadius: 24,
-    elevation: 12,
+    maxHeight: '88%',
+    backgroundColor: '#131024',
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1.2,
+    borderColor: 'rgba(168, 85, 247, 0.3)',
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.5,
+    shadowRadius: 32,
+    elevation: 20,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: spacing.md,
+    paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
-    marginBottom: spacing.md,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    marginBottom: 14,
   },
   headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 10,
+    flex: 1,
   },
   headerIconBg: {
-    width: 34,
-    height: 34,
-    borderRadius: radius.md,
-    backgroundColor: 'rgba(124, 58, 237, 0.18)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(168, 85, 247, 0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
-    ...typography.subheading,
-    color: colors.textPrimary,
-    fontSize: 17,
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 1,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
-    marginBottom: spacing.md,
+    maxHeight: 400,
   },
   sectionLabel: {
-    ...typography.caption,
-    color: colors.textMuted,
-    letterSpacing: 1,
     fontSize: 11,
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
+    fontWeight: '800',
+    color: '#94A3B8',
+    letterSpacing: 1,
+    marginBottom: 10,
+    marginTop: 4,
   },
+
+  // Format Cards
   formatRow: {
     flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.sm,
+    gap: 10,
+    marginBottom: 16,
   },
   formatCard: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
+    backgroundColor: '#100C1F',
+    borderRadius: 16,
+    padding: 14,
     alignItems: 'center',
-    gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   formatCardActive: {
-    backgroundColor: 'rgba(124, 58, 237, 0.16)',
-    borderColor: colors.primary,
+    borderColor: '#C084FC',
+    backgroundColor: 'rgba(168, 85, 247, 0.14)',
+  },
+  formatIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   formatText: {
-    ...typography.bodyMedium,
-    color: colors.textSecondary,
     fontSize: 13,
+    fontWeight: '700',
+    color: '#94A3B8',
   },
   formatTextActive: {
-    color: colors.primaryLight,
-    fontWeight: '700',
+    color: '#FFFFFF',
+    fontWeight: '800',
   },
   formatSub: {
-    ...typography.caption,
-    color: colors.textMuted,
     fontSize: 10,
+    color: '#64748B',
+    marginTop: 2,
     textAlign: 'center',
   },
+
+  // Presets
   presetGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.xs,
-    marginBottom: spacing.sm,
+    gap: 8,
+    marginBottom: 16,
   },
   presetChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: radius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: '#100C1F',
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   presetChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    borderColor: '#C084FC',
+    backgroundColor: 'rgba(168, 85, 247, 0.18)',
   },
   presetChipText: {
-    ...typography.caption,
-    color: colors.textSecondary,
     fontSize: 12,
+    fontWeight: '700',
+    color: '#94A3B8',
   },
   presetChipTextActive: {
-    color: '#FFF',
-    fontWeight: '700',
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  presetCountBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  presetCountBadgeActive: {
+    backgroundColor: '#C084FC',
+  },
+  presetCountText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#CBD5E1',
+  },
+  presetCountTextActive: {
+    color: '#07060E',
+  },
+
+  // Custom Dates
+  customDateSection: {
+    marginBottom: 14,
   },
   datesRow: {
     flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.md,
+    gap: 10,
   },
   dateCol: {
     flex: 1,
   },
   inputLabel: {
-    ...typography.caption,
-    color: colors.textMuted,
+    fontSize: 11,
+    color: '#94A3B8',
     marginBottom: 4,
   },
   dateInput: {
-    backgroundColor: colors.surface || '#12121A',
-    borderRadius: radius.md,
+    backgroundColor: '#100C1F',
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    paddingHorizontal: spacing.md,
-    height: 44,
-    color: colors.textPrimary,
-    fontSize: 14,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    color: '#FFFFFF',
+    fontSize: 13,
   },
-  previewBadge: {
+
+  // Scope Summary Card
+  scopeCard: {
+    backgroundColor: '#100C1F',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    marginBottom: 16,
+  },
+  scopeHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: 'rgba(124, 58, 237, 0.12)',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(124, 58, 237, 0.25)',
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
-  previewBadgeText: {
-    ...typography.caption,
-    color: colors.textSecondary,
+  scopeTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  scopeTagText: {
     fontSize: 12,
+    color: '#CBD5E1',
   },
+  scopeNetText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#38BDF8',
+  },
+  scopePillsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  scopePill: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  scopePillLabel: {
+    fontSize: 9,
+    color: '#64748B',
+    textTransform: 'uppercase',
+    fontWeight: '700',
+  },
+  scopePillValIncome: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#10B981',
+    marginTop: 1,
+  },
+  scopePillValExpense: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#F43F5E',
+    marginTop: 1,
+  },
+  scopeDivider: {
+    width: 1,
+    height: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+
+  // Actions
   actionsRow: {
     flexDirection: 'row',
-    gap: spacing.md,
-    paddingTop: spacing.xs,
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 6,
   },
   cancelBtn: {
-    flex: 1,
-    height: 46,
-    borderRadius: radius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelText: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#94A3B8',
   },
-  exportBtn: {
-    flex: 1.4,
-    height: 46,
-    borderRadius: radius.full,
-    backgroundColor: colors.primary,
+  exportSubmitBtn: {
+    flex: 1,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  exportSubmitGrad: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xs,
+    gap: 6,
+    paddingVertical: 13,
+    borderRadius: 14,
   },
-  exportText: {
-    ...typography.bodyMedium,
-    color: '#FFF',
-    fontWeight: '700',
+  exportSubmitText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 });

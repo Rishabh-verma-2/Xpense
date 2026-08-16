@@ -19,6 +19,7 @@ import { colors, typography, spacing, radius } from '../../../core/theme';
 import { validateCategoryName } from '../../../shared/utils/validators';
 import { ScreenHeader } from '../../../shared/components/ScreenHeader';
 import { AppButton } from '../../../shared/components/AppButton';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<SettingsStackParamList, 'AddEditCategory'>;
@@ -42,6 +43,8 @@ export default function AddEditCategoryScreen({ navigation, route }: Props) {
   const { categoryId } = route.params || {};
   const { categories, addCategory, updateCategory } = useCategories();
   const { showSuccess, showError } = useToast();
+  const { theme } = useAppTheme();
+  const tc = theme.colors;
 
   const existingCat = categories.find((c) => c.id === categoryId);
 
@@ -85,7 +88,7 @@ export default function AddEditCategoryScreen({ navigation, route }: Props) {
   };
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+    <View style={[styles.container, { backgroundColor: tc.background, paddingBottom: insets.bottom }]}>
       <ScreenHeader
         title={existingCat ? 'Edit Category' : 'New Category'}
         onBack={() => navigation.goBack()}
@@ -94,11 +97,11 @@ export default function AddEditCategoryScreen({ navigation, route }: Props) {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Name input */}
         <View style={styles.section}>
-          <Text style={styles.label}>Category Name</Text>
+          <Text style={[styles.label, { color: tc.textMuted }]}>Category Name</Text>
           <TextInput
-            style={[styles.input, !!error && styles.inputError]}
+            style={[styles.input, { backgroundColor: tc.card, borderColor: tc.cardBorder, color: tc.textPrimary }, !!error && styles.inputError]}
             placeholder="e.g. Subscriptions"
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={tc.textMuted}
             value={name}
             onChangeText={setName}
           />
@@ -108,21 +111,21 @@ export default function AddEditCategoryScreen({ navigation, route }: Props) {
         {/* Type selector (only if new) */}
         {!existingCat ? (
           <View style={styles.section}>
-            <Text style={styles.label}>Type</Text>
-            <View style={styles.typeRow}>
+            <Text style={[styles.label, { color: tc.textMuted }]}>Type</Text>
+            <View style={[styles.typeRow, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
               <TouchableOpacity
-                style={[styles.typeBtn, type === 'expense' && styles.typeBtnActive]}
+                style={[styles.typeBtn, type === 'expense' && [styles.typeBtnActive, { backgroundColor: theme.accentColor }]]}
                 onPress={() => setType('expense')}
               >
-                <Text style={[styles.typeText, type === 'expense' && styles.typeTextActive]}>
+                <Text style={[styles.typeText, { color: type === 'expense' ? '#FFFFFF' : tc.textSecondary }, type === 'expense' && styles.typeTextActive]}>
                   Expense
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.typeBtn, type === 'income' && styles.typeBtnActive]}
+                style={[styles.typeBtn, type === 'income' && [styles.typeBtnActive, { backgroundColor: theme.accentColor }]]}
                 onPress={() => setType('income')}
               >
-                <Text style={[styles.typeText, type === 'income' && styles.typeTextActive]}>
+                <Text style={[styles.typeText, { color: type === 'income' ? '#FFFFFF' : tc.textSecondary }, type === 'income' && styles.typeTextActive]}>
                   Income
                 </Text>
               </TouchableOpacity>
@@ -132,15 +135,19 @@ export default function AddEditCategoryScreen({ navigation, route }: Props) {
 
         {/* Icon picker */}
         <View style={styles.section}>
-          <Text style={styles.label}>Icon</Text>
+          <Text style={[styles.label, { color: tc.textMuted }]}>Icon</Text>
           <View style={styles.grid}>
             {ICONS.map((ic) => (
               <TouchableOpacity
                 key={ic}
-                style={[styles.iconBox, selectedIcon === ic && { borderColor: selectedColor, backgroundColor: `${selectedColor}20` }]}
+                style={[
+                  styles.iconBox,
+                  { backgroundColor: tc.card, borderColor: tc.cardBorder },
+                  selectedIcon === ic && { borderColor: selectedColor, backgroundColor: `${selectedColor}20` },
+                ]}
                 onPress={() => setSelectedIcon(ic)}
               >
-                <Ionicons name={ic as any} size={22} color={selectedIcon === ic ? selectedColor : colors.textMuted} />
+                <Ionicons name={ic as any} size={22} color={selectedIcon === ic ? selectedColor : tc.textMuted} />
               </TouchableOpacity>
             ))}
           </View>
@@ -148,7 +155,7 @@ export default function AddEditCategoryScreen({ navigation, route }: Props) {
 
         {/* Color picker */}
         <View style={styles.section}>
-          <Text style={styles.label}>Color</Text>
+          <Text style={[styles.label, { color: tc.textMuted }]}>Color</Text>
           <View style={styles.grid}>
             {COLORS.map((cl) => (
               <TouchableOpacity

@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../../context/AuthContext';
 import { colors, radius, spacing, typography } from '../../../core/theme';
 import { getSafeTopInset } from '../../../shared/utils/layoutUtils';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 interface LandingScreenProps {
   onLaunchApp?: () => void;
@@ -73,16 +75,22 @@ export function LandingScreen({ onLaunchApp }: LandingScreenProps) {
   const insets = useSafeAreaInsets();
   const topInset = getSafeTopInset(insets);
   const { token } = useAuth();
+  const { theme } = useAppTheme();
+  const tc = theme.colors;
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: insets.bottom }]}>
+    <View style={[styles.container, { backgroundColor: tc.background, paddingTop: topInset, paddingBottom: insets.bottom }]}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
         {/* ── Navbar ─────────────────────────────────────────────────── */}
         <View style={styles.navbar}>
           <View style={styles.navLogoRow}>
             <View style={styles.navLogoBg}>
-              <Ionicons name="wallet" size={20} color={colors.primaryLight} />
+              <Image
+                source={require('../../../../assets/icon.png')}
+                style={styles.navLogoImg}
+                resizeMode="contain"
+              />
             </View>
             <Text style={styles.navLogoTitle}>
               Xpense<Text style={{ color: colors.primaryLight }}>.</Text>
@@ -242,11 +250,14 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: radius.md,
-    backgroundColor: 'rgba(124, 58, 237, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(124, 58, 237, 0.3)',
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  navLogoImg: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
   },
   navLogoTitle: {
     ...typography.subheading,

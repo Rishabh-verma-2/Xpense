@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   ScrollView,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Image,
+  Platform,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,8 +18,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../../../core/navigation/types';
 import { useSettings } from '../../../context/SettingsContext';
-import { colors, typography, spacing, radius } from '../../../core/theme';
+import { typography, spacing, radius } from '../../../core/theme';
 import { getSafeTopInset } from '../../../shared/utils/layoutUtils';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -29,206 +32,336 @@ type Props = {
 const SLIDES = [
   {
     id: '1',
-    accentColor: '#7C3AED',
-    accentMuted: 'rgba(124,58,237,0.15)',
-    accentGlow: 'rgba(124,58,237,0.08)',
-    icon: 'wallet' as const,
-    badge: 'GET STARTED',
-    title: 'Welcome to\nXpense',
-    subtitle: 'Your all-in-one personal finance companion. Take control of your money and build wealth — one day at a time.',
+    accentColor: '#8B5CF6',
+    accentGradient: ['#8B5CF6', '#6D28D9'] as const,
+    accentMuted: 'rgba(139, 92, 246, 0.16)',
+    accentGlow: 'rgba(139, 92, 246, 0.12)',
+    icon: 'wallet-outline' as const,
+    badge: 'LUXURY FINANCE',
+    title: 'Master Your Money\nWith Precision',
+    subtitle: 'The modern, ultra-private expense tracker engineered for high clarity, smart budgets, and financial freedom.',
     features: [
-      { icon: 'checkmark-circle', label: 'Free forever for core features' },
-      { icon: 'checkmark-circle', label: '100% private — data stays on device' },
-      { icon: 'checkmark-circle', label: 'Works offline, no account needed' },
+      { icon: 'shield-checkmark', label: '100% On-Device Privacy & Encryption' },
+      { icon: 'flash', label: 'Lightning-fast transaction logging' },
+      { icon: 'cloud-offline', label: 'Works completely offline without accounts' },
     ],
     visual: 'welcome',
   },
   {
     id: '2',
     accentColor: '#06B6D4',
-    accentMuted: 'rgba(6,182,212,0.15)',
-    accentGlow: 'rgba(6,182,212,0.08)',
+    accentGradient: ['#06B6D4', '#0891B2'] as const,
+    accentMuted: 'rgba(6, 182, 212, 0.16)',
+    accentGlow: 'rgba(6, 182, 212, 0.12)',
     icon: 'receipt-outline' as const,
-    badge: 'STEP 1',
-    title: 'Log Every\nTransaction',
-    subtitle: 'Add income and expenses in seconds. Categorise, tag, and never lose track of where your money flows.',
+    badge: 'EFFORTLESS LOGGING',
+    title: 'Log Outflow & Inflow\nIn Under 3 Seconds',
+    subtitle: 'Tactile numeric keypad, smart custom categories, split methods (UPI, Card, Cash), and quick amount chips.',
     features: [
-      { icon: 'flash', label: 'Quick-add with one tap' },
-      { icon: 'pricetag', label: 'Smart auto-categorisation' },
-      { icon: 'repeat', label: 'Recurring transactions support' },
+      { icon: 'pricetag', label: 'Multi-category tagging with custom icons & colors' },
+      { icon: 'card', label: 'Track by payment mode (Cash, UPI, Credit, Bank)' },
+      { icon: 'time', label: 'Historical timestamps & searchable notes' },
     ],
     visual: 'transactions',
   },
   {
     id: '3',
     accentColor: '#10B981',
-    accentMuted: 'rgba(16,185,129,0.15)',
-    accentGlow: 'rgba(16,185,129,0.08)',
-    icon: 'pie-chart' as const,
-    badge: 'STEP 2',
-    title: 'Visual\nInsights',
-    subtitle: 'Beautiful charts reveal spending patterns by category, day, and month. Spot trends and make smarter decisions.',
+    accentGradient: ['#10B981', '#059669'] as const,
+    accentMuted: 'rgba(16, 185, 129, 0.16)',
+    accentGlow: 'rgba(16, 185, 129, 0.12)',
+    icon: 'pie-chart-outline' as const,
+    badge: 'VISUAL INTELLIGENCE',
+    title: 'Crystal Clear Charts\n& Deep Analytics',
+    subtitle: 'Interactive donut rings, daily outflow bar charts, month-over-month trends, and category breakdown drilldowns.',
     features: [
-      { icon: 'bar-chart', label: 'Monthly income vs expense charts' },
-      { icon: 'pie-chart', label: 'Category breakdown donut charts' },
-      { icon: 'trending-up', label: 'Net worth trend over time' },
+      { icon: 'bar-chart', label: 'Daily spending pace & burn velocity' },
+      { icon: 'pie-chart', label: 'Category distribution breakdown' },
+      { icon: 'trending-up', label: 'MoM expense percentage indicators' },
     ],
     visual: 'insights',
   },
   {
     id: '4',
     accentColor: '#F59E0B',
-    accentMuted: 'rgba(245,158,11,0.15)',
-    accentGlow: 'rgba(245,158,11,0.08)',
-    icon: 'shield-checkmark' as const,
-    badge: 'STEP 3',
-    title: 'Budget &\nStay Safe',
-    subtitle: 'Set monthly budgets per category. Get instant alerts before you overspend and hit your savings goals.',
+    accentGradient: ['#F59E0B', '#D97706'] as const,
+    accentMuted: 'rgba(245, 158, 11, 0.16)',
+    accentGlow: 'rgba(245, 158, 11, 0.12)',
+    icon: 'speedometer-outline' as const,
+    badge: 'SMART BUDGETS',
+    title: 'Spending Limits &\nOverspend Warnings',
+    subtitle: 'Set monthly limits across specific categories or overall balance. Get proactive visual alerts before exceeding.',
     features: [
-      { icon: 'notifications', label: 'Overspend alerts & reminders' },
-      { icon: 'trophy', label: 'Savings goals with progress' },
-      { icon: 'lock-closed', label: 'Secure local encrypted storage' },
+      { icon: 'alert-circle', label: 'Dynamic 80% warning and 100% danger alerts' },
+      { icon: 'calculator', label: 'Daily safe burn allowance calculations' },
+      { icon: 'trophy', label: 'Track savings rate & retained wealth' },
     ],
     visual: 'budget',
   },
   {
     id: '5',
     accentColor: '#EC4899',
-    accentMuted: 'rgba(236,72,153,0.15)',
-    accentGlow: 'rgba(236,72,153,0.08)',
-    icon: 'rocket' as const,
-    badge: 'READY',
-    title: "You're All\nSet!",
-    subtitle: "Everything is ready. Start logging your first transaction and watch your financial story unfold.",
+    accentGradient: ['#EC4899', '#DB2777'] as const,
+    accentMuted: 'rgba(236, 72, 153, 0.16)',
+    accentGlow: 'rgba(236, 72, 153, 0.12)',
+    icon: 'sparkles-outline' as const,
+    badge: 'COMPLETE TOOLKIT',
+    title: 'Tailored For You\nEvery Step of the Way',
+    subtitle: 'Switch between 5 luxury themes, 20+ global currencies, and export beautiful CSV/PDF reports anytime.',
     features: [
-      { icon: 'download', label: 'Export reports as CSV or PDF' },
-      { icon: 'color-palette', label: 'Personalise currencies & themes' },
-      { icon: 'cloud-upload', label: 'Backup & restore anytime' },
+      { icon: 'color-palette', label: '5 hand-crafted dark & light themes' },
+      { icon: 'globe', label: 'Global currency support with symbols' },
+      { icon: 'download', label: 'One-click CSV & PDF export' },
     ],
     visual: 'ready',
   },
 ];
 
-// ─── Mini visual components per slide ────────────────────────────────────────
-function WelcomeVisual({ color }: { color: string }) {
-  return (
-    <View style={[visStyles.card, { borderColor: `${color}30` }]}>
-      <LinearGradient colors={[`${color}25`, `${color}08`]} style={visStyles.cardGrad}>
-        <View style={visStyles.statRow}>
-          {[
-            { label: 'Balance', value: '₹84,200', color: '#F9FAFB' },
-            { label: 'Income', value: '+₹42k', color: '#10B981' },
-            { label: 'Spent', value: '-₹18k', color: '#EF4444' },
-          ].map((s) => (
-            <View key={s.label} style={visStyles.statBox}>
-              <Text style={[visStyles.statVal, { color: s.color }]}>{s.value}</Text>
-              <Text style={visStyles.statLabel}>{s.label}</Text>
-            </View>
-          ))}
-        </View>
-      </LinearGradient>
-    </View>
-  );
-}
+// ─── Interactive Flashcard Previews ──────────────────────────────────────────
 
-function TransactionVisual({ color }: { color: string }) {
-  const items = [
-    { icon: 'cafe-outline', name: 'Coffee', cat: 'Food', amount: '-₹180', col: '#EF4444' },
-    { icon: 'briefcase-outline', name: 'Salary', cat: 'Income', amount: '+₹42,000', col: '#10B981' },
-    { icon: 'cart-outline', name: 'Groceries', cat: 'Shopping', amount: '-₹1,240', col: '#EF4444' },
-  ];
+function WelcomeFlashcard({ color, tc, mode }: { color: string; tc: any; mode: string }) {
   return (
-    <View style={[visStyles.card, { borderColor: `${color}30` }]}>
-      <LinearGradient colors={[`${color}20`, `${color}05`]} style={[visStyles.cardGrad, { gap: 10 }]}>
-        {items.map((it) => (
-          <View key={it.name} style={visStyles.txRow}>
-            <View style={[visStyles.txIconBg, { backgroundColor: `${color}22` }]}>
-              <Ionicons name={it.icon as any} size={16} color={color} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={visStyles.txName}>{it.name}</Text>
-              <Text style={visStyles.txCat}>{it.cat}</Text>
-            </View>
-            <Text style={[visStyles.txAmt, { color: it.col }]}>{it.amount}</Text>
+    <View style={[visStyles.flashcardWrapper, { backgroundColor: tc.card, borderColor: `${color}40` }]}>
+      <LinearGradient
+        colors={mode === 'light' ? ['rgba(248,250,252,0.95)', '#FFFFFF'] : [`${color}20`, 'rgba(15,10,30,0.85)']}
+        style={visStyles.flashcardGradient}
+      >
+        {/* Top Header Pill */}
+        <View style={visStyles.cardTopRow}>
+          <View style={visStyles.liveTagRow}>
+            <View style={[visStyles.liveDot, { backgroundColor: '#10B981' }]} />
+            <Text style={[visStyles.cardSubtitle, { color: tc.textMuted }]}>PORTFOLIO SNAPSHOT</Text>
           </View>
-        ))}
+          <View style={[visStyles.trustBadge, { backgroundColor: `${color}18`, borderColor: `${color}35` }]}>
+            <Ionicons name="lock-closed" size={10} color={color} />
+            <Text style={[visStyles.trustBadgeText, { color }]}>On-Device</Text>
+          </View>
+        </View>
+
+        {/* Big Balance Number */}
+        <View style={visStyles.balanceBlock}>
+          <Text style={[visStyles.balanceMain, { color: tc.textPrimary }]}>₹1,24,850</Text>
+          <Text style={[visStyles.balanceLabel, { color: tc.textMuted }]}>Net Available Balance</Text>
+        </View>
+
+        {/* Split Metrics Strip */}
+        <View style={[visStyles.metricsStrip, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
+          <View style={visStyles.metricCol}>
+            <View style={visStyles.metricHeaderRow}>
+              <Ionicons name="arrow-down" size={12} color="#10B981" />
+              <Text style={[visStyles.metricSmallLabel, { color: tc.textMuted }]}>Inflow</Text>
+            </View>
+            <Text style={[visStyles.metricValue, { color: '#10B981' }]}>+₹65,000</Text>
+          </View>
+
+          <View style={[visStyles.metricDivider, { backgroundColor: tc.cardBorder }]} />
+
+          <View style={visStyles.metricCol}>
+            <View style={visStyles.metricHeaderRow}>
+              <Ionicons name="arrow-up" size={12} color="#F43F5E" />
+              <Text style={[visStyles.metricSmallLabel, { color: tc.textMuted }]}>Outflow</Text>
+            </View>
+            <Text style={[visStyles.metricValue, { color: '#F43F5E' }]}>-₹21,400</Text>
+          </View>
+
+          <View style={[visStyles.metricDivider, { backgroundColor: tc.cardBorder }]} />
+
+          <View style={visStyles.metricCol}>
+            <View style={visStyles.metricHeaderRow}>
+              <Ionicons name="sparkles" size={12} color={color} />
+              <Text style={[visStyles.metricSmallLabel, { color: tc.textMuted }]}>Saved</Text>
+            </View>
+            <Text style={[visStyles.metricValue, { color }]}>67%</Text>
+          </View>
+        </View>
       </LinearGradient>
     </View>
   );
 }
 
-function InsightsVisual({ color }: { color: string }) {
-  const bars = [60, 80, 45, 95, 55, 70, 85];
+function TransactionsFlashcard({ color, tc, mode }: { color: string; tc: any; mode: string }) {
+  const sampleTxs = [
+    { icon: 'cafe', name: 'Artisan Coffee', category: 'Dining', amount: '-₹180', color: '#F43F5E', mode: 'UPI' },
+    { icon: 'briefcase', name: 'Client Retainer', category: 'Salary', amount: '+₹45,000', color: '#10B981', mode: 'Bank' },
+    { icon: 'cart', name: 'Weekly Groceries', category: 'Supermarket', amount: '-₹1,620', color: '#F43F5E', mode: 'Card' },
+  ];
+
   return (
-    <View style={[visStyles.card, { borderColor: `${color}30` }]}>
-      <LinearGradient colors={[`${color}20`, `${color}05`]} style={visStyles.cardGrad}>
-        <View style={visStyles.barsRow}>
-          {bars.map((h, i) => (
-            <View key={i} style={visStyles.barCol}>
-              <LinearGradient
-                colors={[color, `${color}60`]}
-                style={[visStyles.bar, { height: h * 0.8 }]}
-              />
+    <View style={[visStyles.flashcardWrapper, { backgroundColor: tc.card, borderColor: `${color}40` }]}>
+      <LinearGradient
+        colors={mode === 'light' ? ['rgba(248,250,252,0.95)', '#FFFFFF'] : [`${color}20`, 'rgba(15,10,30,0.85)']}
+        style={visStyles.flashcardGradient}
+      >
+        <View style={visStyles.cardTopRow}>
+          <Text style={[visStyles.cardSubtitle, { color: tc.textMuted }]}>INSTANT TRANSACTION FEED</Text>
+          <View style={[visStyles.quickAddChip, { backgroundColor: `${color}20`, borderColor: color }]}>
+            <Ionicons name="add" size={12} color={color} />
+            <Text style={[visStyles.quickAddText, { color }]}>One-Tap Log</Text>
+          </View>
+        </View>
+
+        <View style={visStyles.txListContainer}>
+          {sampleTxs.map((tx, idx) => (
+            <View key={idx} style={[visStyles.txItemRow, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
+              <View style={[visStyles.txIconCircle, { backgroundColor: `${tx.color}22` }]}>
+                <Ionicons name={tx.icon as any} size={15} color={tx.color} />
+              </View>
+
+              <View style={visStyles.txInfoCol}>
+                <Text style={[visStyles.txTitleText, { color: tc.textPrimary }]} numberOfLines={1}>{tx.name}</Text>
+                <Text style={[visStyles.txCategoryText, { color: tc.textMuted }]}>{tx.category} • {tx.mode}</Text>
+              </View>
+
+              <Text style={[visStyles.txAmountText, { color: tx.color }]}>{tx.amount}</Text>
             </View>
           ))}
         </View>
-        <View style={visStyles.legendRow}>
-          <View style={[visStyles.legendDot, { backgroundColor: color }]} />
-          <Text style={visStyles.legendText}>Monthly spending breakdown</Text>
+      </LinearGradient>
+    </View>
+  );
+}
+
+function InsightsFlashcard({ color, tc, mode }: { color: string; tc: any; mode: string }) {
+  const bars = [40, 75, 55, 95, 60, 85, 50];
+
+  return (
+    <View style={[visStyles.flashcardWrapper, { backgroundColor: tc.card, borderColor: `${color}40` }]}>
+      <LinearGradient
+        colors={mode === 'light' ? ['rgba(248,250,252,0.95)', '#FFFFFF'] : [`${color}20`, 'rgba(15,10,30,0.85)']}
+        style={visStyles.flashcardGradient}
+      >
+        <View style={visStyles.cardTopRow}>
+          <Text style={[visStyles.cardSubtitle, { color: tc.textMuted }]}>7-DAY OUTFLOW TREND</Text>
+          <View style={visStyles.trendPill}>
+            <Ionicons name="trending-down" size={12} color="#10B981" />
+            <Text style={visStyles.trendPillText}>-14% vs last week</Text>
+          </View>
+        </View>
+
+        {/* Mini Bars Chart */}
+        <View style={visStyles.chartContainer}>
+          {bars.map((h, i) => {
+            const isPeak = h === 95;
+            return (
+              <View key={i} style={visStyles.barColumn}>
+                <View style={[visStyles.barTrackBg, { backgroundColor: mode === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)' }]}>
+                  <LinearGradient
+                    colors={isPeak ? ['#F59E0B', '#D97706'] : [color, `${color}88`]}
+                    style={[visStyles.barFillLine, { height: `${h}%` }]}
+                  />
+                </View>
+                <Text style={[visStyles.barDayLabel, { color: isPeak ? '#F59E0B' : tc.textMuted }]}>
+                  {['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+
+        {/* Top Category Badge */}
+        <View style={[visStyles.topSpendCallout, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
+          <View style={[visStyles.dotIndicator, { backgroundColor: color }]} />
+          <Text style={[visStyles.topSpendText, { color: tc.textSecondary }]}>
+            Top Driver: <Text style={{ fontWeight: '800', color: tc.textPrimary }}>Food & Dining</Text> (42% of total outflow)
+          </Text>
         </View>
       </LinearGradient>
     </View>
   );
 }
 
-function BudgetVisual({ color }: { color: string }) {
-  const categories = [
-    { name: 'Food', pct: 72 },
-    { name: 'Transport', pct: 40 },
-    { name: 'Shopping', pct: 91 },
+function BudgetFlashcard({ color, tc, mode }: { color: string; tc: any; mode: string }) {
+  const budgetItems = [
+    { name: 'Dining & Food', spent: 7200, limit: 10000, pct: 72, color: '#38BDF8' },
+    { name: 'Shopping & Gear', spent: 9200, limit: 10000, pct: 92, color: '#F43F5E' },
   ];
+
   return (
-    <View style={[visStyles.card, { borderColor: `${color}30` }]}>
-      <LinearGradient colors={[`${color}20`, `${color}05`]} style={[visStyles.cardGrad, { gap: 14 }]}>
-        {categories.map((c) => {
-          const overSpend = c.pct > 85;
-          return (
-            <View key={c.name}>
-              <View style={visStyles.budgRow}>
-                <Text style={visStyles.budgName}>{c.name}</Text>
-                <Text style={[visStyles.budgPct, { color: overSpend ? '#EF4444' : color }]}>{c.pct}%</Text>
+    <View style={[visStyles.flashcardWrapper, { backgroundColor: tc.card, borderColor: `${color}40` }]}>
+      <LinearGradient
+        colors={mode === 'light' ? ['rgba(248,250,252,0.95)', '#FFFFFF'] : [`${color}20`, 'rgba(15,10,30,0.85)']}
+        style={visStyles.flashcardGradient}
+      >
+        <View style={visStyles.cardTopRow}>
+          <Text style={[visStyles.cardSubtitle, { color: tc.textMuted }]}>ACTIVE BUDGET TARGETS</Text>
+          <View style={visStyles.alertBadge}>
+            <Ionicons name="flame" size={12} color="#F59E0B" />
+            <Text style={visStyles.alertBadgeText}>Live Alerts</Text>
+          </View>
+        </View>
+
+        <View style={visStyles.budgetItemsStack}>
+          {budgetItems.map((b, idx) => {
+            const isDanger = b.pct >= 90;
+            return (
+              <View key={idx} style={[visStyles.budgetItemCard, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
+                <View style={visStyles.budgetTitleRow}>
+                  <Text style={[visStyles.budgetNameText, { color: tc.textPrimary }]}>{b.name}</Text>
+                  <Text style={[visStyles.budgetSpendRatio, { color: isDanger ? '#F43F5E' : tc.textSecondary }]}>
+                    <Text style={{ fontWeight: '800' }}>₹{b.spent.toLocaleString()}</Text> / ₹{b.limit.toLocaleString()}
+                  </Text>
+                </View>
+
+                {/* Progress Bar */}
+                <View style={[visStyles.progressTrackBg, { backgroundColor: mode === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)' }]}>
+                  <View
+                    style={[
+                      visStyles.progressFillBar,
+                      {
+                        width: `${b.pct}%`,
+                        backgroundColor: isDanger ? '#F43F5E' : b.color,
+                      },
+                    ]}
+                  />
+                </View>
+
+                <View style={visStyles.budgetFooterInfo}>
+                  <Text style={[visStyles.burnRateText, { color: tc.textMuted }]}>
+                    {isDanger ? '⚠️ Approaching limit' : '✅ ₹280/day safe pace'}
+                  </Text>
+                  <Text style={[visStyles.budgetPercentTag, { color: isDanger ? '#F43F5E' : b.color }]}>
+                    {b.pct}%
+                  </Text>
+                </View>
               </View>
-              <View style={visStyles.budgTrack}>
-                <LinearGradient
-                  colors={overSpend ? ['#EF4444', '#F87171'] : [color, `${color}80`]}
-                  style={[visStyles.budgFill, { width: `${Math.min(c.pct, 100)}%` }]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                />
-              </View>
-            </View>
-          );
-        })}
+            );
+          })}
+        </View>
       </LinearGradient>
     </View>
   );
 }
 
-function ReadyVisual({ color }: { color: string }) {
-  const items = [
-    { icon: 'analytics-outline', label: 'Smart Reports' },
-    { icon: 'settings-outline', label: 'Personalise' },
-    { icon: 'share-outline', label: 'Export Data' },
-    { icon: 'notifications-outline', label: 'Alerts' },
+function ReadyFlashcard({ color, tc, mode }: { color: string; tc: any; mode: string }) {
+  const capabilities = [
+    { icon: 'color-palette-outline', title: '5 Themes', sub: 'Dark & Light modes' },
+    { icon: 'globe-outline', title: 'Currencies', sub: 'Global INR, USD, EUR' },
+    { icon: 'download-outline', title: 'Export', sub: 'Instant CSV & PDF' },
+    { icon: 'lock-closed-outline', title: 'Biometrics', sub: 'Local PIN & Lock' },
   ];
+
   return (
-    <View style={[visStyles.card, { borderColor: `${color}30` }]}>
-      <LinearGradient colors={[`${color}20`, `${color}05`]} style={visStyles.cardGrad}>
-        <View style={visStyles.gridRow}>
-          {items.map((it) => (
-            <View key={it.label} style={[visStyles.gridItem, { backgroundColor: `${color}18` }]}>
-              <Ionicons name={it.icon as any} size={22} color={color} />
-              <Text style={visStyles.gridLabel}>{it.label}</Text>
+    <View style={[visStyles.flashcardWrapper, { backgroundColor: tc.card, borderColor: `${color}40` }]}>
+      <LinearGradient
+        colors={mode === 'light' ? ['rgba(248,250,252,0.95)', '#FFFFFF'] : [`${color}20`, 'rgba(15,10,30,0.85)']}
+        style={visStyles.flashcardGradient}
+      >
+        <View style={visStyles.cardTopRow}>
+          <Text style={[visStyles.cardSubtitle, { color: tc.textMuted }]}>FULL LUXURY TOOLKIT</Text>
+          <View style={[visStyles.readyPill, { backgroundColor: `${color}20`, borderColor: color }]}>
+            <Ionicons name="sparkles" size={11} color={color} />
+            <Text style={[visStyles.readyPillText, { color }]}>Ready</Text>
+          </View>
+        </View>
+
+        <View style={visStyles.toolkitGrid}>
+          {capabilities.map((c, i) => (
+            <View key={i} style={[visStyles.toolkitTile, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
+              <View style={[visStyles.tileIconBg, { backgroundColor: `${color}18` }]}>
+                <Ionicons name={c.icon as any} size={18} color={color} />
+              </View>
+              <Text style={[visStyles.tileTitle, { color: tc.textPrimary }]}>{c.title}</Text>
+              <Text style={[visStyles.tileSub, { color: tc.textMuted }]}>{c.sub}</Text>
             </View>
           ))}
         </View>
@@ -237,49 +370,65 @@ function ReadyVisual({ color }: { color: string }) {
   );
 }
 
-function SlideVisual({ type, color }: { type: string; color: string }) {
+function SlideVisual({ type, color, tc, mode }: { type: string; color: string; tc: any; mode: string }) {
   switch (type) {
-    case 'welcome':      return <WelcomeVisual color={color} />;
-    case 'transactions': return <TransactionVisual color={color} />;
-    case 'insights':     return <InsightsVisual color={color} />;
-    case 'budget':       return <BudgetVisual color={color} />;
-    case 'ready':        return <ReadyVisual color={color} />;
+    case 'welcome':      return <WelcomeFlashcard color={color} tc={tc} mode={mode} />;
+    case 'transactions': return <TransactionsFlashcard color={color} tc={tc} mode={mode} />;
+    case 'insights':     return <InsightsFlashcard color={color} tc={tc} mode={mode} />;
+    case 'budget':       return <BudgetFlashcard color={color} tc={tc} mode={mode} />;
+    case 'ready':        return <ReadyFlashcard color={color} tc={tc} mode={mode} />;
     default:             return null;
   }
 }
 
-// ─── Main screen ─────────────────────────────────────────────────────────────
+// ─── Main Onboarding Screen Component ─────────────────────────────────────────
+
 export default function OnboardingScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const topInset = getSafeTopInset(insets);
   const { updateSettings } = useSettings();
+  const { theme } = useAppTheme();
+  const tc = theme.colors;
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
 
-  // per-slide entrance anims
+  // Entrance animations per slide
   const slideAnims = useRef(
     SLIDES.map(() => ({
       opacity: new Animated.Value(0),
-      translateY: new Animated.Value(30),
+      translateY: new Animated.Value(24),
+      scale: new Animated.Value(0.96),
     }))
   ).current;
 
   const animateSlideIn = useCallback((idx: number) => {
     slideAnims[idx].opacity.setValue(0);
-    slideAnims[idx].translateY.setValue(30);
+    slideAnims[idx].translateY.setValue(24);
+    slideAnims[idx].scale.setValue(0.96);
+
     Animated.parallel([
       Animated.timing(slideAnims[idx].opacity, {
-        toValue: 1, duration: 420, useNativeDriver: true,
+        toValue: 1,
+        duration: 380,
+        useNativeDriver: true,
       }),
       Animated.spring(slideAnims[idx].translateY, {
-        toValue: 0, tension: 70, friction: 9, useNativeDriver: true,
+        toValue: 0,
+        tension: 80,
+        friction: 10,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnims[idx].scale, {
+        toValue: 1,
+        tension: 80,
+        friction: 10,
+        useNativeDriver: true,
       }),
     ]).start();
   }, [slideAnims]);
 
-  // animate first slide on mount
-  React.useEffect(() => {
+  useEffect(() => {
     animateSlideIn(0);
   }, []);
 
@@ -304,146 +453,168 @@ export default function OnboardingScreen({ navigation }: Props) {
       setCurrentIndex(idx);
       animateSlideIn(idx);
     }
-    Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
-      useNativeDriver: false,
-    })(e);
   };
 
   const isLast = currentIndex === SLIDES.length - 1;
   const slide = SLIDES[currentIndex];
 
   return (
-    <View style={[styles.container, { paddingTop: topInset }]}>
-      {/* Top Header Row with Skip Button */}
-      <View style={styles.topHeader}>
+    <View style={[styles.container, { backgroundColor: tc.background, paddingTop: topInset }]}>
+      {/* ── Top Header with Brand and Skip CTA ── */}
+      <View style={[styles.topHeader, { borderBottomColor: tc.cardBorder }]}>
         <View style={styles.topLogoRow}>
-          <Ionicons name="wallet" size={20} color={colors.primaryLight} />
-          <Text style={styles.topLogoTitle}>Xpense</Text>
+          <Image
+            source={require('../../../../assets/icon.png')}
+            style={styles.topLogoImg}
+            resizeMode="contain"
+          />
+          <Text style={[styles.topLogoTitle, { color: tc.textPrimary }]}>Xpense</Text>
         </View>
 
-        <TouchableOpacity onPress={handleGetStarted} activeOpacity={0.7} style={styles.topSkipBtn}>
-          <Text style={styles.topSkipText}>Skip</Text>
-          <Ionicons name="chevron-forward" size={14} color={colors.textPrimary} />
+        <TouchableOpacity
+          onPress={handleGetStarted}
+          activeOpacity={0.7}
+          style={[styles.topSkipBtn, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}
+        >
+          <Text style={[styles.topSkipText, { color: tc.textSecondary }]}>Skip Tour</Text>
+          <Ionicons name="chevron-forward" size={13} color={tc.textSecondary} />
         </TouchableOpacity>
       </View>
 
-      {/* Scrollable slides */}
+      {/* ── Horizontal Swipable Slide Stream ── */}
       <ScrollView
         ref={scrollRef}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        onScroll={onScroll}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
+          useNativeDriver: false,
+          listener: onScroll,
+        })}
         scrollEventThrottle={16}
         style={{ flex: 1 }}
       >
         {SLIDES.map((s, i) => (
-          <Animated.View
+          <ScrollView
             key={s.id}
-            style={[
-              styles.slide,
-              {
-                opacity: slideAnims[i].opacity,
-                transform: [{ translateY: slideAnims[i].translateY }],
-              },
-            ]}
+            contentContainerStyle={styles.slideScrollContent}
+            showsVerticalScrollIndicator={false}
           >
-            {/* Background radial glow */}
-            <View style={[styles.bgGlow, { backgroundColor: s.accentGlow }]} />
+            <Animated.View
+              style={[
+                styles.slideContent,
+                {
+                  opacity: slideAnims[i].opacity,
+                  transform: [
+                    { translateY: slideAnims[i].translateY },
+                    { scale: slideAnims[i].scale },
+                  ],
+                },
+              ]}
+            >
+              {/* Dynamic Accent Glow */}
+              <View style={[styles.ambientGlow, { backgroundColor: s.accentGlow }]} />
 
-            {/* Badge */}
-            <View style={[styles.badge, { backgroundColor: s.accentMuted, borderColor: `${s.accentColor}40` }]}>
-              <Text style={[styles.badgeText, { color: s.accentColor }]}>{s.badge}</Text>
-            </View>
+              {/* Step / Category Pill */}
+              <View style={[styles.badgePill, { backgroundColor: s.accentMuted, borderColor: `${s.accentColor}55` }]}>
+                <Ionicons name={s.icon} size={13} color={s.accentColor} style={{ marginRight: 4 }} />
+                <Text style={[styles.badgePillText, { color: s.accentColor }]}>{s.badge}</Text>
+              </View>
 
-            {/* Main icon */}
-            <View style={[styles.iconRing, { borderColor: `${s.accentColor}30` }]}>
-              <LinearGradient
-                colors={[`${s.accentColor}30`, `${s.accentColor}10`]}
-                style={styles.iconBg}
-              >
-                <Ionicons name={s.icon} size={52} color={s.accentColor} />
-              </LinearGradient>
-            </View>
+              {/* Interactive Flashcard Visual Preview */}
+              <SlideVisual type={s.visual} color={s.accentColor} tc={tc} mode={theme.mode} />
 
-            {/* Visual preview card */}
-            <SlideVisual type={s.visual} color={s.accentColor} />
+              {/* Title & Subtitle */}
+              <View style={styles.textStack}>
+                <Text style={[styles.slideTitle, { color: tc.textPrimary }]}>{s.title}</Text>
+                <Text style={[styles.slideSubtitle, { color: tc.textSecondary }]}>{s.subtitle}</Text>
+              </View>
 
-            {/* Text */}
-            <View style={styles.textBlock}>
-              <Text style={styles.title}>{s.title}</Text>
-              <Text style={styles.subtitle}>{s.subtitle}</Text>
-            </View>
-
-            {/* Feature list */}
-            <View style={styles.featureList}>
-              {s.features.map((f, fi) => (
-                <View key={fi} style={styles.featureRow}>
-                  <View style={[styles.featureIconBg, { backgroundColor: `${s.accentColor}20` }]}>
-                    <Ionicons name={f.icon as any} size={14} color={s.accentColor} />
+              {/* Feature Benefit Points */}
+              <View style={[styles.featureListCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+                {s.features.map((feat, fi) => (
+                  <View key={fi} style={styles.featureItemRow}>
+                    <View style={[styles.featureIconWrap, { backgroundColor: `${s.accentColor}20` }]}>
+                      <Ionicons name={feat.icon as any} size={13} color={s.accentColor} />
+                    </View>
+                    <Text style={[styles.featureItemText, { color: tc.textSecondary }]}>{feat.label}</Text>
                   </View>
-                  <Text style={styles.featureText}>{f.label}</Text>
-                </View>
-              ))}
-            </View>
-          </Animated.View>
+                ))}
+              </View>
+            </Animated.View>
+          </ScrollView>
         ))}
       </ScrollView>
 
-      {/* Bottom controls */}
-      <View style={[styles.controls, { paddingBottom: insets.bottom + spacing.md }]}>
-        {/* Progress dots */}
-        <View style={styles.dotsRow}>
-          {SLIDES.map((s, i) => {
-            const isActive = i === currentIndex;
-            return (
-              <TouchableOpacity
-                key={i}
-                onPress={() => {
-                  scrollRef.current?.scrollTo({ x: i * width, animated: true });
-                  setCurrentIndex(i);
-                  animateSlideIn(i);
-                }}
-                style={[
-                  styles.dot,
-                  isActive && { width: 28, backgroundColor: slide.accentColor },
-                  !isActive && { backgroundColor: 'rgba(255,255,255,0.2)' },
-                ]}
-              />
-            );
-          })}
+      {/* ── Bottom Controls & Fluid Actions ── */}
+      <View style={[styles.bottomBar, { backgroundColor: tc.surface, borderTopColor: tc.cardBorder, paddingBottom: Math.max(insets.bottom, 16) }]}>
+        {/* Pagination Dots & Counter */}
+        <View style={styles.paginationRow}>
+          <View style={styles.dotsContainer}>
+            {SLIDES.map((s, i) => {
+              const isActive = i === currentIndex;
+              return (
+                <TouchableOpacity
+                  key={i}
+                  onPress={() => {
+                    scrollRef.current?.scrollTo({ x: i * width, animated: true });
+                    setCurrentIndex(i);
+                    animateSlideIn(i);
+                  }}
+                  style={[
+                    styles.dotItem,
+                    { backgroundColor: isActive ? s.accentColor : tc.cardBorder },
+                    isActive && { width: 26 },
+                  ]}
+                />
+              );
+            })}
+          </View>
+          <Text style={[styles.stepCountText, { color: tc.textMuted }]}>
+            Step {currentIndex + 1} of {SLIDES.length}
+          </Text>
         </View>
 
-        {/* Step counter */}
-        <Text style={styles.stepCounter}>{currentIndex + 1} of {SLIDES.length}</Text>
-
-        {/* Action buttons */}
+        {/* Dual Actions CTA */}
         {isLast ? (
-          <TouchableOpacity onPress={handleGetStarted} activeOpacity={0.88} style={styles.primaryBtn}>
+          <TouchableOpacity
+            onPress={handleGetStarted}
+            activeOpacity={0.88}
+            style={styles.primaryLaunchBtn}
+          >
             <LinearGradient
-              colors={[slide.accentColor, `${slide.accentColor}CC`]}
-              style={styles.primaryGrad}
+              colors={slide.accentGradient}
+              style={styles.primaryLaunchGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
             >
-              <Text style={styles.primaryText}>Start Tracking</Text>
-              <Ionicons name="rocket" size={20} color="#FFF" />
+              <Text style={styles.primaryLaunchText}>Start Your Journey</Text>
+              <Ionicons name="rocket" size={18} color="#FFFFFF" />
             </LinearGradient>
           </TouchableOpacity>
         ) : (
-          <View style={styles.btnRow}>
-            <TouchableOpacity onPress={handleGetStarted} activeOpacity={0.7} style={styles.skipBtn}>
-              <Text style={styles.skipText}>Skip</Text>
+          <View style={styles.actionButtonsRow}>
+            <TouchableOpacity
+              onPress={handleGetStarted}
+              activeOpacity={0.7}
+              style={[styles.skipTourBtn, { borderColor: tc.cardBorder }]}
+            >
+              <Text style={[styles.skipTourBtnText, { color: tc.textSecondary }]}>Skip</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={goToNext} activeOpacity={0.88} style={styles.nextBtn}>
+
+            <TouchableOpacity
+              onPress={goToNext}
+              activeOpacity={0.88}
+              style={styles.nextStepBtn}
+            >
               <LinearGradient
-                colors={[slide.accentColor, `${slide.accentColor}CC`]}
-                style={styles.nextGrad}
+                colors={slide.accentGradient}
+                style={styles.nextStepGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
               >
-                <Text style={styles.nextText}>Next</Text>
-                <Ionicons name="arrow-forward" size={18} color="#FFF" />
+                <Text style={styles.nextStepText}>Continue</Text>
+                <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -453,337 +624,507 @@ export default function OnboardingScreen({ navigation }: Props) {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Component Styles ──────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
   topLogoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: 8,
+  },
+  topLogoImg: {
+    width: 26,
+    height: 26,
+    borderRadius: 7,
   },
   topLogoTitle: {
-    ...typography.subheading,
-    color: colors.textPrimary,
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '900',
+    letterSpacing: -0.3,
   },
   topSkipBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: radius.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   topSkipText: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-    fontWeight: '600',
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: '700',
   },
-  slide: {
+  slideScrollContent: {
     width,
-    flex: 1,
-    alignItems: 'center',
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    gap: spacing.md,
+    paddingTop: 12,
+    paddingBottom: 24,
+    alignItems: 'center',
   },
-  bgGlow: {
+  slideContent: {
+    width: '100%',
+    alignItems: 'center',
+    gap: 14,
+  },
+  ambientGlow: {
     position: 'absolute',
-    top: -80,
-    width: width * 1.2,
-    height: height * 0.5,
-    borderRadius: width * 0.6,
+    top: -40,
+    width: width * 0.9,
+    height: 220,
+    borderRadius: 110,
     alignSelf: 'center',
   },
-  badge: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+  badgePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: radius.full,
     borderWidth: 1,
   },
-  badgeText: {
-    ...typography.label,
-    letterSpacing: 2,
+  badgePillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
   },
-  iconRing: {
-    borderWidth: 1.5,
-    borderRadius: 40,
-    padding: 6,
+  textStack: {
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 4,
   },
-  iconBg: {
-    width: 88,
-    height: 88,
-    borderRadius: 32,
+  slideTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    textAlign: 'center',
+    lineHeight: 30,
+    letterSpacing: -0.5,
+  },
+  slideSubtitle: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 19,
+  },
+  featureListCard: {
+    alignSelf: 'stretch',
+    borderRadius: radius.lg,
+    padding: 12,
+    gap: 8,
+    borderWidth: 1,
+  },
+  featureItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  featureIconWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  textBlock: {
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.sm,
+  featureItemText: {
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
   },
-  title: {
-    ...typography.displayMedium,
-    color: colors.textPrimary,
-    textAlign: 'center',
-    lineHeight: 36,
+  bottomBar: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    gap: 12,
   },
-  subtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  featureList: {
-    alignSelf: 'stretch',
-    gap: spacing.sm,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-  },
-  featureRow: {
+  paginationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    justifyContent: 'space-between',
   },
-  featureIconBg: {
+  dotsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dotItem: {
+    height: 6,
+    width: 7,
+    borderRadius: 3,
+  },
+  stepCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  skipTourBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  skipTourBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  nextStepBtn: {
+    flex: 1,
+    borderRadius: radius.full,
+    overflow: 'hidden',
+  },
+  nextStepGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 13,
+  },
+  nextStepText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  primaryLaunchBtn: {
+    borderRadius: radius.full,
+    overflow: 'hidden',
+  },
+  primaryLaunchGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+  },
+  primaryLaunchText: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+});
+
+// ─── Visual Flashcard Specific Styles ────────────────────────────────────────
+
+const visStyles = StyleSheet.create({
+  flashcardWrapper: {
+    alignSelf: 'stretch',
+    borderRadius: radius.xl,
+    borderWidth: 1.2,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  flashcardGradient: {
+    padding: 14,
+    gap: 10,
+  },
+  cardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  liveTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  cardSubtitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  trustBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  trustBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  balanceBlock: {
+    alignItems: 'center',
+    gap: 2,
+    marginVertical: 2,
+  },
+  balanceMain: {
+    fontSize: 26,
+    fontWeight: '900',
+    letterSpacing: -0.6,
+  },
+  balanceLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  metricsStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radius.md,
+    padding: 10,
+    borderWidth: 1,
+  },
+  metricCol: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+  },
+  metricHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  metricSmallLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  metricValue: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  metricDivider: {
+    width: 1,
+    height: 24,
+  },
+
+  // Transactions Flashcard
+  quickAddChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  quickAddText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  txListContainer: {
+    gap: 7,
+  },
+  txItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 9,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: 8,
+  },
+  txIconCircle: {
     width: 28,
     height: 28,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  featureText: {
-    ...typography.bodyMedium,
-    color: colors.textSecondary,
+  txInfoCol: {
     flex: 1,
-    fontSize: 13,
+    gap: 1,
   },
-  controls: {
-    paddingHorizontal: spacing.lg,
-    gap: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.05)',
-    backgroundColor: colors.background,
+  txTitleText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
-  dotsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
+  txCategoryText: {
+    fontSize: 10,
+    fontWeight: '600',
   },
-  dot: {
-    height: 6,
-    width: 8,
-    borderRadius: 3,
+  txAmountText: {
+    fontSize: 12,
+    fontWeight: '800',
   },
-  stepCounter: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-  btnRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  skipBtn: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-  },
-  skipText: {
-    ...typography.bodyMedium,
-    color: colors.textSecondary,
-  },
-  nextBtn: {
-    borderRadius: radius.full,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  nextGrad: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-  },
-  nextText: {
-    ...typography.bodyMedium,
-    color: '#FFF',
-  },
-  primaryBtn: {
-    borderRadius: radius.full,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  primaryGrad: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md + 2,
-  },
-  primaryText: {
-    ...typography.subheading,
-    color: '#FFF',
-  },
-});
 
-// ─── Visual card styles ───────────────────────────────────────────────────────
-const visStyles = StyleSheet.create({
-  card: {
-    alignSelf: 'stretch',
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  cardGrad: {
-    padding: spacing.md,
-  },
-  statRow: {
+  // Insights Flashcard
+  trendPill: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  statBox: {
     alignItems: 'center',
     gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: 'rgba(16,185,129,0.15)',
   },
-  statVal: {
-    fontSize: 16,
-    fontWeight: '700',
+  trendPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#10B981',
   },
-  statLabel: {
-    fontSize: 11,
-    color: 'rgba(156,163,175,0.7)',
-    fontWeight: '500',
-  },
-  txRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  txIconBg: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  txName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#F9FAFB',
-  },
-  txCat: {
-    fontSize: 11,
-    color: 'rgba(156,163,175,0.7)',
-  },
-  txAmt: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  barsRow: {
+  chartContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 6,
-    height: 80,
-    marginBottom: spacing.sm,
+    height: 70,
+    gap: 8,
+    paddingHorizontal: 6,
   },
-  barCol: {
+  barColumn: {
     flex: 1,
     alignItems: 'center',
+    height: '100%',
     justifyContent: 'flex-end',
-    height: 80,
+    gap: 4,
   },
-  bar: {
+  barTrackBg: {
+    width: '100%',
+    flex: 1,
+    borderRadius: 4,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+  },
+  barFillLine: {
     width: '100%',
     borderRadius: 4,
-    minHeight: 8,
   },
-  legendRow: {
+  barDayLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  topSpendCallout: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    padding: 8,
+    borderRadius: radius.md,
+    borderWidth: 1,
   },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  dotIndicator: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
-  legendText: {
+  topSpendText: {
     fontSize: 11,
-    color: 'rgba(156,163,175,0.7)',
-    fontWeight: '500',
+    flex: 1,
   },
-  budgRow: {
+
+  // Budget Flashcard
+  alertBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: 'rgba(245,158,11,0.15)',
+  },
+  alertBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#F59E0B',
+  },
+  budgetItemsStack: {
+    gap: 8,
+  },
+  budgetItemCard: {
+    padding: 9,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: 6,
+  },
+  budgetTitleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    alignItems: 'center',
   },
-  budgName: {
-    fontSize: 12,
-    color: '#F9FAFB',
-    fontWeight: '600',
-  },
-  budgPct: {
+  budgetNameText: {
     fontSize: 12,
     fontWeight: '700',
   },
-  budgTrack: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+  budgetSpendRatio: {
+    fontSize: 11,
+  },
+  progressTrackBg: {
+    height: 5,
+    borderRadius: 2.5,
     overflow: 'hidden',
   },
-  budgFill: {
+  progressFillBar: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 2.5,
   },
-  gridRow: {
+  budgetFooterInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  burnRateText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  budgetPercentTag: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+
+  // Toolkit Flashcard
+  readyPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  readyPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  toolkitGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    justifyContent: 'center',
-  },
-  gridItem: {
-    width: '44%',
-    borderRadius: radius.md,
-    padding: spacing.md,
-    alignItems: 'center',
     gap: 8,
+    justifyContent: 'space-between',
   },
-  gridLabel: {
+  toolkitTile: {
+    width: '48%',
+    borderRadius: radius.md,
+    padding: 9,
+    borderWidth: 1,
+    gap: 3,
+    alignItems: 'flex-start',
+  },
+  tileIconBg: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  tileTitle: {
     fontSize: 12,
-    color: '#F9FAFB',
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: '800',
+  },
+  tileSub: {
+    fontSize: 10,
+    fontWeight: '500',
   },
 });

@@ -11,6 +11,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, spacing, typography } from '../../core/theme';
+import { useAppTheme } from '../../context/ThemeContext';
 import { getMonthLabel } from '../utils/dateUtils';
 
 interface CurrentMonthDatePickerModalProps {
@@ -29,6 +30,8 @@ export function CurrentMonthDatePickerModal({
   const [showModal, setShowModal] = useState(visible);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.92)).current;
+  const { theme } = useAppTheme();
+  const tc = theme.colors;
 
   useEffect(() => {
     if (visible) {

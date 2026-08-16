@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { authApi } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
+import { useAppTheme } from '../../context/ThemeContext';
 import { colors, radius, spacing, typography } from '../../core/theme';
 
 interface ForgotPasswordModalProps {
@@ -24,6 +25,8 @@ interface ForgotPasswordModalProps {
 
 export function ForgotPasswordModal({ visible, onClose, initialEmail = '' }: ForgotPasswordModalProps) {
   const { showSuccess, showError } = useToast();
+  const { theme } = useAppTheme();
+  const tc = theme.colors;
 
   const [showModal, setShowModal] = useState(visible);
   const fadeAnim = useRef(new Animated.Value(0)).current;

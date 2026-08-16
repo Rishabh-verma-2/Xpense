@@ -19,7 +19,14 @@ const firebaseConfig = {
 };
 
 export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-export const firebaseAuth = getAuth(app);
+
+export const firebaseAuth = (() => {
+  try {
+    return getAuth(app);
+  } catch (err: any) {
+    return null;
+  }
+})();
 
 export interface FirebaseGoogleUserSession {
   uid: string;
@@ -55,7 +62,7 @@ export async function signInWithGoogleAndFirebase(): Promise<FirebaseGoogleUserS
   let photoURL = googleRes.photo || null;
 
   // Step 2 & 3: Create Firebase Google Credential & Sign in with Firebase
-  if (googleRes.idToken) {
+  if (firebaseAuth && googleRes.idToken) {
     try {
       const credential = GoogleAuthProvider.credential(googleRes.idToken);
       const userCredential = await signInWithCredential(firebaseAuth, credential);

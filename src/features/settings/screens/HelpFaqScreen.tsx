@@ -14,10 +14,13 @@ import { Ionicons } from '@expo/vector-icons';
 import type { SettingsStackParamList } from '../../../core/navigation/types';
 import { colors, typography, spacing, radius } from '../../../core/theme';
 import { ScreenHeader } from '../../../shared/components/ScreenHeader';
+import { useAppTheme } from '../../../context/ThemeContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<SettingsStackParamList, 'HelpFaq'>;
 };
+
+type FaqCategory = 'all' | 'budgets' | 'data' | 'categories' | 'offline';
 
 interface FaqItem {
   id: string;
@@ -32,42 +35,42 @@ const FAQS: FaqItem[] = [
     category: 'budgets',
     question: 'How do budget limits and alerts work?',
     answer:
-      'You can set a monthly budget limit for individual categories (e.g., Food, Shopping) or set an overall monthly spend ceiling. The app visually highlights your progress: safe (green), cautionary (orange at >70%), and overbudget (red at >100%).',
+      'You can set a monthly budget limit for individual categories (e.g., Food, Shopping) or set an overall monthly spend ceiling. The app visually highlights your progress: safe (green), cautionary (amber at >80%), and over budget (crimson at >100%).',
   },
   {
     id: '2',
     category: 'budgets',
-    question: 'How is the Savings Rate calculated?',
+    question: 'How is the Daily Allowance calculated?',
     answer:
-      'Savings Rate = ((Total Monthly Income - Total Monthly Expenses) / Total Monthly Income) × 100%. If your total expenses exceed your income in a given month, your savings rate is reported as 0%.',
+      'Daily Allowance = Remaining Monthly Budget / Remaining Days in the Current Month. It automatically recalculates with every transaction to give you a dynamic spending pace.',
   },
   {
     id: '3',
     category: 'data',
     question: 'Is my financial data safe and private?',
     answer:
-      'Yes! Your data is stored securely on your device and encrypted via secure JWT authentication when linked with cloud backup on MongoDB Atlas. We do not sell your personal financial data.',
+      'Yes! Your data is stored securely on your device and encrypted via secure JWT authentication when linked with cloud backup on MongoDB Atlas. We never sell or monetize your personal financial data.',
   },
   {
     id: '4',
     category: 'data',
     question: 'How do I export my data to PDF or CSV?',
     answer:
-      'Go to Settings > Data & Backup > Export Report. You can choose a date range (This Month, Last 3 Months, This Year, or Lifetime) and export clean CSV spreadsheets or formatted PDF statements with one tap.',
+      'Go to Settings > Financial Preferences > Export Statement Hub. Choose from presets (All Time, This Month, Last 30/90 Days) or select custom dates to generate formatted PDF statements or CSV spreadsheets with one tap.',
   },
   {
     id: '5',
     category: 'categories',
     question: 'Can I add custom categories with custom icons?',
     answer:
-      'Yes! Navigate to Settings > Category Management. Tap the "+" button to create a new category, pick from 25+ icons, choose custom color palettes, and designate it as an Expense or Income category.',
+      'Yes! When adding a transaction, tap "+ Custom Category" to create a new category with custom colors and icons, and designate it as an Expense or Income category.',
   },
   {
     id: '6',
     category: 'categories',
     question: 'How do I change the default currency symbol?',
     answer:
-      'Go to Settings > Currency. You can select from 30+ global currencies including INR (₹), USD ($), EUR (€), GBP (£), JPY (¥), AED (د.إ), and more.',
+      'Go to Settings > Default Currency. You can select from 30+ global currencies including INR (₹), USD ($), EUR (€), GBP (£), JPY (¥), AED (د.إ), and more.',
   },
   {
     id: '7',
@@ -81,114 +84,170 @@ const FAQS: FaqItem[] = [
     category: 'data',
     question: 'How do I reset my app data if I want a fresh start?',
     answer:
-      'In Settings > App Info > Reset Local App Data, you can permanently erase all local transactions, categories, and custom budgets to start with a blank slate.',
+      'In Settings > Danger Zone > Erase All App Data, you can permanently erase all local transactions and cached state to start fresh.',
   },
 ];
 
 export default function HelpFaqScreen({ navigation }: Props) {
+  const { theme } = useAppTheme();
+  const tc = theme.colors;
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<FaqCategory>('all');
   const [expandedId, setExpandedId] = useState<string | null>('1');
 
   const filteredFaqs = useMemo(() => {
-    if (!searchQuery.trim()) return FAQS;
-    const q = searchQuery.toLowerCase().trim();
-    return FAQS.filter(
-      (f) => f.question.toLowerCase().includes(q) || f.answer.toLowerCase().includes(q)
-    );
-  }, [searchQuery]);
+    return FAQS.filter((f) => {
+      if (selectedCategory !== 'all' && f.category !== selectedCategory) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        return f.question.toLowerCase().includes(q) || f.answer.toLowerCase().includes(q);
+      }
+      return true;
+    });
+  }, [searchQuery, selectedCategory]);
 
   const toggleExpand = (id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
   };
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+    <View style={[styles.container, { backgroundColor: tc.background, paddingBottom: insets.bottom }]}>
       <ScreenHeader title="Help & FAQs" onBack={() => navigation.goBack()} />
+
+      {/* ── Glass Search Box ── */}
+      <View style={[styles.searchRow, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+        <Ionicons name="search-outline" size={18} color={tc.textMuted} />
+        <TextInput
+          style={[styles.searchInput, { color: tc.textPrimary }]}
+          placeholder="Search FAQs (budget, export, currency)..."
+          placeholderTextColor={tc.textMuted}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery ? (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Ionicons name="close-circle" size={18} color={tc.textMuted} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      {/* ── Category Filter Pills ── */}
+      <View style={styles.categoryPillsRow}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryPillsScroll}>
+          {[
+            { key: 'all' as const, label: 'All FAQs' },
+            { key: 'budgets' as const, label: 'Budgets' },
+            { key: 'data' as const, label: 'Data & Privacy' },
+            { key: 'categories' as const, label: 'Categories' },
+            { key: 'offline' as const, label: 'Offline Mode' },
+          ].map((cat) => {
+            const isSelected = selectedCategory === cat.key;
+            return (
+              <TouchableOpacity
+                key={cat.key}
+                style={[
+                  styles.catPill,
+                  { backgroundColor: tc.card, borderColor: tc.cardBorder },
+                  isSelected && {
+                    borderColor: theme.accentColor,
+                    backgroundColor: `${theme.accentColor}22`,
+                  },
+                ]}
+                onPress={() => setSelectedCategory(cat.key)}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.catPillText,
+                    { color: isSelected ? theme.accentColor : tc.textSecondary },
+                    isSelected && styles.catPillTextActive,
+                  ]}
+                >
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Search Box ── */}
-        <View style={styles.searchRow}>
-          <Ionicons name="search-outline" size={18} color={colors.textMuted} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search FAQs (e.g., budget, export, currency)..."
-            placeholderTextColor={colors.textMuted}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery ? (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
-        {/* ── FAQ List ── */}
+        {/* ── FAQ Accordion List ── */}
         <View style={styles.faqList}>
           {filteredFaqs.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="help-circle-outline" size={40} color={colors.textMuted} />
-              <Text style={styles.emptyTitle}>No matching answers found</Text>
-              <Text style={styles.emptySub}>
-                Try searching for another topic or submit your question below.
+            <View style={[styles.emptyCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+              <Ionicons name="help-circle-outline" size={36} color={tc.textMuted} />
+              <Text style={[styles.emptyTitle, { color: tc.textPrimary }]}>No matching answers found</Text>
+              <Text style={[styles.emptySub, { color: tc.textSecondary }]}>
+                Try another search query or submit your question directly to support.
               </Text>
             </View>
           ) : (
-            filteredFaqs.map((item) => {
-              const isExpanded = expandedId === item.id;
+            filteredFaqs.map((faq) => {
+              const isExpanded = expandedId === faq.id;
+
               return (
-                <View key={item.id} style={styles.faqCard}>
-                  <TouchableOpacity
-                    style={styles.faqHeader}
-                    onPress={() => toggleExpand(item.id)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.questionText}>{item.question}</Text>
+                <TouchableOpacity
+                  key={faq.id}
+                  style={[
+                    styles.faqCard,
+                    { backgroundColor: tc.card, borderColor: tc.cardBorder },
+                    isExpanded && { borderColor: theme.accentColor },
+                  ]}
+                  onPress={() => toggleExpand(faq.id)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.faqHeader}>
+                    <View style={styles.questionRow}>
+                      <View style={[styles.qDot, { backgroundColor: isExpanded ? theme.accentColor : tc.cardBorder }]} />
+                      <Text style={[styles.questionText, { color: tc.textPrimary }, isExpanded && { color: theme.accentColor }]}>
+                        {faq.question}
+                      </Text>
+                    </View>
                     <Ionicons
                       name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                      size={20}
-                      color={isExpanded ? colors.primaryLight : colors.textMuted}
+                      size={18}
+                      color={isExpanded ? theme.accentColor : tc.textMuted}
                     />
-                  </TouchableOpacity>
+                  </View>
 
                   {isExpanded && (
-                    <View style={styles.answerBlock}>
-                      <Text style={styles.answerText}>{item.answer}</Text>
+                    <View style={styles.answerContainer}>
+                      <View style={[styles.answerDivider, { backgroundColor: tc.cardBorder }]} />
+                      <Text style={[styles.answerText, { color: tc.textSecondary }]}>{faq.answer}</Text>
                     </View>
                   )}
-                </View>
+                </TouchableOpacity>
               );
             })
           )}
         </View>
 
-        {/* ── Feedback Prompt Banner ── */}
-        <View style={styles.feedbackBanner}>
+        {/* ── Contact Support Callout Card ── */}
+        <View style={[styles.contactCard, { borderColor: theme.colors.cardBorderActive }]}>
           <LinearGradient
-            colors={['#2D1B69', '#1A0A4A']}
-            style={styles.feedbackGradient}
+            colors={theme.heroGradient}
+            style={styles.contactGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            <View style={styles.feedbackIconBadge}>
-              <Ionicons name="chatbubbles" size={24} color="#FFFFFF" />
+            <View style={styles.contactIconBg}>
+              <Ionicons name="chatbubbles-outline" size={24} color="#C084FC" />
             </View>
-            <View style={styles.feedbackInfo}>
-              <Text style={styles.feedbackTitle}>Need more help or have a suggestion?</Text>
-              <Text style={styles.feedbackSub}>
-                Send us a direct note or feature request. We read every submission!
-              </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.contactTitle}>Still have questions?</Text>
+              <Text style={styles.contactSubtitle}>Send us your question or feature idea directly.</Text>
             </View>
             <TouchableOpacity
-              style={styles.feedbackBtn}
+              style={styles.contactBtn}
               onPress={() => navigation.navigate('Feedback')}
               activeOpacity={0.85}
             >
-              <Text style={styles.feedbackBtnText}>Send Feedback</Text>
+              <Text style={styles.contactBtnText}>Ask Us</Text>
             </TouchableOpacity>
           </LinearGradient>
         </View>
@@ -200,141 +259,175 @@ export default function HelpFaqScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    // backgroundColor: '#07060E', // <- wired via theme.colors.background inline
   },
-  scrollContent: {
-    padding: spacing.lg,
-    gap: spacing.lg,
-    paddingBottom: spacing.xxl,
-  },
-
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
+    backgroundColor: '#120F20',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    gap: spacing.sm,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    marginHorizontal: 16,
+    marginBottom: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
   },
   searchInput: {
     flex: 1,
-    ...typography.body,
-    color: colors.textPrimary,
+    color: '#FFFFFF',
+    fontSize: 13,
     padding: 0,
-    fontSize: 14,
   },
-
+  categoryPillsRow: {
+    marginBottom: 12,
+  },
+  categoryPillsScroll: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  catPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 12,
+    backgroundColor: '#120F20',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  catPillActive: {
+    backgroundColor: 'rgba(168, 85, 247, 0.18)',
+    borderColor: '#C084FC',
+  },
+  catPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  catPillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 110, // Full clearance for floating bottom bar
+    gap: 16,
+  },
   faqList: {
-    gap: spacing.sm + 2,
+    gap: 10,
   },
   faqCard: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
+    backgroundColor: '#120F20',
+    borderRadius: 16,
+    padding: 14,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    overflow: 'hidden',
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  faqCardExpanded: {
+    borderColor: 'rgba(192, 132, 252, 0.3)',
+    backgroundColor: '#141026',
   },
   faqHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: spacing.md,
-    gap: spacing.md,
+  },
+  questionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    paddingRight: 8,
+  },
+  qDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#64748B',
+  },
+  qDotActive: {
+    backgroundColor: '#C084FC',
   },
   questionText: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-    fontWeight: '600',
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#CBD5E1',
+    lineHeight: 18,
   },
-  answerBlock: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
-    paddingTop: spacing.xs,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+  questionTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+  },
+  answerContainer: {
+    marginTop: 10,
+  },
+  answerDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    marginBottom: 10,
   },
   answerText: {
-    ...typography.body,
-    color: colors.textSecondary,
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 12.5,
+    color: '#94A3B8',
+    lineHeight: 18,
   },
-
-  emptyState: {
+  emptyCard: {
+    backgroundColor: '#120F20',
+    borderRadius: 16,
+    padding: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.xl,
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    gap: spacing.sm,
+    gap: 8,
   },
   emptyTitle: {
-    ...typography.subheading,
-    color: colors.textPrimary,
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
   emptySub: {
-    ...typography.caption,
-    color: colors.textMuted,
+    fontSize: 12,
+    color: '#94A3B8',
     textAlign: 'center',
   },
-
-  // Feedback Banner
-  feedbackBanner: {
-    borderRadius: radius.xl,
+  contactCard: {
+    borderRadius: 18,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(168, 85, 247, 0.35)',
-    marginTop: spacing.xs,
+    borderColor: 'rgba(168, 85, 247, 0.25)',
   },
-  feedbackGradient: {
-    padding: spacing.lg,
+  contactGradient: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    padding: 16,
+    gap: 12,
   },
-  feedbackIconBadge: {
+  contactIconBg: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.primary,
+    backgroundColor: 'rgba(168, 85, 247, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  feedbackInfo: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  feedbackTitle: {
-    ...typography.subheading,
+  contactTitle: {
+    fontSize: 14,
+    fontWeight: '800',
     color: '#FFFFFF',
-    fontWeight: '700',
-    textAlign: 'center',
-    fontSize: 16,
   },
-  feedbackSub: {
-    ...typography.caption,
-    color: 'rgba(229, 231, 235, 0.8)',
-    textAlign: 'center',
-    lineHeight: 18,
+  contactSubtitle: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 2,
   },
-  feedbackBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm + 2,
-    borderRadius: radius.full,
-    marginTop: spacing.xs,
+  contactBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: '#7C3AED',
   },
-  feedbackBtnText: {
-    ...typography.bodyMedium,
+  contactBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
     color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 13,
   },
 });

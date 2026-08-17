@@ -12,6 +12,7 @@ import DashboardScreen from '../../features/dashboard/screens/DashboardScreen';
 import BudgetsScreen from '../../features/budgets/screens/BudgetsScreen';
 import { useAppTheme } from '../../context/ThemeContext';
 import { MainTabParamList } from './types';
+import { hapticLight } from '../../shared/utils/haptics';
 
 export type { MainTabParamList };
 
@@ -59,6 +60,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
               if (!config) return null;
 
               const onPress = () => {
+                hapticLight();
                 const event = navigation.emit({
                   type: 'tabPress',
                   target: route.key,

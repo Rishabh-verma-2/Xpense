@@ -25,6 +25,7 @@ import { formatCurrency } from '@/shared/utils/currencyUtils';
 import { formatTransactionDate, getMonthKey, getMonthLabel } from '@/shared/utils/dateUtils';
 import { Transaction } from '@/shared/types/transaction.types';
 import { EmptyState } from '@/shared/components/EmptyState';
+import { hapticMedium } from '@/shared/utils/haptics';
 
 export default function DashboardScreen() {
   const navigation = useNavigation<any>();
@@ -176,6 +177,7 @@ export default function DashboardScreen() {
   }, [transactions]);
 
   const handleAddTransaction = (type?: 'expense' | 'income') => {
+    hapticMedium();
     navigation.navigate('AddTransaction', { type });
   };
 

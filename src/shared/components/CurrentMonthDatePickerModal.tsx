@@ -13,12 +13,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, spacing, typography } from '../../core/theme';
 import { useAppTheme } from '../../context/ThemeContext';
 import { getMonthLabel } from '../utils/dateUtils';
+import { hapticSelection, hapticLight } from '../utils/haptics';
 
 interface CurrentMonthDatePickerModalProps {
   visible: boolean;
   selectedDateIso: string;
   onSelectDate: (isoDate: string) => void;
   onClose: () => void;
+  restrictToCurrentMonth?: boolean;
 }
 
 export function CurrentMonthDatePickerModal({
@@ -26,15 +28,43 @@ export function CurrentMonthDatePickerModal({
   selectedDateIso,
   onSelectDate,
   onClose,
+  restrictToCurrentMonth = true,
 }: CurrentMonthDatePickerModalProps) {
   const [showModal, setShowModal] = useState(visible);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.92)).current;
   const { theme } = useAppTheme();
-  const tc = theme.colors;
+
+  const now = useMemo(() => new Date(), []);
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-indexed
+  const todayDateNumber = now.getDate(); // 1..31
+
+  // Determine initial view year and month based on props
+  const initialDate = useMemo(() => {
+    const d = new Date(selectedDateIso);
+    return isNaN(d.getTime()) ? now : d;
+  }, [selectedDateIso, now]);
+
+  const [viewYear, setViewYear] = useState<number>(
+    restrictToCurrentMonth ? currentYear : initialDate.getFullYear()
+  );
+  const [viewMonth, setViewMonth] = useState<number>(
+    restrictToCurrentMonth ? currentMonth : initialDate.getMonth()
+  );
 
   useEffect(() => {
     if (visible) {
+      const d = new Date(selectedDateIso);
+      const validDate = isNaN(d.getTime()) ? now : d;
+      if (restrictToCurrentMonth) {
+        setViewYear(currentYear);
+        setViewMonth(currentMonth);
+      } else {
+        setViewYear(validDate.getFullYear());
+        setViewMonth(validDate.getMonth());
+      }
+
       setShowModal(true);
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -65,38 +95,64 @@ export function CurrentMonthDatePickerModal({
         setShowModal(false);
       });
     }
-  }, [visible, fadeAnim, scaleAnim]);
+  }, [visible, selectedDateIso, restrictToCurrentMonth, currentYear, currentMonth, now, fadeAnim, scaleAnim]);
 
-  // Current Month Constraints
-  const now = useMemo(() => new Date(), []);
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth(); // 0-indexed
-  const todayDateNumber = now.getDate(); // 1..31
-
-  const currentMonthLabel = useMemo(() => {
-    const monthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
-    return getMonthLabel(monthKey);
-  }, [currentYear, currentMonth]);
-
-  // Days in current month
-  const totalDaysInMonth = useMemo(() => {
-    return new Date(currentYear, currentMonth + 1, 0).getDate();
-  }, [currentYear, currentMonth]);
-
-  // Currently selected day number
-  const selectedDayNum = useMemo(() => {
+  // Selected date components
+  const parsedSelected = useMemo(() => {
     const d = new Date(selectedDateIso);
-    if (d.getFullYear() === currentYear && d.getMonth() === currentMonth) {
-      return d.getDate();
+    return isNaN(d.getTime()) ? now : d;
+  }, [selectedDateIso, now]);
+
+  const selYear = parsedSelected.getFullYear();
+  const selMonth = parsedSelected.getMonth();
+  const selDay = parsedSelected.getDate();
+
+  // Display label for current viewing month
+  const viewMonthLabel = useMemo(() => {
+    const monthKey = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}`;
+    return getMonthLabel(monthKey);
+  }, [viewYear, viewMonth]);
+
+  // Days in viewing month
+  const totalDaysInMonth = useMemo(() => {
+    return new Date(viewYear, viewMonth + 1, 0).getDate();
+  }, [viewYear, viewMonth]);
+
+  // Day of week for 1st day of month (0 = Sun, 1 = Mon, ..., 6 = Sat)
+  const firstDayOfWeek = useMemo(() => {
+    return new Date(viewYear, viewMonth, 1).getDay();
+  }, [viewYear, viewMonth]);
+
+  // Navigation handlers (only used when not restricted to current month)
+  const handlePrevMonth = () => {
+    if (restrictToCurrentMonth) return;
+    hapticLight();
+    if (viewMonth === 0) {
+      setViewYear((prev) => prev - 1);
+      setViewMonth(11);
+    } else {
+      setViewMonth((prev) => prev - 1);
     }
-    return todayDateNumber;
-  }, [selectedDateIso, currentYear, currentMonth, todayDateNumber]);
+  };
+
+  const handleNextMonth = () => {
+    if (restrictToCurrentMonth) return;
+    hapticLight();
+    if (viewMonth === 11) {
+      setViewYear((prev) => prev + 1);
+      setViewMonth(0);
+    } else {
+      setViewMonth((prev) => prev + 1);
+    }
+  };
 
   const handlePickDay = (dayNum: number) => {
-    if (dayNum > todayDateNumber) return; // Constraint: Cannot pick future days
-
-    // Construct Date object for selected day in current month
-    const pickedDate = new Date(currentYear, currentMonth, dayNum, 12, 0, 0);
+    // If in current month, cannot pick future days
+    if (viewYear === currentYear && viewMonth === currentMonth && dayNum > todayDateNumber) {
+      return;
+    }
+    hapticSelection();
+    const pickedDate = new Date(viewYear, viewMonth, dayNum, 12, 0, 0);
     onSelectDate(pickedDate.toISOString());
     onClose();
   };
@@ -104,11 +160,16 @@ export function CurrentMonthDatePickerModal({
   const handleQuickShortcut = (daysAgo: number) => {
     const targetDay = todayDateNumber - daysAgo;
     if (targetDay >= 1) {
-      handlePickDay(targetDay);
+      hapticSelection();
+      const pickedDate = new Date(currentYear, currentMonth, targetDay, 12, 0, 0);
+      onSelectDate(pickedDate.toISOString());
+      onClose();
     }
   };
 
   if (!showModal) return null;
+
+  const isViewingCurrentMonth = viewYear === currentYear && viewMonth === currentMonth;
 
   return (
     <Modal
@@ -132,7 +193,11 @@ export function CurrentMonthDatePickerModal({
                 </View>
                 <View>
                   <Text style={styles.headerTitle}>Select Date</Text>
-                  <Text style={styles.headerSubtitle}>Current Month ({currentMonthLabel})</Text>
+                  <Text style={styles.headerSubtitle}>
+                    {restrictToCurrentMonth
+                      ? `Current Month (${viewMonthLabel})`
+                      : `${viewMonthLabel} ${viewYear}`}
+                  </Text>
                 </View>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
@@ -140,7 +205,7 @@ export function CurrentMonthDatePickerModal({
               </TouchableOpacity>
             </View>
 
-            {/* Quick Shortcuts */}
+            {/* Quick Shortcuts for Current Month */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -149,7 +214,7 @@ export function CurrentMonthDatePickerModal({
               <TouchableOpacity
                 style={[
                   styles.shortcutChip,
-                  selectedDayNum === todayDateNumber && styles.shortcutChipActive,
+                  selYear === currentYear && selMonth === currentMonth && selDay === todayDateNumber && styles.shortcutChipActive,
                 ]}
                 onPress={() => handleQuickShortcut(0)}
                 activeOpacity={0.7}
@@ -157,7 +222,7 @@ export function CurrentMonthDatePickerModal({
                 <Text
                   style={[
                     styles.shortcutText,
-                    selectedDayNum === todayDateNumber && styles.shortcutTextActive,
+                    selYear === currentYear && selMonth === currentMonth && selDay === todayDateNumber && styles.shortcutTextActive,
                   ]}
                 >
                   Today ({todayDateNumber})
@@ -168,7 +233,7 @@ export function CurrentMonthDatePickerModal({
                 <TouchableOpacity
                   style={[
                     styles.shortcutChip,
-                    selectedDayNum === todayDateNumber - 1 && styles.shortcutChipActive,
+                    selYear === currentYear && selMonth === currentMonth && selDay === todayDateNumber - 1 && styles.shortcutChipActive,
                   ]}
                   onPress={() => handleQuickShortcut(1)}
                   activeOpacity={0.7}
@@ -176,7 +241,7 @@ export function CurrentMonthDatePickerModal({
                   <Text
                     style={[
                       styles.shortcutText,
-                      selectedDayNum === todayDateNumber - 1 && styles.shortcutTextActive,
+                      selYear === currentYear && selMonth === currentMonth && selDay === todayDateNumber - 1 && styles.shortcutTextActive,
                     ]}
                   >
                     Yesterday ({todayDateNumber - 1})
@@ -188,7 +253,7 @@ export function CurrentMonthDatePickerModal({
                 <TouchableOpacity
                   style={[
                     styles.shortcutChip,
-                    selectedDayNum === todayDateNumber - 3 && styles.shortcutChipActive,
+                    selYear === currentYear && selMonth === currentMonth && selDay === todayDateNumber - 3 && styles.shortcutChipActive,
                   ]}
                   onPress={() => handleQuickShortcut(3)}
                   activeOpacity={0.7}
@@ -196,14 +261,67 @@ export function CurrentMonthDatePickerModal({
                   <Text
                     style={[
                       styles.shortcutText,
-                      selectedDayNum === todayDateNumber - 3 && styles.shortcutTextActive,
+                      selYear === currentYear && selMonth === currentMonth && selDay === todayDateNumber - 3 && styles.shortcutTextActive,
                     ]}
                   >
                     3 Days Ago ({todayDateNumber - 3})
                   </Text>
                 </TouchableOpacity>
               )}
+
+              {todayDateNumber >= 8 && (
+                <TouchableOpacity
+                  style={[
+                    styles.shortcutChip,
+                    selYear === currentYear && selMonth === currentMonth && selDay === todayDateNumber - 7 && styles.shortcutChipActive,
+                  ]}
+                  onPress={() => handleQuickShortcut(7)}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.shortcutText,
+                      selYear === currentYear && selMonth === currentMonth && selDay === todayDateNumber - 7 && styles.shortcutTextActive,
+                    ]}
+                  >
+                    7 Days Ago ({todayDateNumber - 7})
+                  </Text>
+                </TouchableOpacity>
+              )}
             </ScrollView>
+
+            {/* Month & Year Banner */}
+            <View style={styles.monthNavRow}>
+              {!restrictToCurrentMonth ? (
+                <TouchableOpacity
+                  style={styles.navArrowBtn}
+                  onPress={handlePrevMonth}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="chevron-back" size={18} color={colors.textPrimary} />
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.navPlaceholder} />
+              )}
+
+              <View style={styles.monthTitleWrap}>
+                <Text style={styles.monthYearText}>
+                  {viewMonthLabel} {viewYear}
+                </Text>
+              </View>
+
+              {!restrictToCurrentMonth ? (
+                <TouchableOpacity
+                  style={styles.navArrowBtn}
+                  onPress={handleNextMonth}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="chevron-forward" size={18} color={colors.textPrimary} />
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.navPlaceholder} />
+              )}
+            </View>
 
             {/* Calendar Day Grid Card */}
             <View style={styles.calendarCard}>
@@ -216,11 +334,20 @@ export function CurrentMonthDatePickerModal({
               </View>
 
               <View style={styles.daysGrid}>
+                {/* Empty cells for offset before 1st day */}
+                {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                  <View key={`empty-${i}`} style={styles.dayCellEmpty} />
+                ))}
+
+                {/* Actual day cells */}
                 {Array.from({ length: totalDaysInMonth }).map((_, i) => {
                   const dayNum = i + 1;
-                  const isSelected = dayNum === selectedDayNum;
-                  const isToday = dayNum === todayDateNumber;
-                  const isDisabled = dayNum > todayDateNumber; // Disabled if in future of current month
+                  const isSelected =
+                    viewYear === selYear && viewMonth === selMonth && dayNum === selDay;
+                  const isToday =
+                    viewYear === currentYear && viewMonth === currentMonth && dayNum === todayDateNumber;
+                  const isDisabled =
+                    isViewingCurrentMonth && dayNum > todayDateNumber; // Disabled if future day in current month
 
                   return (
                     <TouchableOpacity
@@ -252,9 +379,9 @@ export function CurrentMonthDatePickerModal({
               </View>
             </View>
 
-            {/* Info Note */}
+            {/* Constraint Info Note */}
             <Text style={styles.infoNote}>
-              🔒 Date selection is restricted to the current active month ({currentMonthLabel}).
+              🔒 Date selection is restricted to the current active month ({viewMonthLabel}). You can record entries for any previous day of this month up to today.
             </Text>
 
             {/* Close Action Button */}
@@ -286,7 +413,7 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     maxWidth: 360,
-    maxHeight: '85%',
+    maxHeight: '88%',
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
     padding: spacing.md,
@@ -371,6 +498,42 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
+  // Month & Year Navigation
+  monthNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 6,
+    marginBottom: spacing.xs + 2,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  navArrowBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navPlaceholder: {
+    width: 32,
+    height: 32,
+  },
+  monthTitleWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monthYearText: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+    fontWeight: '800',
+    fontSize: 14,
+  },
+
   // Calendar Grid
   calendarCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.02)',
@@ -378,7 +541,7 @@ const styles = StyleSheet.create({
     padding: spacing.xs + 2,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs + 2,
   },
   daysGridHeader: {
     flexDirection: 'row',
@@ -399,11 +562,14 @@ const styles = StyleSheet.create({
   daysGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 3,
     justifyContent: 'flex-start',
   },
+  dayCellEmpty: {
+    width: '14.28%',
+    height: 36,
+  },
   dayCell: {
-    width: '13.5%',
+    width: '14.28%',
     height: 36,
     borderRadius: radius.md,
     alignItems: 'center',
@@ -423,7 +589,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(124, 58, 237, 0.12)',
   },
   dayCellDisabled: {
-    opacity: 0.25,
+    opacity: 0.2,
     backgroundColor: 'transparent',
   },
   dayText: {
@@ -449,7 +615,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: '#FFFFFF',
     position: 'absolute',
-    bottom: 4,
+    bottom: 3,
   },
 
   infoNote: {

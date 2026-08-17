@@ -24,6 +24,7 @@ import {
   generateAndSharePDF,
   generateAndShareCSV,
 } from '../../services/exportService';
+import { hapticSelection, hapticSuccess, hapticError } from '../../shared/utils/haptics';
 
 type PresetKey = 'all_time' | 'this_month' | 'last_30_days' | 'last_90_days' | 'this_year' | 'custom';
 
@@ -196,12 +197,14 @@ export function ExportModal({ visible, onClose }: Props) {
         await generateAndShareCSV(matchingTransactions, options);
       }
 
+      hapticSuccess();
       showSuccess(
         'Export Complete 🎉',
         `Exported ${matchingTransactions.length} records as ${exportFormat.toUpperCase()}.`
       );
       onClose();
     } catch (err: any) {
+      hapticError();
       showError('Export Failed', err.message || 'An error occurred while generating report.');
     } finally {
       setLoading(false);
@@ -236,7 +239,10 @@ export function ExportModal({ visible, onClose }: Props) {
             <View style={styles.formatRow}>
               <TouchableOpacity
                 style={[styles.formatCard, exportFormat === 'pdf' && styles.formatCardActive]}
-                onPress={() => setExportFormat('pdf')}
+                onPress={() => {
+                  hapticSelection();
+                  setExportFormat('pdf');
+                }}
                 activeOpacity={0.8}
               >
                 <View style={[styles.formatIconCircle, { backgroundColor: exportFormat === 'pdf' ? '#7C3AED' : 'rgba(255,255,255,0.06)' }]}>
@@ -254,7 +260,10 @@ export function ExportModal({ visible, onClose }: Props) {
 
               <TouchableOpacity
                 style={[styles.formatCard, exportFormat === 'csv' && styles.formatCardActive]}
-                onPress={() => setExportFormat('csv')}
+                onPress={() => {
+                  hapticSelection();
+                  setExportFormat('csv');
+                }}
                 activeOpacity={0.8}
               >
                 <View style={[styles.formatIconCircle, { backgroundColor: exportFormat === 'csv' ? '#0284C7' : 'rgba(255,255,255,0.06)' }]}>

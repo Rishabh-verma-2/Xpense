@@ -92,6 +92,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       type,
       amount,
       note,
+      notes,
       date,
       isRecurring,
       categoryName,
@@ -129,12 +130,14 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       finalCatId = found._id;
     }
 
+    const finalNote = note !== undefined ? note : (notes || '');
+
     const transaction = await Transaction.create({
       userId: req.userId,
       categoryId: finalCatId,
       type,
       amount: parseFloat(amount),
-      note: note || '',
+      note: finalNote,
       date: date ? new Date(date) : new Date(),
       isRecurring: !!isRecurring,
     });
@@ -150,26 +153,61 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 // ─── PUT /api/transactions/:id ────────────────────────────────────────────────
 router.put('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    if (!Types.ObjectId.isValid(req.params.id)) {
-      return res.status(404).json({ success: false, message: 'Transaction not found' });
-    }
-
-    const existing = await Transaction.findOne({ _id: req.params.id, userId: req.userId });
-    if (!existing) {
-      return res.status(404).json({ success: false, message: 'Transaction not found' });
-    }
-
     const {
       categoryId,
       type,
       amount,
       note,
+      notes,
       date,
       isRecurring,
       categoryName,
       categoryIcon,
       categoryColor,
     } = req.body;
+
+    const finalNote = note !== undefined ? note : notes;
+
+    let existing = null;
+    if (Types.ObjectId.isValid(req.params.id)) {
+      existing = await Transaction.findOne({ _id: req.params.id, userId: req.userId });
+    }
+
+    // If transaction doesn't exist yet on remote, create it
+    if (!existing) {
+      let finalCatId: Types.ObjectId | null = null;
+      if (categoryId && Types.ObjectId.isValid(categoryId)) {
+        const catObj = await Category.findOne({ _id: categoryId, userId: req.userId });
+        if (catObj) finalCatId = catObj._id;
+      }
+      if (!finalCatId) {
+        const targetName = categoryName || 'General';
+        let found = await Category.findOne({ userId: req.userId, name: targetName, type: type || 'expense' });
+        if (!found) {
+          found = await Category.create({
+            userId: req.userId,
+            name: targetName,
+            icon: categoryIcon || 'pricetag-outline',
+            color: categoryColor || '#7C3AED',
+            type: type || 'expense',
+            isSystem: false,
+          });
+        }
+        finalCatId = found._id;
+      }
+
+      const created = await Transaction.create({
+        userId: req.userId,
+        categoryId: finalCatId,
+        type: type || 'expense',
+        amount: amount !== undefined ? parseFloat(amount) : 0,
+        note: finalNote || '',
+        date: date ? new Date(date) : new Date(),
+        isRecurring: !!isRecurring,
+      });
+      const populated = await created.populate('categoryId', 'name icon color type');
+      return res.json({ success: true, data: populated });
+    }
 
     let updateCatId = categoryId;
     if (categoryId && !Types.ObjectId.isValid(categoryId)) {
@@ -198,7 +236,7 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
         ...(updateCatId !== undefined && { categoryId: updateCatId }),
         ...(type        !== undefined && { type }),
         ...(amount      !== undefined && { amount: parseFloat(amount) }),
-        ...(note        !== undefined && { note }),
+        ...(finalNote   !== undefined && { note: finalNote }),
         ...(date        !== undefined && { date: new Date(date) }),
         ...(isRecurring !== undefined && { isRecurring: !!isRecurring }),
       },

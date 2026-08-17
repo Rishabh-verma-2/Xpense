@@ -31,6 +31,13 @@ import { Category } from '../../../shared/types/category.types';
 import { CurrentMonthDatePickerModal } from '../../../shared/components/CurrentMonthDatePickerModal';
 import { AppButton } from '../../../shared/components/AppButton';
 import { useAppTheme } from '../../../context/ThemeContext';
+import {
+  hapticLight,
+  hapticMedium,
+  hapticSelection,
+  hapticSuccess,
+  hapticError,
+} from '../../../shared/utils/haptics';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'AddTransaction'>;
@@ -129,6 +136,11 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
 
   // ── Numpad ───────────────────────────────────────────────────────────────
   const handleNumpad = useCallback((key: string) => {
+    if (key === '⌫') {
+      hapticMedium();
+    } else {
+      hapticLight();
+    }
     setAmount((prev) => {
       if (key === '⌫') {
         const next = prev.length > 1 ? prev.slice(0, -1) : '0';
@@ -142,6 +154,7 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
   }, []);
 
   const switchType = (t: TransactionType) => {
+    hapticMedium();
     setType(t);
     setSelectedCategory(null);
   };
@@ -159,6 +172,7 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
     if (!notesResult.valid) newErrors.notes = notesResult.error!;
 
     if (Object.keys(newErrors).length > 0) {
+      hapticError();
       setErrors(newErrors);
       return;
     }
@@ -178,6 +192,7 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
         notes,
         isRecurring: false,
       });
+      hapticSuccess();
       const formattedAmount = `${selectedCurrencySymbol}${parseFloat(amount).toLocaleString()}`;
       showSuccess(
         `${type === 'expense' ? 'Expense' : 'Income'} Added! 🎉`,
@@ -185,6 +200,7 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
       );
       navigation.goBack();
     } catch {
+      hapticError();
       showError('Transaction Error', "Couldn't save transaction. Please try again.");
     } finally {
       setLoading(false);
@@ -292,6 +308,7 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
                     key={preset}
                     style={[styles.presetChip, { borderColor: `${themeColor}40`, backgroundColor: `${themeColor}14` }]}
                     onPress={() => {
+                      hapticLight();
                       const cur = parseFloat(amount) || 0;
                       setAmount((cur + preset).toString());
                     }}
@@ -302,7 +319,10 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
                 ))}
                 <TouchableOpacity
                   style={[styles.clearChip, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}
-                  onPress={() => setAmount('0')}
+                  onPress={() => {
+                    hapticMedium();
+                    setAmount('0');
+                  }}
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.clearChipText, { color: tc.textMuted }]}>Clear</Text>
@@ -352,7 +372,10 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
                       { backgroundColor: tc.card, borderColor: tc.cardBorder },
                       isSelected && { borderColor: cat.color, backgroundColor: `${cat.color}22` },
                     ]}
-                    onPress={() => setSelectedCategory(cat)}
+                    onPress={() => {
+                      hapticSelection();
+                      setSelectedCategory(cat);
+                    }}
                     activeOpacity={0.75}
                   >
                     <View
@@ -398,7 +421,10 @@ export default function AddTransactionScreen({ navigation, route }: Props) {
                       { backgroundColor: tc.card, borderColor: tc.cardBorder },
                       isSelected && { borderColor: theme.accentColor, backgroundColor: `${theme.accentColor}22` },
                     ]}
-                    onPress={() => setPaymentMethod(pm.key as PaymentMethod)}
+                    onPress={() => {
+                      hapticSelection();
+                      setPaymentMethod(pm.key as PaymentMethod);
+                    }}
                     activeOpacity={0.75}
                   >
                     <Ionicons

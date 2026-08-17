@@ -22,6 +22,7 @@ import { formatTransactionDate, groupByDate } from '../../../shared/utils/dateUt
 import { EmptyState } from '../../../shared/components/EmptyState';
 import { useCategories } from '../../../context/CategoryContext';
 import { Transaction } from '../../../shared/types/transaction.types';
+import { hapticSelection } from '../../../shared/utils/haptics';
 
 type Props = {
   navigation: NativeStackNavigationProp<HistoryStackParamList, 'HistoryList'>;
@@ -169,7 +170,10 @@ export default function HistoryScreen({ navigation }: Props) {
                   backgroundColor: `${theme.accentColor}22`,
                 },
               ]}
-              onPress={() => setSelectedType(tab.key)}
+              onPress={() => {
+                hapticSelection();
+                setSelectedType(tab.key);
+              }}
               activeOpacity={0.8}
             >
               <Text

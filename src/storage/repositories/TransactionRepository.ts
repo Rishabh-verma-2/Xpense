@@ -40,15 +40,61 @@ async function update(
 ): Promise<Transaction> {
   const all = await getAllIncludingDeleted();
   const idx = all.findIndex((t) => t.id === id);
-  if (idx === -1) throw new Error(`Transaction ${id} not found`);
+  const now = new Date().toISOString();
+
+  if (idx === -1) {
+    // If not found in local storage (e.g. came from remote MongoDB), upsert gracefully
+    const newTx: Transaction = {
+      id,
+      amount: 0,
+      type: 'expense',
+      categoryId: '',
+      categoryNameSnapshot: 'General',
+      categoryIconSnapshot: 'pricetag-outline',
+      categoryColorSnapshot: '#7C3AED',
+      paymentMethod: 'cash',
+      notes: '',
+      date: now,
+      isRecurring: false,
+      deletedAt: null,
+      createdAt: now,
+      ...changes,
+      updatedAt: now,
+    };
+    await storageSet(STORAGE_KEYS.TRANSACTIONS, [newTx, ...all]);
+    return newTx;
+  }
+
   const updated: Transaction = {
     ...all[idx],
     ...changes,
-    updatedAt: new Date().toISOString(),
+    updatedAt: now,
   };
   all[idx] = updated;
   await storageSet(STORAGE_KEYS.TRANSACTIONS, all);
   return updated;
+}
+
+async function bulkUpsert(transactions: Transaction[]): Promise<void> {
+  if (!transactions || transactions.length === 0) return;
+  const all = await getAllIncludingDeleted();
+  const map = new Map<string, Transaction>();
+  
+  // Seed with existing
+  for (const t of all) {
+    map.set(t.id, t);
+  }
+  // Upsert incoming
+  for (const t of transactions) {
+    const existing = map.get(t.id);
+    map.set(t.id, {
+      ...(existing || {}),
+      ...t,
+      deletedAt: t.deletedAt !== undefined ? t.deletedAt : (existing?.deletedAt ?? null),
+    });
+  }
+
+  await storageSet(STORAGE_KEYS.TRANSACTIONS, Array.from(map.values()));
 }
 
 async function softDelete(id: string): Promise<void> {
@@ -69,7 +115,9 @@ export const TransactionRepository = {
   getByMonth,
   create,
   update,
+  bulkUpsert,
   softDelete,
   restore,
   clearAll,
 };
+

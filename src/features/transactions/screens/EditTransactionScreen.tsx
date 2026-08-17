@@ -29,6 +29,13 @@ import { PaymentMethod } from '../../../shared/types/transaction.types';
 import { Category } from '../../../shared/types/category.types';
 import { ScreenHeader } from '../../../shared/components/ScreenHeader';
 import { useAppTheme } from '../../../context/ThemeContext';
+import {
+  hapticLight,
+  hapticHeavy,
+  hapticSelection,
+  hapticSuccess,
+  hapticError,
+} from '../../../shared/utils/haptics';
 
 type Props = {
   navigation: NativeStackNavigationProp<HistoryStackParamList, 'EditTransaction'>;
@@ -54,32 +61,70 @@ export default function EditTransactionScreen({ navigation, route }: Props) {
   const categories = getByType(transaction.type);
   const currencySymbol = settings?.currencySymbol ?? '₹';
 
+  // Find matching category with fallback strategies for older records
+  const resolveCategory = (cats: Category[]): Category | null => {
+    if (!cats || cats.length === 0) return null;
+    // 1. By ID
+    const byId = cats.find((c) => c.id === transaction.categoryId);
+    if (byId) return byId;
+    // 2. By Name
+    const targetName = (transaction.categoryNameSnapshot || (transaction as any).categoryName || '').trim().toLowerCase();
+    if (targetName) {
+      const byName = cats.find((c) => c.name.trim().toLowerCase() === targetName);
+      if (byName) return byName;
+    }
+    // 3. Fallback to first available category
+    return cats[0] || null;
+  };
+
   const [amount, setAmount] = useState(
     typeof transaction?.amount === 'number' && !isNaN(transaction.amount)
       ? transaction.amount.toString()
       : '0'
   );
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(
-    categories.find((c) => c.id === transaction.categoryId) ?? null,
+    () => resolveCategory(categories)
   );
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(transaction.paymentMethod);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(transaction.paymentMethod || 'cash');
   const [notes, setNotes] = useState(transaction.notes || '');
-  const [date, setDate] = useState(transaction.date);
+  const [date, setDate] = useState(transaction.date || new Date().toISOString());
   const [showDatePickerModal, setShowDatePickerModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Re-sync category if categories loaded asynchronously
+  React.useEffect(() => {
+    if (!selectedCategory && categories.length > 0) {
+      setSelectedCategory(resolveCategory(categories));
+    }
+  }, [categories, selectedCategory]);
+
   const handleSave = async () => {
     const newErrors: Record<string, string> = {};
     const amountResult = validateAmount(amount);
     if (!amountResult.valid) newErrors.amount = amountResult.error!;
-    if (!selectedCategory) newErrors.category = 'Please select a category';
+
+    const finalCategory = selectedCategory || resolveCategory(categories) || {
+      id: transaction.categoryId || 'cat_general',
+      name: transaction.categoryNameSnapshot || 'General',
+      icon: transaction.categoryIconSnapshot || 'pricetag-outline',
+      color: transaction.categoryColorSnapshot || '#7C3AED',
+      type: transaction.type,
+      isSystem: false,
+      isArchived: false,
+      sortOrder: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (!finalCategory) newErrors.category = 'Please select a category';
     const notesResult = validateNotes(notes);
     if (!notesResult.valid) newErrors.notes = notesResult.error!;
 
     if (Object.keys(newErrors).length > 0) {
+      hapticError();
       setErrors(newErrors);
       return;
     }
@@ -89,18 +134,20 @@ export default function EditTransactionScreen({ navigation, route }: Props) {
     try {
       await updateTransaction(transaction.id, {
         amount: parseFloat(amount),
-        categoryId: selectedCategory!.id,
-        categoryNameSnapshot: selectedCategory!.name,
-        categoryIconSnapshot: selectedCategory!.icon,
-        categoryColorSnapshot: selectedCategory!.color,
+        categoryId: finalCategory.id,
+        categoryNameSnapshot: finalCategory.name,
+        categoryIconSnapshot: finalCategory.icon,
+        categoryColorSnapshot: finalCategory.color,
         paymentMethod,
         notes,
         date,
       });
-      showSuccess('Transaction Updated! ✏️', `${selectedCategory!.name} • ${currencySymbol}${parseFloat(amount).toLocaleString()}`);
+      hapticSuccess();
+      showSuccess('Transaction Updated! ✏️', `${finalCategory.name} • ${currencySymbol}${parseFloat(amount).toLocaleString()}`);
       navigation.goBack();
-    } catch {
-      showError('Error', "Couldn't update transaction.");
+    } catch (err: any) {
+      hapticError();
+      showError('Error', err?.message || "Couldn't update transaction.");
     } finally {
       setLoading(false);
     }
@@ -110,10 +157,12 @@ export default function EditTransactionScreen({ navigation, route }: Props) {
     setDeleting(true);
     try {
       await deleteTransaction(transaction.id);
+      hapticHeavy();
       setShowDeleteModal(false);
       showInfo('Transaction Deleted 🗑️', 'The entry was removed.');
       navigation.popToTop();
     } catch {
+      hapticError();
       showError('Error', "Couldn't delete transaction.");
     } finally {
       setDeleting(false);
@@ -185,6 +234,7 @@ export default function EditTransactionScreen({ navigation, route }: Props) {
                     key={preset}
                     style={[styles.presetChip, { borderColor: `${themeColor}40`, backgroundColor: `${themeColor}14` }]}
                     onPress={() => {
+                      hapticLight();
                       const cur = parseFloat(amount) || 0;
                       setAmount((cur + preset).toString());
                     }}
@@ -212,7 +262,10 @@ export default function EditTransactionScreen({ navigation, route }: Props) {
                       { backgroundColor: tc.card, borderColor: tc.cardBorder },
                       isSelected && { borderColor: cat.color, backgroundColor: `${cat.color}22` },
                     ]}
-                    onPress={() => setSelectedCategory(cat)}
+                    onPress={() => {
+                      hapticSelection();
+                      setSelectedCategory(cat);
+                    }}
                     activeOpacity={0.75}
                   >
                     <View
@@ -258,7 +311,10 @@ export default function EditTransactionScreen({ navigation, route }: Props) {
                       { backgroundColor: tc.card, borderColor: tc.cardBorder },
                       isSelected && { borderColor: theme.accentColor, backgroundColor: `${theme.accentColor}22` },
                     ]}
-                    onPress={() => setPaymentMethod(pm.key as PaymentMethod)}
+                    onPress={() => {
+                      hapticSelection();
+                      setPaymentMethod(pm.key as PaymentMethod);
+                    }}
                     activeOpacity={0.75}
                   >
                     <Ionicons
@@ -353,6 +409,7 @@ export default function EditTransactionScreen({ navigation, route }: Props) {
         <CurrentMonthDatePickerModal
           visible={showDatePickerModal}
           selectedDateIso={date}
+          restrictToCurrentMonth={false}
           onSelectDate={(newDate) => {
             setDate(newDate);
             setShowDatePickerModal(false);

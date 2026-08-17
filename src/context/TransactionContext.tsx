@@ -122,6 +122,7 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
             };
           });
           remoteList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          await TransactionRepository.bulkUpsert(remoteList);
           dispatch({ type: 'SET_TRANSACTIONS', payload: remoteList });
           return;
         }
@@ -253,7 +254,13 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
 
       if (token) {
         try {
-          await transactionsApi.update(id, changes as any);
+          await transactionsApi.update(id, {
+            ...changes,
+            note: changes.notes !== undefined ? changes.notes : (changes as any).note,
+            categoryName: changes.categoryNameSnapshot,
+            categoryIcon: changes.categoryIconSnapshot,
+            categoryColor: changes.categoryColorSnapshot,
+          } as any);
           console.log('✅ Transaction updated in MongoDB Atlas:', id);
         } catch (err) {
           console.warn('⚠️ Offline mode: Transaction update queued for auto-sync:', err);

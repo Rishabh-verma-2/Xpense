@@ -40,6 +40,12 @@ copyFileSafe(path.join(__dirname, 'assets', 'favicon.png'), path.join(distDir, '
 if (fs.existsSync(indexPath)) {
   let html = fs.readFileSync(indexPath, 'utf8');
 
+  // 2a. Update viewport meta to strictly prevent mobile zooming
+  html = html.replace(
+    /<meta\s+name=["']viewport["']\s+content=["'][^"']*["']\s*\/?>/i,
+    '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no" />'
+  );
+
   const pwaHeadTags = `
   <!-- PWA Manifest — REQUIRED for browser install prompt -->
   <link rel="manifest" href="/manifest.json" />
@@ -54,11 +60,39 @@ if (fs.existsSync(indexPath)) {
   <link rel="apple-touch-icon" href="/assets/icon-192.png" />
   <link rel="apple-touch-icon" sizes="192x192" href="/assets/icon-192.png" />
   <link rel="apple-touch-icon" sizes="512x512" href="/assets/icon-512.png" />
+
+  <!-- Prevent pinch-to-zoom on mobile browsers / PWAs -->
+  <style id="xpense-prevent-zoom-style">
+    html, body, #root {
+      touch-action: pan-x pan-y !important;
+      -webkit-text-size-adjust: 100% !important;
+    }
+  </style>
+  <script>
+    (function() {
+      function prevent(e) { if (e.preventDefault) e.preventDefault(); }
+      document.addEventListener('gesturestart', prevent, { passive: false });
+      document.addEventListener('gesturechange', prevent, { passive: false });
+      document.addEventListener('gestureend', prevent, { passive: false });
+      document.addEventListener('touchstart', function(e) {
+        if (e.touches && e.touches.length > 1) prevent(e);
+      }, { passive: false });
+      document.addEventListener('touchmove', function(e) {
+        if (e.touches && e.touches.length > 1) prevent(e);
+      }, { passive: false });
+      var lastTouch = 0;
+      document.addEventListener('touchend', function(e) {
+        var now = Date.now();
+        if (now - lastTouch <= 300) prevent(e);
+        lastTouch = now;
+      }, false);
+    })();
+  </script>
 `;
 
   if (!html.includes('rel="manifest"')) {
     html = html.replace('</head>', `${pwaHeadTags}\n</head>`);
-    console.log('✅ Injected PWA manifest + iOS meta tags');
+    console.log('✅ Injected PWA manifest + iOS meta tags + anti-zoom protection');
   }
 
   // Inject Service Worker

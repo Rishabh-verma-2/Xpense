@@ -353,6 +353,10 @@ export default function MonthlyReportScreen({ navigation }: Props) {
                 </View>
                 <Text style={[styles.cardTitle, { color: tc.textPrimary }]}>Daily Spending Trend</Text>
               </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: 0.75 }}>
+                <Text style={{ fontSize: 11, color: tc.textMuted, fontWeight: '600' }}>Swipe</Text>
+                <Ionicons name="swap-horizontal" size={14} color={tc.textMuted} />
+              </View>
             </View>
 
             {/* Peak Day Callout */}
@@ -369,19 +373,26 @@ export default function MonthlyReportScreen({ navigation }: Props) {
               </View>
             ) : null}
 
-            <View style={{ marginTop: 14, overflow: 'hidden', alignItems: 'center' }}>
+            <View style={{ marginTop: 14 }}>
               <BarChart
                 data={barData}
-                barWidth={10}
+                width={width - 76}
+                height={160}
+                barWidth={14}
                 spacing={10}
+                initialSpacing={10}
+                endSpacing={24}
                 roundedTop
                 hideRules
                 xAxisThickness={0}
                 yAxisThickness={0}
                 yAxisTextStyle={{ color: tc.textMuted, fontSize: 10 }}
-                xAxisLabelTextStyle={{ color: tc.textMuted, fontSize: 10 }}
+                xAxisLabelTextStyle={{ color: tc.textMuted, fontSize: 9 }}
                 noOfSections={3}
                 barBorderRadius={4}
+                nestedScrollEnabled={true}
+                showScrollIndicator={true}
+                isAnimated
               />
             </View>
           </View>

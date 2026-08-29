@@ -198,48 +198,52 @@ export default function DashboardScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: tc.background, paddingTop: topInset }]}>
+
+      {/* ── Sticky Top Header (outside ScrollView so it never scrolls) ── */}
+      <Animated.View style={[
+        styles.headerRow,
+        { opacity: headerFade, backgroundColor: tc.background },
+      ]}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={handleNavigateSettings} activeOpacity={0.8}>
+            {user?.avatar ? (
+              <Image source={{ uri: user.avatar }} style={[styles.avatarImage, { borderColor: theme.accentColor }]} />
+            ) : (
+              <LinearGradient
+                colors={theme.accentGradient}
+                style={styles.avatarCircle}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Text style={styles.avatarText}>{userInitial}</Text>
+              </LinearGradient>
+            )}
+          </TouchableOpacity>
+          <View>
+            <Text style={[styles.greetingText, { color: tc.textMuted }]}>{greeting},</Text>
+            <Text style={[styles.userNameText, { color: tc.textPrimary }]} numberOfLines={1}>
+              {userName}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={[styles.iconCircleBtn, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}
+            onPress={() => navigation.navigate('SettingsTab', { screen: 'NotificationSettings' })}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="notifications-outline" size={20} color={tc.textSecondary} />
+            <View style={[styles.notifBadge, { backgroundColor: theme.accentColor }]} />
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Top Header ── */}
-        <Animated.View style={[styles.headerRow, { opacity: headerFade }]}>
-          <View style={styles.headerLeft}>
-            <TouchableOpacity onPress={handleNavigateSettings} activeOpacity={0.8}>
-              {user?.avatar ? (
-                <Image source={{ uri: user.avatar }} style={[styles.avatarImage, { borderColor: theme.accentColor }]} />
-              ) : (
-                <LinearGradient
-                  colors={theme.accentGradient}
-                  style={styles.avatarCircle}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <Text style={styles.avatarText}>{userInitial}</Text>
-                </LinearGradient>
-              )}
-            </TouchableOpacity>
-            <View>
-              <Text style={[styles.greetingText, { color: tc.textMuted }]}>{greeting},</Text>
-              <Text style={[styles.userNameText, { color: tc.textPrimary }]} numberOfLines={1}>
-                {userName}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.headerRight}>
-            <TouchableOpacity
-              style={[styles.iconCircleBtn, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}
-              onPress={() => navigation.navigate('SettingsTab', { screen: 'NotificationSettings' })}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="notifications-outline" size={20} color={tc.textSecondary} />
-              <View style={[styles.notifBadge, { backgroundColor: theme.accentColor }]} />
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-
         {/* ── Luxury Theme Hero Card ── */}
         <Animated.View style={[styles.heroCardContainer, { transform: [{ scale: cardScale }] }]}>
           <LinearGradient
@@ -625,8 +629,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    marginBottom: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    zIndex: 10,
   },
   headerLeft: {
     flexDirection: 'row',

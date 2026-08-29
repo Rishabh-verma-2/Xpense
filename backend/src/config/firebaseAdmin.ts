@@ -1,69 +1,43 @@
 import * as admin from 'firebase-admin';
 
-// Track initialization to avoid duplicate app errors
-let initialized = false;
+let firebaseApp: admin.app.App | null = null;
 
-/**
- * Initializes Firebase Admin SDK.
- * Safe to call multiple times — will skip if already initialized.
- * Silently degrades if env vars are missing (Google login simulation mode).
- */
-export function initFirebaseAdmin(): admin.app.App | null {
-  // Return existing app if already initialized
-  if (initialized) {
+export function initFirebaseAdmin() {
+  if (firebaseApp) return firebaseApp;
+
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+  if (privateKey) {
+    // Unescape escaped newlines if passed as a string in .env
+    privateKey = privateKey.replace(/\\n/g, '\n');
+  }
+
+  if (projectId && clientEmail && privateKey) {
     try {
-      return admin.app();
-    } catch {
-      initialized = false;
+      firebaseApp = admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId,
+          clientEmail,
+          privateKey,
+        }),
+      });
+      console.log('🔥  Firebase Admin SDK initialized successfully');
+    } catch (err: any) {
+      console.warn('⚠️  Firebase Admin SDK initialization warning:', err.message);
     }
+  } else {
+    console.warn('⚠️  Firebase credentials incomplete in .env. Google ID token verification will run in simulation mode for dev testing if requested.');
   }
 
-  const projectId    = (process.env.FIREBASE_PROJECT_ID    || '').trim();
-  const clientEmail  = (process.env.FIREBASE_CLIENT_EMAIL  || '').trim();
-  const rawKey       = (process.env.FIREBASE_PRIVATE_KEY   || '').trim();
-
-  if (!projectId || !clientEmail || !rawKey) {
-    console.warn(
-      '⚠️  Firebase Admin SDK: credentials incomplete. ' +
-      'Google ID token verification is disabled. ' +
-      'Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY in env.',
-    );
-    return null;
-  }
-
-  // Unescape literal \n sequences that come from .env files / cloud env dashboards
-  const privateKey = rawKey.replace(/\\n/g, '\n');
-
-  try {
-    const app = admin.initializeApp({
-      credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
-    });
-    initialized = true;
-    console.log('🔥  Firebase Admin SDK initialized successfully');
-    return app;
-  } catch (err: any) {
-    // If the app is already initialized (race condition), return the existing one
-    if (err.code === 'app/duplicate-app') {
-      initialized = true;
-      return admin.app();
-    }
-    console.warn('⚠️  Firebase Admin SDK initialization failed:', err.message);
-    return null;
-  }
+  return firebaseApp;
 }
 
-/**
- * Verifies a Firebase ID Token.
- * Returns the decoded token payload, or null if Firebase is not configured.
- */
-export async function verifyFirebaseIdToken(idToken: string): Promise<admin.auth.DecodedIdToken | null> {
+export async function verifyFirebaseIdToken(idToken: string) {
   const app = initFirebaseAdmin();
-  if (!app) return null;
-
-  try {
-    return await admin.auth(app).verifyIdToken(idToken);
-  } catch (err: any) {
-    console.warn('⚠️  Firebase ID token verification failed:', err.message);
-    return null;
+  if (app) {
+    return await admin.auth().verifyIdToken(idToken);
   }
+  return null;
 }

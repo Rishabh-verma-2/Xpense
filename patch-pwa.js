@@ -56,32 +56,6 @@ if (fs.existsSync(indexPath)) {
   <link rel="apple-touch-icon" sizes="512x512" href="/assets/icon-512.png" />
 `;
 
-  // Fix viewport meta — add user-scalable=no and maximum-scale=1.0 to prevent pinch-zoom on PWA
-  html = html.replace(
-    /(<meta\s+name=["']viewport["']\s+content=["'])([^"']*?)(["']\s*\/>)/i,
-    (_match, before, _content, after) =>
-      `${before}width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no${after}`,
-  );
-  // If there's no viewport meta at all, inject one
-  if (!html.includes('name="viewport"')) {
-    html = html.replace(
-      '<head>',
-      '<head>\n    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no" />',
-    );
-  }
-  console.log('✅ Patched viewport meta — pinch-to-zoom disabled');
-
-  // Inject touch-action CSS to prevent pinch-zoom on Safari iOS (ignores viewport meta in some cases)
-  const touchActionCss = `
-  <!-- Prevent pinch-to-zoom on installed PWA (all mobile browsers) -->
-  <style id="no-zoom">
-    html, body, #root { touch-action: pan-x pan-y; }
-  </style>`;
-  if (!html.includes('id="no-zoom"')) {
-    html = html.replace('</head>', `${touchActionCss}\n</head>`);
-    console.log('✅ Injected touch-action CSS — zoom gestures disabled');
-  }
-
   if (!html.includes('rel="manifest"')) {
     html = html.replace('</head>', `${pwaHeadTags}\n</head>`);
     console.log('✅ Injected PWA manifest + iOS meta tags');

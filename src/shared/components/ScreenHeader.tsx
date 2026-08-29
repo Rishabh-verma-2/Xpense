@@ -23,7 +23,12 @@ export function ScreenHeader({ title, subtitle, onBack, rightAction }: ScreenHea
     <View style={[styles.container, { paddingTop: topInset + spacing.sm, backgroundColor: c.background }]}>
       <View style={styles.row}>
         {onBack ? (
-          <TouchableOpacity onPress={onBack} style={styles.iconBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity
+            onPress={onBack}
+            style={styles.iconBtn}
+            activeOpacity={0.7}
+            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+          >
             <Ionicons name="arrow-back" size={24} color={c.textPrimary} />
           </TouchableOpacity>
         ) : (

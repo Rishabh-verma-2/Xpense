@@ -156,9 +156,23 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
     }
   };
 
+  const handleBack = () => {
+    hapticMedium();
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      const parent = navigation.getParent();
+      if (parent) {
+        parent.navigate('DashboardTab' as any);
+      } else {
+        (navigation as any).navigate('DashboardTab');
+      }
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: tc.background, paddingBottom: insets.bottom }]}>
-      <ScreenHeader title="Notifications & Alerts" onBack={() => navigation.goBack()} />
+      <ScreenHeader title="Notifications & Alerts" onBack={handleBack} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* ── Master Hero Status Card ── */}

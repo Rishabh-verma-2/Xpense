@@ -24,7 +24,26 @@ const app = express();
 
 // ─── Security & logging ───────────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: config.nodeEnv === 'development' ? true : config.cors.origins, credentials: true }));
+
+// Always allow the Vercel frontend + localhost in addition to any ALLOWED_ORIGINS
+const ALWAYS_ALLOWED = [
+  'https://xpense-blush.vercel.app',
+  'http://localhost:8081',
+  'http://localhost:3000',
+  'http://localhost:19006',
+];
+const allowedOrigins = [...new Set([...ALWAYS_ALLOWED, ...config.cors.origins])];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    if (config.nodeEnv !== 'production') return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS: origin '${origin}' not allowed`));
+  },
+  credentials: true,
+}));
 app.use(morgan(config.nodeEnv === 'development' ? 'dev' : 'combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));

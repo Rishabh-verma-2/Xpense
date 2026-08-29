@@ -48,8 +48,22 @@ export async function requestNotificationPermission(): Promise<boolean> {
   if (Platform.OS === 'web') {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       try {
-        const perm = await Notification.requestPermission();
-        return perm === 'granted';
+        if (Notification.permission === 'granted') return true;
+
+        // Support both modern Promise-based and legacy callback-based requestPermission
+        const result = await new Promise<string>((resolve) => {
+          try {
+            const p = Notification.requestPermission((res) => {
+              if (res) resolve(res);
+            });
+            if (p && typeof p.then === 'function') {
+              p.then(resolve).catch(() => resolve(Notification.permission));
+            }
+          } catch {
+            resolve(Notification.permission);
+          }
+        });
+        return result === 'granted';
       } catch {
         return false;
       }
@@ -111,23 +125,64 @@ export async function sendLocalNotification(params: {
   const { type, title, body, channelId = 'default', data = {} } = params;
 
   // 1. Record in persistent in-app notification repository
-  const savedNotif = await addNotification({
-    type,
-    title,
-    body,
-    data,
-  });
+  let savedNotif: AppNotification;
+  try {
+    savedNotif = await addNotification({
+      type,
+      title,
+      body,
+      data,
+    });
+  } catch {
+    savedNotif = {
+      id: `notif_${Date.now()}`,
+      type,
+      title,
+      body,
+      date: new Date().toISOString(),
+      read: false,
+      data,
+    };
+  }
 
   // 2. Dispatch system OS notification banner
   if (Platform.OS === 'web') {
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
       try {
-        new Notification(title, {
-          body,
-          icon: '/assets/icon-192.png',
-          badge: '/assets/icon-192.png',
-          data,
-        });
+        let shown = false;
+
+        // Mobile Chrome/Android & iOS PWA require ServiceWorkerRegistration.showNotification
+        // Calling new Notification() throws "Illegal constructor" on mobile devices
+        if ('serviceWorker' in navigator) {
+          try {
+            const reg = await navigator.serviceWorker.ready;
+            if (reg && typeof reg.showNotification === 'function') {
+              await reg.showNotification(title, {
+                body,
+                icon: '/assets/icon-192.png',
+                badge: '/assets/icon-192.png',
+                data,
+              });
+              shown = true;
+            }
+          } catch (swErr) {
+            console.warn('[Notifications SW] showNotification fallback:', swErr);
+          }
+        }
+
+        // Desktop browser fallback
+        if (!shown) {
+          try {
+            new Notification(title, {
+              body,
+              icon: '/assets/icon-192.png',
+              badge: '/assets/icon-192.png',
+              data,
+            });
+          } catch (err) {
+            console.warn('[Notifications] Desktop new Notification fallback failed:', err);
+          }
+        }
       } catch (e) {
         console.warn('[Notifications Web] dispatch error:', e);
       }

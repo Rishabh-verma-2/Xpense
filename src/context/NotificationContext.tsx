@@ -83,18 +83,24 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         let initialNotifs = storedNotifs;
 
         // Auto-push the new feature announcement to all logged in users on this device
-        if (!announcementDelivered) {
-          await storageSet(ANNOUNCEMENT_KEY, true);
-          await sendLocalNotification({
-            type: 'system',
-            title: '🚀 New: Smart Budget Warnings & 8:00 PM Reminders!',
-            body: 'Automated 80% & 100% budget limit alerts and an 8:00 PM daily expense reminder are now active! Tap to configure.',
-            data: { screen: 'NotificationSettings' },
-          });
-          initialNotifs = await getNotifications();
+        const ANNOUNCEMENT_TITLE = '🚀 New: Smart Budget Warnings & 8:00 PM Reminders!';
+        const hasAnnouncement = initialNotifs.some((n) => n.title === ANNOUNCEMENT_TITLE);
+
+        if (!hasAnnouncement) {
+          try {
+            await sendLocalNotification({
+              type: 'system',
+              title: ANNOUNCEMENT_TITLE,
+              body: 'Automated 80% & 100% budget limit alerts and an 8:00 PM daily expense reminder are now active! Tap to configure.',
+              data: { screen: 'NotificationSettings' },
+            });
+            initialNotifs = await getNotifications();
+          } catch (err) {
+            console.warn('[NotificationContext] announcement dispatch warning:', err);
+          }
         }
 
-        // If authenticated, sync with remote broadcast notifications
+        // If authenticated, sync with remote broadcast notifications from MongoDB Atlas
         if (token) {
           try {
             const res = await notificationsApi.list();

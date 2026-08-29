@@ -47,7 +47,12 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
     markAllAsRead,
     clearAll,
     sendTestNotification,
+    refreshNotifications,
   } = useNotifications();
+
+  React.useEffect(() => {
+    refreshNotifications();
+  }, [refreshNotifications]);
 
   const [testing, setTesting] = useState(false);
 

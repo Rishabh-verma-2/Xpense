@@ -1,0 +1,37 @@
+# render.yaml — Render.com deployment configuration for Xpense Backend
+# Docs: https://render.com/docs/yaml-spec
+
+services:
+  - type: web
+    name: xpense-backend
+    runtime: node
+    region: oregon          # change to: frankfurt / singapore / ohio as needed
+    rootDir: backend        # ← tells Render to cd into /backend before anything
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    plan: free
+
+    # Node version — matches .node-version and package.json "engines"
+    envVars:
+      - key: NODE_VERSION
+        value: "20.19.4"
+      - key: NODE_ENV
+        value: production
+
+      # ── Set these in Render Dashboard → Environment ──────────────────────────
+      # Never put real secrets in render.yaml (it gets committed to git).
+      # Add these manually in the Render web UI under "Environment Variables":
+      #
+      #   MONGO_URI            = mongodb+srv://...
+      #   MONGO_PASSWORD       = <your atlas password>
+      #   JWT_SECRET           = <strong random string>
+      #   EMAIL_USER           = rishabh.verma2626@gmail.com
+      #   EMAIL_PASS           = <gmail app password>
+      #   RESEND_API_KEY       = re_xxxxxxxxxxxx   ← REQUIRED for email in prod
+      #   CLOUDINARY_CLOUD_NAME = xpense
+      #   CLOUDINARY_API_KEY   = <your key>
+      #   CLOUDINARY_API_SECRET = <your secret>
+      #   FIREBASE_PROJECT_ID  = xpense-23d5f
+      #   FIREBASE_CLIENT_EMAIL = <service account email>
+      #   FIREBASE_PRIVATE_KEY  = <your private key with literal \n>
+      #   ALLOWED_ORIGINS      = https://xpense-blush.vercel.app

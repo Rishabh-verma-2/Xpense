@@ -259,4 +259,16 @@ export const healthApi = {
   },
 };
 
+// ─── Notification endpoints ───────────────────────────────────────────────────
+export const notificationsApi = {
+  async list() {
+    const { data } = await api.get('/api/notifications');
+    return data;
+  },
+  async broadcast(payload: { title: string; body: string; type?: string; data?: Record<string, any> }) {
+    const { data } = await api.post('/api/notifications/broadcast', payload);
+    return data;
+  },
+};
+
 export default api;

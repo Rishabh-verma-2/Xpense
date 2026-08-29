@@ -7,9 +7,11 @@ import { BudgetProvider } from '../../context/BudgetContext';
 import { ToastProvider } from '../../context/ToastContext';
 import { ThemeProvider } from '../../context/ThemeContext';
 
+import { NotificationProvider } from '../../context/NotificationContext';
+
 /**
  * Wraps the entire app in all context providers.
- * Order matters: Toast → Theme → Auth → Settings → Categories → Transactions → Budgets
+ * Order matters: Toast → Theme → Auth → Settings → Notifications → Categories → Transactions → Budgets
  */
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
@@ -17,11 +19,13 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <ThemeProvider>
         <AuthProvider>
           <SettingsProvider>
-            <CategoryProvider>
-              <TransactionProvider>
-                <BudgetProvider>{children}</BudgetProvider>
-              </TransactionProvider>
-            </CategoryProvider>
+            <NotificationProvider>
+              <CategoryProvider>
+                <TransactionProvider>
+                  <BudgetProvider>{children}</BudgetProvider>
+                </TransactionProvider>
+              </CategoryProvider>
+            </NotificationProvider>
           </SettingsProvider>
         </AuthProvider>
       </ThemeProvider>

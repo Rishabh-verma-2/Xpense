@@ -8,6 +8,7 @@ export { Transaction }   from './Transaction';
 export { Budget }        from './Budget';
 export { Goal }          from './Goal';
 export { RefreshToken }  from './RefreshToken';
+export { Notification }  from './Notification';
 
 // Type re-exports
 export type { IUser }         from './User';
@@ -16,3 +17,4 @@ export type { ITransaction }  from './Transaction';
 export type { IBudget }       from './Budget';
 export type { IGoal }         from './Goal';
 export type { IRefreshToken } from './RefreshToken';
+export type { INotification } from './Notification';

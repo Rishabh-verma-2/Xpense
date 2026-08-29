@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
+  Platform,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,79 +16,138 @@ import type { SettingsStackParamList } from '../../../core/navigation/types';
 import { useToast } from '../../../context/ToastContext';
 import { ScreenHeader } from '../../../shared/components/ScreenHeader';
 import { useAppTheme } from '../../../context/ThemeContext';
+import { useNotifications } from '../../../context/NotificationContext';
+import { hapticMedium, hapticSuccess } from '../../../shared/utils/haptics';
 
 type Props = {
   navigation: NativeStackNavigationProp<SettingsStackParamList, 'NotificationSettings'>;
 };
 
-interface UpcomingFeature {
-  id: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  iconColor: string;
-  iconBg: string;
-  title: string;
-  description: string;
-  tag: string;
-}
-
-const UPCOMING_FEATURES: UpcomingFeature[] = [
-  {
-    id: 'budget_thresholds',
-    icon: 'warning-outline',
-    iconColor: '#F59E0B',
-    iconBg: 'rgba(245, 158, 11, 0.15)',
-    title: 'Smart Budget Alerts',
-    description: 'Instant warning notifications when you reach 80% or 100% of any category budget limit.',
-    tag: 'Next Update',
-  },
-  {
-    id: 'daily_reminder',
-    icon: 'alarm-outline',
-    iconColor: '#C084FC',
-    iconBg: 'rgba(192, 132, 252, 0.15)',
-    title: 'Daily Evening Expense Ping',
-    description: 'A customizable daily evening reminder to log your cash spends and invoices before bed.',
-    tag: 'Next Update',
-  },
-  {
-    id: 'weekly_digest',
-    icon: 'stats-chart-outline',
-    iconColor: '#10B981',
-    iconBg: 'rgba(16, 185, 129, 0.15)',
-    title: 'Weekly Financial Digest',
-    description: 'Every Sunday, get a summarized breakdown of where your money went and your total savings rate.',
-    tag: 'Planned',
-  },
-  {
-    id: 'bill_reminders',
-    icon: 'calendar-outline',
-    iconColor: '#38BDF8',
-    iconBg: 'rgba(56, 189, 248, 0.15)',
-    title: 'Bill & Due Date Reminders',
-    description: 'Proactive reminders before recurring subscriptions, utility bills, and EMI payments are due.',
-    tag: 'Planned',
-  },
+const REMINDER_TIME_PRESETS = [
+  { label: '7:00 PM', value: '19:00' },
+  { label: '8:00 PM (Default)', value: '20:00' },
+  { label: '9:00 PM', value: '21:00' },
+  { label: '10:00 PM', value: '22:00' },
 ];
 
 export default function NotificationSettingsScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const { showSuccess, showInfo } = useToast();
+  const { showSuccess, showInfo, showError } = useToast();
   const { theme } = useAppTheme();
   const tc = theme.colors;
-  const [notifyEarlyAccess, setNotifyEarlyAccess] = useState(true);
 
-  const handleToggleWaitlist = (val: boolean) => {
-    setNotifyEarlyAccess(val);
-    if (val) {
-      showSuccess(
-        'Early Access Enabled 🚀',
-        "You're on the priority list! You will get notification features as soon as they roll out."
-      );
+  const {
+    notifications,
+    unreadCount,
+    preferences,
+    hasPermission,
+    requestPermission,
+    updatePreferences,
+    markAsRead,
+    markAllAsRead,
+    clearAll,
+    sendTestNotification,
+  } = useNotifications();
+
+  const [testing, setTesting] = useState(false);
+
+  // Master Toggle Handler
+  const handleToggleMaster = async (enabled: boolean) => {
+    hapticMedium();
+    if (enabled && !hasPermission) {
+      const granted = await requestPermission();
+      if (!granted) {
+        showError(
+          'Permission Needed',
+          'Please enable notification permissions in your device settings to receive alerts.'
+        );
+        return;
+      }
+    }
+    await updatePreferences({ enabled });
+    if (enabled) {
+      showSuccess('Alerts Enabled 🔔', 'Daily reminders and budget warnings are now active.');
     } else {
-      showInfo(
-        'Waitlist Updated',
-        'You have opted out of early notification feature alerts.'
+      showInfo('Alerts Paused', 'You will not receive any notifications while disabled.');
+    }
+  };
+
+  // Toggle specific alert types
+  const handleToggleBudget = async (val: boolean) => {
+    hapticMedium();
+    await updatePreferences({ budgetAlerts: val });
+  };
+
+  const handleToggleDailyReminder = async (val: boolean) => {
+    hapticMedium();
+    await updatePreferences({ dailyReminder: val });
+    if (val) {
+      showSuccess('Daily Reminder Set', `We will ping you at 8:00 PM to record your expenses.`);
+    }
+  };
+
+  const handleSelectReminderTime = async (time: string) => {
+    hapticMedium();
+    await updatePreferences({ dailyReminderTime: time });
+    showSuccess('Time Updated', `Daily reminder time changed to ${time === '20:00' ? '8:00 PM' : time}.`);
+  };
+
+  const handleToggleWeeklyDigest = async (val: boolean) => {
+    hapticMedium();
+    await updatePreferences({ weeklyDigest: val });
+  };
+
+  // Test Notification Dispatch
+  const handleSendTest = async () => {
+    if (testing) return;
+    setTesting(true);
+    hapticSuccess();
+    try {
+      if (!hasPermission) {
+        await requestPermission();
+      }
+      await sendTestNotification();
+      showSuccess(
+        'Test Alert Sent 🚀',
+        Platform.OS === 'web'
+          ? 'Check your browser notification banner!'
+          : 'Check your device notification tray!'
       );
+    } catch (e: any) {
+      showError('Test Failed', e?.message || 'Could not send test notification.');
+    } finally {
+      setTimeout(() => setTesting(false), 1200);
+    }
+  };
+
+  const formatNotifTime = (iso: string) => {
+    try {
+      const d = new Date(iso);
+      const now = new Date();
+      const diffMs = now.getTime() - d.getTime();
+      const diffMins = Math.floor(diffMs / (1000 * 60));
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins}m ago`;
+      const diffHours = Math.floor(diffMins / 60);
+      if (diffHours < 24) return `${diffHours}h ago`;
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    } catch {
+      return '';
+    }
+  };
+
+  const getNotifIcon = (type: string) => {
+    switch (type) {
+      case 'budget_exceeded':
+        return { icon: 'warning', color: '#F43F5E', bg: 'rgba(244, 63, 94, 0.15)' };
+      case 'budget_warning':
+        return { icon: 'alert-circle', color: '#F59E0B', bg: 'rgba(245, 158, 11, 0.15)' };
+      case 'daily_reminder':
+        return { icon: 'alarm', color: '#C084FC', bg: 'rgba(192, 132, 252, 0.15)' };
+      case 'weekly_digest':
+        return { icon: 'stats-chart', color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)' };
+      default:
+        return { icon: 'notifications', color: theme.accentColor, bg: `${theme.accentColor}22` };
     }
   };
 
@@ -95,11 +155,8 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
     <View style={[styles.container, { backgroundColor: tc.background, paddingBottom: insets.bottom }]}>
       <ScreenHeader title="Notifications & Alerts" onBack={() => navigation.goBack()} />
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* ── Hero "Coming Soon" Banner ── */}
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* ── Master Hero Status Card ── */}
         <View style={[styles.heroCard, { borderColor: theme.colors.cardBorderActive }]}>
           <LinearGradient
             colors={theme.heroGradient}
@@ -111,89 +168,251 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
 
             <View style={styles.heroHeader}>
               <View style={styles.bellIconContainer}>
-                <LinearGradient
-                  colors={theme.accentGradient}
-                  style={styles.bellIconGradient}
-                >
-                  <Ionicons name="notifications" size={26} color="#FFFFFF" />
+                <LinearGradient colors={theme.accentGradient} style={styles.bellIconGradient}>
+                  <Ionicons name="notifications" size={24} color="#FFFFFF" />
                 </LinearGradient>
-                <View style={styles.pulseDot} />
+                {preferences.enabled && <View style={styles.pulseDot} />}
               </View>
 
-              <View style={[styles.comingSoonPill, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
-                <Text style={styles.comingSoonPillText}>NEXT MAJOR UPDATE</Text>
+              <View
+                style={[
+                  styles.statusPill,
+                  {
+                    backgroundColor: preferences.enabled
+                      ? 'rgba(16, 185, 129, 0.2)'
+                      : 'rgba(255, 255, 255, 0.12)',
+                    borderColor: preferences.enabled
+                      ? 'rgba(16, 185, 129, 0.4)'
+                      : 'rgba(255, 255, 255, 0.18)',
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.statusPillText,
+                    { color: preferences.enabled ? '#34D399' : '#94A3B8' },
+                  ]}
+                >
+                  {preferences.enabled ? 'ACTIVE & MONITORED' : 'PAUSED'}
+                </Text>
               </View>
             </View>
 
             <Text style={styles.heroTitle}>Proactive Alert Center</Text>
             <Text style={styles.heroDescription}>
-              We are building a smart push notification engine with local alarms to give you real-time spend warnings and gentle reminders.
+              Smart local alarms and threshold monitors that run 100% offline without third-party tracking.
             </Text>
 
-            {/* Early access toggle */}
-            <View style={[styles.waitlistRow, { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
-              <View style={styles.waitlistTextCol}>
-                <Text style={styles.waitlistTitle}>Notify Me on Launch</Text>
-                <Text style={styles.waitlistSub}>Be the first to test smart budget & bill reminders</Text>
+            {/* Master On/Off Switch Row */}
+            <View style={[styles.masterRow, { backgroundColor: 'rgba(255, 255, 255, 0.08)' }]}>
+              <View style={styles.masterTextCol}>
+                <Text style={styles.masterTitle}>Enable All Notifications</Text>
+                <Text style={styles.masterSub}>
+                  {preferences.enabled ? 'System notifications are allowed' : 'Toggle on to receive pings'}
+                </Text>
               </View>
               <Switch
-                value={notifyEarlyAccess}
-                onValueChange={handleToggleWaitlist}
-                trackColor={{ false: '#1A162B', true: `${theme.accentColor}55` }}
-                thumbColor={notifyEarlyAccess ? theme.accentColor : '#64748B'}
+                value={preferences.enabled}
+                onValueChange={handleToggleMaster}
+                trackColor={{ false: '#1A162B', true: `${theme.accentColor}66` }}
+                thumbColor={preferences.enabled ? theme.accentColor : '#64748B'}
               />
             </View>
+
+            {/* Instant Test Alert Button */}
+            <TouchableOpacity
+              style={[styles.testBtn, { opacity: testing ? 0.6 : 1 }]}
+              onPress={handleSendTest}
+              activeOpacity={0.8}
+              disabled={testing}
+            >
+              <Ionicons name="paper-plane-outline" size={16} color="#FFFFFF" />
+              <Text style={styles.testBtnText}>
+                {testing ? 'Sending...' : 'Send Instant Test Notification'}
+              </Text>
+            </TouchableOpacity>
           </LinearGradient>
         </View>
 
-        {/* ── Roadmap Feature Cards ── */}
+        {/* ── Active Features Toggles Block ── */}
         <View style={styles.sectionBlock}>
-          <Text style={[styles.sectionHeaderTitle, { color: tc.textMuted }]}>ALERT ROADMAP</Text>
-          <View style={styles.featuresList}>
-            {UPCOMING_FEATURES.map((item) => (
-              <View key={item.id} style={[styles.featureCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
-                <View style={[styles.iconWrapper, { backgroundColor: item.iconBg }]}>
-                  <Ionicons name={item.icon} size={20} color={item.iconColor} />
-                </View>
+          <Text style={[styles.sectionHeaderTitle, { color: tc.textMuted }]}>NOTIFICATION CHANNELS</Text>
 
-                <View style={styles.featureInfo}>
-                  <View style={styles.featureTitleRow}>
-                    <Text style={[styles.featureTitle, { color: tc.textPrimary }]}>{item.title}</Text>
-                    <View
-                      style={[
-                        styles.tagPill,
-                        item.tag === 'Next Update' ? styles.tagNext : styles.tagPlanned,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.tagText,
-                          item.tag === 'Next Update' ? styles.tagTextNext : styles.tagTextPlanned,
-                        ]}
-                      >
-                        {item.tag}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={[styles.featureDescription, { color: tc.textSecondary }]}>{item.description}</Text>
-                </View>
+          {/* 1. Smart Budget Alerts */}
+          <View style={[styles.featureCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+            <View style={[styles.iconWrapper, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
+              <Ionicons name="warning-outline" size={22} color="#F59E0B" />
+            </View>
+            <View style={styles.featureInfo}>
+              <View style={styles.featureTitleRow}>
+                <Text style={[styles.featureTitle, { color: tc.textPrimary }]}>Smart Budget Alerts</Text>
               </View>
-            ))}
+              <Text style={[styles.featureDescription, { color: tc.textSecondary }]}>
+                Instant warnings when category spend reaches 80% or 100% of your monthly limit.
+              </Text>
+            </View>
+            <Switch
+              value={preferences.enabled && preferences.budgetAlerts}
+              onValueChange={handleToggleBudget}
+              disabled={!preferences.enabled}
+              trackColor={{ false: '#1A162B', true: `${theme.accentColor}66` }}
+              thumbColor={preferences.budgetAlerts && preferences.enabled ? theme.accentColor : '#64748B'}
+            />
+          </View>
+
+          {/* 2. Daily Evening Expense Ping */}
+          <View style={[styles.featureCardCol, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+            <View style={styles.featureCardTopRow}>
+              <View style={[styles.iconWrapper, { backgroundColor: 'rgba(192, 132, 252, 0.15)' }]}>
+                <Ionicons name="alarm-outline" size={22} color="#C084FC" />
+              </View>
+              <View style={styles.featureInfo}>
+                <Text style={[styles.featureTitle, { color: tc.textPrimary }]}>Daily Evening Reminder</Text>
+                <Text style={[styles.featureDescription, { color: tc.textSecondary }]}>
+                  Pings you at 8:00 PM to record your cash & UPI expenses before bed.
+                </Text>
+              </View>
+              <Switch
+                value={preferences.enabled && preferences.dailyReminder}
+                onValueChange={handleToggleDailyReminder}
+                disabled={!preferences.enabled}
+                trackColor={{ false: '#1A162B', true: `${theme.accentColor}66` }}
+                thumbColor={preferences.dailyReminder && preferences.enabled ? theme.accentColor : '#64748B'}
+              />
+            </View>
+
+            {/* Reminder Time Selector */}
+            {preferences.dailyReminder && preferences.enabled && (
+              <View style={styles.timeSelectorRow}>
+                <Text style={[styles.timeSelectorLabel, { color: tc.textMuted }]}>Reminder Time:</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                  {REMINDER_TIME_PRESETS.map((preset) => {
+                    const isSelected = (preferences.dailyReminderTime || '20:00') === preset.value;
+                    return (
+                      <TouchableOpacity
+                        key={preset.value}
+                        style={[
+                          styles.timePill,
+                          {
+                            backgroundColor: isSelected ? theme.accentColor : tc.surface,
+                            borderColor: isSelected ? theme.accentColor : tc.cardBorder,
+                          },
+                        ]}
+                        onPress={() => handleSelectReminderTime(preset.value)}
+                        activeOpacity={0.75}
+                      >
+                        <Text
+                          style={[
+                            styles.timePillText,
+                            { color: isSelected ? '#FFFFFF' : tc.textSecondary },
+                          ]}
+                        >
+                          {preset.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+          </View>
+
+          {/* 3. Weekly Financial Digest */}
+          <View style={[styles.featureCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+            <View style={[styles.iconWrapper, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+              <Ionicons name="stats-chart-outline" size={22} color="#10B981" />
+            </View>
+            <View style={styles.featureInfo}>
+              <Text style={[styles.featureTitle, { color: tc.textPrimary }]}>Weekly Digest</Text>
+              <Text style={[styles.featureDescription, { color: tc.textSecondary }]}>
+                Summarizes your outflow and savings rate every Sunday morning.
+              </Text>
+            </View>
+            <Switch
+              value={preferences.enabled && preferences.weeklyDigest}
+              onValueChange={handleToggleWeeklyDigest}
+              disabled={!preferences.enabled}
+              trackColor={{ false: '#1A162B', true: `${theme.accentColor}66` }}
+              thumbColor={preferences.weeklyDigest && preferences.enabled ? theme.accentColor : '#64748B'}
+            />
           </View>
         </View>
 
-        {/* ── Help / Suggestions Footer Callout ── */}
-        <TouchableOpacity
-          style={[styles.footerCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}
-          onPress={() => navigation.navigate('Feedback')}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="bulb-outline" size={18} color={theme.accentColor} />
-          <Text style={[styles.footerText, { color: tc.textSecondary }]}>
-            Have a custom alert idea? Suggest it to our engineering team!
-          </Text>
-          <Ionicons name="chevron-forward" size={16} color={tc.textMuted} />
-        </TouchableOpacity>
+        {/* ── In-App Notification Center History ── */}
+        <View style={styles.sectionBlock}>
+          <View style={styles.notifHeaderRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={[styles.sectionHeaderTitle, { color: tc.textMuted }]}>NOTIFICATION HISTORY</Text>
+              {unreadCount > 0 && (
+                <View style={[styles.unreadBadge, { backgroundColor: theme.accentColor }]}>
+                  <Text style={styles.unreadBadgeText}>{unreadCount} new</Text>
+                </View>
+              )}
+            </View>
+
+            {notifications.length > 0 && (
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                {unreadCount > 0 && (
+                  <TouchableOpacity onPress={markAllAsRead}>
+                    <Text style={[styles.notifActionText, { color: theme.accentColor }]}>Mark all read</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={clearAll}>
+                  <Text style={[styles.notifActionText, { color: tc.textMuted }]}>Clear</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          {notifications.length > 0 ? (
+            <View style={styles.notifList}>
+              {notifications.map((n) => {
+                const iconInfo = getNotifIcon(n.type);
+                return (
+                  <TouchableOpacity
+                    key={n.id}
+                    style={[
+                      styles.notifCard,
+                      {
+                        backgroundColor: tc.card,
+                        borderColor: n.read ? tc.cardBorder : theme.accentColor,
+                        borderWidth: n.read ? 1 : 1.2,
+                      },
+                    ]}
+                    onPress={() => markAsRead(n.id)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={[styles.notifIconBox, { backgroundColor: iconInfo.bg }]}>
+                      <Ionicons name={iconInfo.icon as any} size={20} color={iconInfo.color} />
+                    </View>
+
+                    <View style={styles.notifContentCol}>
+                      <View style={styles.notifTitleRow}>
+                        <Text style={[styles.notifTitle, { color: tc.textPrimary }]} numberOfLines={1}>
+                          {n.title}
+                        </Text>
+                        <Text style={[styles.notifTime, { color: tc.textMuted }]}>{formatNotifTime(n.date)}</Text>
+                      </View>
+                      <Text style={[styles.notifBody, { color: tc.textSecondary }]}>{n.body}</Text>
+                    </View>
+
+                    {!n.read && <View style={[styles.unreadDot, { backgroundColor: theme.accentColor }]} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : (
+            <View style={[styles.emptyHistoryCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+              <View style={[styles.emptyIconBg, { backgroundColor: tc.surface }]}>
+                <Ionicons name="notifications-off-outline" size={28} color={tc.textMuted} />
+              </View>
+              <Text style={[styles.emptyTitle, { color: tc.textPrimary }]}>No notifications yet</Text>
+              <Text style={[styles.emptyDesc, { color: tc.textSecondary }]}>
+                When you cross budget limits or get daily reminders, they will appear here.
+              </Text>
+            </View>
+          )}
+        </View>
       </ScrollView>
     </View>
   );
@@ -202,20 +421,16 @@ export default function NotificationSettingsScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // backgroundColor: '#07060E', // <- wired via theme.colors.background inline
   },
   content: {
     paddingHorizontal: 16,
-    paddingBottom: 110, // Full clearance for floating bottom bar
-    gap: 16,
+    paddingBottom: 110,
+    gap: 18,
   },
-
-  // Hero Card
   heroCard: {
     borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1.2,
-    borderColor: 'rgba(192, 132, 252, 0.3)',
     shadowColor: '#7C3AED',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.35,
@@ -246,103 +461,117 @@ const styles = StyleSheet.create({
   bellIconGradient: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   pulseDot: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#10B981',
+    top: -2,
+    right: -2,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#34D399',
     borderWidth: 2,
-    borderColor: '#150A2E',
+    borderColor: '#06060D',
   },
-  comingSoonPill: {
-    backgroundColor: 'rgba(168, 85, 247, 0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(168, 85, 247, 0.45)',
+  statusPill: {
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
   },
-  comingSoonPillText: {
+  statusPillText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#D8B4FE',
     letterSpacing: 0.8,
   },
   heroTitle: {
-    fontSize: 18,
-    fontWeight: '900',
+    fontSize: 22,
+    fontWeight: '800',
     color: '#FFFFFF',
-    marginBottom: 4,
+    marginBottom: 6,
+    letterSpacing: -0.3,
   },
   heroDescription: {
-    fontSize: 12,
-    color: '#94A3B8',
-    lineHeight: 18,
+    fontSize: 13,
+    lineHeight: 20,
+    color: '#D8B4FE',
     marginBottom: 16,
   },
-  waitlistRow: {
+  masterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    padding: 14,
     borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    gap: 12,
+    marginBottom: 12,
   },
-  waitlistTextCol: {
+  masterTextCol: {
     flex: 1,
+    marginRight: 12,
   },
-  waitlistTitle: {
+  masterTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  masterSub: {
+    fontSize: 12,
+    color: '#E9D5FF',
+  },
+  testBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderRadius: 14,
+    paddingVertical: 12,
+  },
+  testBtnText: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#FFFFFF',
   },
-  waitlistSub: {
-    fontSize: 11,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-
-  // Roadmap Section
   sectionBlock: {
-    gap: 8,
+    gap: 10,
   },
   sectionHeaderTitle: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#94A3B8',
-    letterSpacing: 1,
+    letterSpacing: 1.2,
     marginLeft: 4,
-  },
-  featuresList: {
-    gap: 8,
   },
   featureCard: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#120F20',
-    borderRadius: 16,
-    padding: 12,
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    gap: 12,
+  },
+  featureCardCol: {
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 12,
+  },
+  featureCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   iconWrapper: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 42,
+    height: 42,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -353,59 +582,127 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   featureTitle: {
-    fontSize: 13.5,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
-  tagPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  tagNext: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
-  },
-  tagPlanned: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  tagText: {
-    fontSize: 9.5,
-    fontWeight: '800',
-  },
-  tagTextNext: {
-    color: '#34D399',
-  },
-  tagTextPlanned: {
-    color: '#94A3B8',
+    fontSize: 15,
+    fontWeight: '700',
   },
   featureDescription: {
-    fontSize: 11.5,
-    color: '#94A3B8',
-    lineHeight: 16,
+    fontSize: 12,
+    lineHeight: 17,
   },
-
-  // Footer Card
-  footerCard: {
+  timeSelectorRow: {
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#120F20',
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(168, 85, 247, 0.25)',
     gap: 10,
   },
-  footerText: {
-    flex: 1,
+  timeSelectorLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  timePill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  timePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  notifHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginLeft: 4,
+  },
+  unreadBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  unreadBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  notifActionText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#CBD5E1',
+  },
+  notifList: {
+    gap: 10,
+  },
+  notifCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 16,
+    gap: 12,
+  },
+  notifIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notifContentCol: {
+    flex: 1,
+  },
+  notifTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 3,
+  },
+  notifTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    flex: 1,
+    marginRight: 8,
+  },
+  notifTime: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  notifBody: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  emptyHistoryCard: {
+    padding: 24,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  emptyIconBg: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  emptyDesc: {
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 18,
+    maxWidth: 280,
   },
 });

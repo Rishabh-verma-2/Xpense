@@ -21,6 +21,7 @@ import { useSettings } from '@/context/SettingsContext';
 import { useCategories } from '@/context/CategoryContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useNotifications } from '@/context/NotificationContext';
 import { formatCurrency } from '@/shared/utils/currencyUtils';
 import { formatTransactionDate, getMonthKey, getMonthLabel } from '@/shared/utils/dateUtils';
 import { Transaction } from '@/shared/types/transaction.types';
@@ -35,6 +36,7 @@ export default function DashboardScreen() {
   const { transactions } = useTransactions();
   const { settings, updateSettings } = useSettings();
   const { categories, getById } = useCategories();
+  const { unreadCount } = useNotifications();
 
   const insets = useSafeAreaInsets();
   const topInset = getSafeTopInset(insets);
@@ -234,7 +236,9 @@ export default function DashboardScreen() {
             activeOpacity={0.8}
           >
             <Ionicons name="notifications-outline" size={20} color={tc.textSecondary} />
-            <View style={[styles.notifBadge, { backgroundColor: theme.accentColor }]} />
+            {unreadCount > 0 && (
+              <View style={[styles.notifBadge, { backgroundColor: theme.accentColor }]} />
+            )}
           </TouchableOpacity>
         </View>
       </Animated.View>

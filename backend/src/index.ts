@@ -19,6 +19,7 @@ import transactionRoutes from './routes/transactions';
 import categoryRoutes    from './routes/categories';
 import budgetRoutes      from './routes/budgets';
 import analyticsRoutes   from './routes/analytics';
+import notificationRoutes from './routes/notifications';
 
 const app = express();
 
@@ -55,6 +56,7 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/categories',   categoryRoutes);
 app.use('/api/budgets',      budgetRoutes);
 app.use('/api/analytics',    analyticsRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // ─── Error handling ───────────────────────────────────────────────────────────
 app.use(notFound);

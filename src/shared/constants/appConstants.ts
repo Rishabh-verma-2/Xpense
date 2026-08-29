@@ -251,6 +251,8 @@ export const STORAGE_KEYS = {
   SCHEMA_VERSION: '@expense_tracker/schema_version',
   ONBOARDING: '@expense_tracker/onboarding_flag',
   PENDING_SYNC_QUEUE: '@expense_tracker/pending_sync_queue',
+  NOTIFICATIONS: '@expense_tracker/notifications',
+  NOTIFICATION_PREFS: '@expense_tracker/notification_prefs',
 } as const;
 
 export const CURRENT_SCHEMA_VERSION = 1;

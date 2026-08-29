@@ -13,6 +13,8 @@ import { getMonthKey } from '../shared/utils/dateUtils';
 import { transactionsApi } from '../services/api';
 import { useAuth } from './AuthContext';
 import { useToast } from './ToastContext';
+import { useNotifications } from './NotificationContext';
+import { BudgetRepository } from '../storage/repositories/BudgetRepository';
 
 // ── State ────────────────────────────────────────────────────────────────────
 
@@ -85,6 +87,7 @@ const TransactionContext = createContext<TransactionContextValue | null>(null);
 export function TransactionProvider({ children }: { children: ReactNode }) {
   const { token } = useAuth();
   const { showSuccess } = useToast();
+  const { checkBudgetAlerts } = useNotifications();
   const [state, dispatch] = useReducer(reducer, {
     transactions: [],
     loading: true,
@@ -242,9 +245,43 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
           await SyncQueueRepository.addToQueue({ action: 'CREATE', transaction: localTx });
         }
       }
+
+      // Check category budget thresholds asynchronously
+      if (data.type === 'expense' && data.categoryId) {
+        (async () => {
+          try {
+            const currentMonthKey = (data.date || new Date().toISOString()).slice(0, 7);
+            const budgets = await BudgetRepository.getByMonth(currentMonthKey);
+            const budget = budgets.find((b) => b.categoryId === data.categoryId);
+            if (budget && budget.amount > 0) {
+              const allTxs = await TransactionRepository.getAll();
+              const prevSpend = allTxs
+                .filter(
+                  (t) =>
+                    t.categoryId === data.categoryId &&
+                    t.type === 'expense' &&
+                    t.date.slice(0, 7) === currentMonthKey &&
+                    t.id !== localTx.id
+                )
+                .reduce((sum, t) => sum + t.amount, 0);
+              const newSpend = prevSpend + data.amount;
+              await checkBudgetAlerts({
+                categoryName: data.categoryNameSnapshot || 'Category',
+                categoryId: data.categoryId,
+                currentSpend: newSpend,
+                previousSpend: prevSpend,
+                budgetLimit: budget.amount,
+              });
+            }
+          } catch (e) {
+            console.warn('[TransactionContext] checkBudgetAlerts error:', e);
+          }
+        })();
+      }
+
       return localTx;
     },
-    [token],
+    [token, checkBudgetAlerts],
   );
 
   const updateTransaction = useCallback(

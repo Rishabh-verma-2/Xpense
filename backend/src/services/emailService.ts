@@ -3,10 +3,21 @@ import dns from 'dns';
 import { config } from '../config/env';
 
 // ─── Force IPv4 DNS Resolution ───────────────────────────────────────────────
-// Fixes "ENETUNREACH" errors caused by Node attempting to route SMTP over unreachable IPv6 addresses
+// Fixes "ENETUNREACH" errors caused by Node attempting IPv6 on cloud hosts without IPv6 egress.
+// This must be set as early as possible — before any network calls.
 if (typeof (dns as any).setDefaultResultOrder === 'function') {
   (dns as any).setDefaultResultOrder('ipv4first');
 }
+
+// Also override the promises resolver order for modern Node versions
+try {
+  const { Resolver } = dns.promises as any;
+  if (Resolver && Resolver.prototype && Resolver.prototype.setDefaultResultOrder) {
+    Resolver.prototype.setDefaultResultOrder('ipv4first');
+  }
+} catch (_) {}
+
+const IS_PRODUCTION = config.nodeEnv === 'production';
 
 /**
  * Masks an email for secure, confidential console logging (e.g., jo***@gmail.com)
@@ -19,7 +30,10 @@ function maskEmail(email: string): string {
 }
 
 /**
- * Creates a Gmail/SMTP transporter.
+ * Creates a Gmail SMTP transporter.
+ * ⚠️  NOTE: Cloud hosts (Render, Railway, Heroku, etc.) often BLOCK outbound SMTP
+ * ports 465 and 587. This transporter is ONLY reliable in local development.
+ * In production, use sendViaResendHttp() instead (port 443 — always open).
  */
 function createTransporter() {
   const user = (config.email.user || '').trim();
@@ -29,16 +43,10 @@ function createTransporter() {
     throw new Error('EMAIL_USER or EMAIL_PASS is not configured in backend environment');
   }
 
-  // Use service: 'gmail' for best-in-class reliability with Google App Passwords
   return nodemailer.createTransport({
     service: 'gmail',
-    auth: {
-      user,
-      pass,
-    },
-    tls: {
-      rejectUnauthorized: false,
-    },
+    auth: { user, pass },
+    tls: { rejectUnauthorized: false },
     connectionTimeout: 20000,
     greetingTimeout: 15000,
     socketTimeout: 30000,
@@ -254,24 +262,52 @@ export async function sendPasswordResetEmail(
     html: htmlTemplate,
   };
 
-  // Option 1: Resend HTTP API if configured
+  // ─── Delivery Strategy ────────────────────────────────────────────────────
+  // Cloud platforms (Render, Railway, Heroku, Vercel Functions, etc.) BLOCK
+  // outbound SMTP ports 465/587. This causes "connect ENETUNREACH" in production.
+  //
+  // Resolution order:
+  //   1. Resend HTTP API  → always preferred (port 443, never firewalled)
+  //   2. Gmail SMTP       → local dev only (may fail on cloud due to firewall)
+
+  // Option 1: Resend HTTP API (port 443 — works on every cloud host)
   if (config.email.resendApiKey) {
     try {
       await sendViaResendHttp(config.email.resendApiKey, toEmail, mailOptions.subject, htmlTemplate);
       return true;
     } catch (err: any) {
       console.warn(`⚠️ Resend HTTP API delivery failed: ${err.message}`);
+      // In production, do NOT fall through to SMTP — it will also fail (port blocked).
+      // Surface the Resend error directly so the misconfiguration is obvious.
+      if (IS_PRODUCTION) {
+        throw new Error(`[Production] Resend API delivery failed: ${err.message}`);
+      }
     }
+  } else if (IS_PRODUCTION) {
+    // RESEND_API_KEY is not set but we are in production → SMTP will be blocked.
+    // Throw immediately with a clear, actionable error message.
+    console.error(
+      '❌ [Production] RESEND_API_KEY is not set. ' +
+      'Gmail SMTP (ports 465/587) is firewalled on most cloud hosts and will fail with ENETUNREACH. ' +
+      'Add RESEND_API_KEY to your production environment variables. ' +
+      'Sign up free at https://resend.com → get API key → set RESEND_API_KEY=re_xxxx in your cloud env.',
+    );
+    throw new Error(
+      'Email delivery not configured for production. Set RESEND_API_KEY in your environment variables.',
+    );
   }
 
-  // Option 2: Gmail SMTP Transporter
+  // Option 2: Gmail SMTP (local development only)
   try {
     const transporter = createTransporter();
     const info = await transporter.sendMail(mailOptions);
-    console.log(`✉️ Password reset OTP email sent via Gmail to ${maskEmail(toEmail)} (MessageId: ${info.messageId})`);
+    console.log(`✉️ Password reset OTP email sent via Gmail SMTP to ${maskEmail(toEmail)} (MessageId: ${info.messageId})`);
     return true;
   } catch (err: any) {
-    console.error(`❌ Failed to deliver email to ${maskEmail(toEmail)}:`, err.message || err);
+    console.error(
+      `❌ Gmail SMTP failed for ${maskEmail(toEmail)}: ${err.message || err}\n` +
+      '   If this is a production server, set RESEND_API_KEY and ensure NODE_ENV=production.',
+    );
     throw new Error(err.message || 'Failed to send password reset email');
   }
 }

@@ -67,157 +67,123 @@ export async function sendPasswordResetEmail(
   userName: string,
   otpCode: string,
 ): Promise<boolean> {
+  // Split OTP into individual digit spans for clean, futuristic presentation
+  const otpDigits = otpCode.split('').map((d) => `
+    <td align="center" style="padding: 0 4px;">
+      <div style="width: 44px; height: 54px; line-height: 54px; text-align: center; background: rgba(168, 85, 247, 0.15); border: 1.5px solid rgba(192, 132, 252, 0.4); border-radius: 12px; font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace; font-size: 28px; font-weight: 800; color: #FFFFFF; text-shadow: 0 0 12px rgba(192, 132, 252, 0.6);">${d}</div>
+    </td>
+  `).join('');
+
   const htmlTemplate = `
   <!DOCTYPE html>
-  <html>
+  <html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Xpense Password Reset</title>
-    <style>
-      body {
-        margin: 0;
-        padding: 0;
-        background-color: #06060D;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-        color: #FFFFFF;
-      }
-      .wrapper {
-        width: 100%;
-        background-color: #06060D;
-        padding: 36px 16px;
-      }
-      .container {
-        max-width: 500px;
-        margin: 0 auto;
-        background: #110E1C;
-        border-radius: 20px;
-        overflow: hidden;
-        border: 1px solid rgba(168, 85, 247, 0.25);
-        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
-      }
-      .header {
-        background: linear-gradient(135deg, #2E1065 0%, #170A38 100%);
-        padding: 36px 24px;
-        text-align: center;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      }
-      .logo-box {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 52px;
-        height: 52px;
-        border-radius: 14px;
-        background: rgba(168, 85, 247, 0.15);
-        border: 1.5px solid rgba(192, 132, 252, 0.4);
-        margin-bottom: 12px;
-        font-size: 24px;
-      }
-      .logo-title {
-        font-size: 26px;
-        font-weight: 800;
-        color: #FFFFFF;
-        letter-spacing: -0.5px;
-        margin: 0;
-      }
-      .logo-title span { color: #C084FC; }
-      .body-content { padding: 32px 28px; }
-      .greeting {
-        font-size: 20px;
-        font-weight: 700;
-        color: #FFFFFF;
-        margin-bottom: 12px;
-      }
-      .text {
-        font-size: 14px;
-        line-height: 24px;
-        color: #A1A1AA;
-        margin-bottom: 24px;
-      }
-      .otp-card {
-        background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(124, 58, 237, 0.06) 100%);
-        border: 1.5px dashed rgba(168, 85, 247, 0.6);
-        border-radius: 16px;
-        padding: 24px 20px;
-        text-align: center;
-        margin: 24px 0;
-      }
-      .otp-label {
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 1.5px;
-        text-transform: uppercase;
-        color: #D8B4FE;
-        margin-bottom: 8px;
-      }
-      .otp-code {
-        font-family: 'Courier New', Courier, monospace;
-        font-size: 40px;
-        font-weight: 800;
-        letter-spacing: 12px;
-        color: #E9D5FF;
-        text-shadow: 0 0 16px rgba(192, 132, 252, 0.5);
-        padding-left: 12px;
-      }
-      .expiry-tag {
-        display: inline-block;
-        font-size: 12px;
-        color: #F59E0B;
-        margin-top: 12px;
-        font-weight: 600;
-        background: rgba(245, 158, 11, 0.12);
-        padding: 4px 12px;
-        border-radius: 20px;
-        border: 1px solid rgba(245, 158, 11, 0.3);
-      }
-      .security-notice {
-        font-size: 12px;
-        line-height: 18px;
-        color: #71717A;
-        background: rgba(255, 255, 255, 0.02);
-        padding: 12px 16px;
-        border-radius: 10px;
-        border-left: 3px solid #7C3AED;
-      }
-      .footer {
-        padding: 20px 28px;
-        background: #090812;
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
-        text-align: center;
-        font-size: 11px;
-        color: #52525B;
-      }
-    </style>
   </head>
-  <body>
-    <div class="wrapper">
-      <div class="container">
-        <div class="header">
-          <div class="logo-box">💎</div>
-          <h1 class="logo-title">Xpense<span>.</span></h1>
-        </div>
-        <div class="body-content">
-          <div class="greeting">Hi ${userName || 'there'},</div>
-          <div class="text">
-            We received a request to reset the password for your Xpense account. Enter the 6-digit verification code below to complete your password reset:
-          </div>
-          <div class="otp-card">
-            <div class="otp-label">Verification Code</div>
-            <div class="otp-code">${otpCode}</div>
-            <div>
-              <span class="expiry-tag">⏳ Valid for 15 minutes</span>
-            </div>
-          </div>
-          <div class="security-notice">
-            🔒 <strong>Security reminder:</strong> If you did not request this password reset, please ignore this email. Your account credentials remain completely safe.
-          </div>
-        </div>
-        <div class="footer">
-          © ${new Date().getFullYear()} Xpense Financial Tracker • Built with Privacy First
-        </div>
-      </div>
-    </div>
+  <body style="margin: 0; padding: 0; background-color: #06060D; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #FFFFFF;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #06060D; padding: 40px 16px;">
+      <tr>
+        <td align="center">
+          <!-- Main Container -->
+          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 520px; background: #0E0C1A; border-radius: 24px; overflow: hidden; border: 1px solid rgba(168, 85, 247, 0.25); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);">
+            
+            <!-- Hero Header with Logo -->
+            <tr>
+              <td align="center" style="background: linear-gradient(135deg, #2A0E52 0%, #15092A 100%); padding: 40px 24px 32px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+                
+                <!-- Xpense Official Logo -->
+                <table border="0" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td align="center" style="padding-bottom: 14px;">
+                      <img src="https://raw.githubusercontent.com/Rishabh-verma-2/Xpense/main/assets/Xpense_icon.png" 
+                           alt="Xpense Logo" 
+                           width="68" 
+                           height="68" 
+                           style="display: block; border-radius: 18px; border: 2px solid rgba(192, 132, 252, 0.5); box-shadow: 0 10px 30px rgba(147, 51, 234, 0.45);" />
+                    </td>
+                  </tr>
+                </table>
+
+                <h1 style="margin: 0; font-size: 28px; font-weight: 900; letter-spacing: -0.5px; color: #FFFFFF;">
+                  Xpense<span style="color: #A855F7;">.</span>
+                </h1>
+                
+                <div style="display: inline-block; margin-top: 10px; padding: 4px 14px; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(192, 132, 252, 0.35); border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #D8B4FE;">
+                  🛡️ Security Verification
+                </div>
+              </td>
+            </tr>
+
+            <!-- Body Content -->
+            <tr>
+              <td style="padding: 36px 32px 28px;">
+                <h2 style="margin: 0 0 12px; font-size: 20px; font-weight: 700; color: #FFFFFF;">
+                  Hi ${userName || 'there'}, 👋
+                </h2>
+                <p style="margin: 0 0 24px; font-size: 14px; line-height: 24px; color: #A1A1AA;">
+                  We received a request to reset the password for your <strong style="color: #FFFFFF;">Xpense</strong> account. Enter the 6-digit verification code below to securely set your new password:
+                </p>
+
+                <!-- OTP Code Display Card -->
+                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(124, 58, 237, 0.05) 100%); border: 1.5px dashed rgba(168, 85, 247, 0.5); border-radius: 20px; padding: 24px 16px; margin-bottom: 24px; text-align: center;">
+                  <tr>
+                    <td align="center">
+                      <div style="font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #C084FC; margin-bottom: 14px;">
+                        Your One-Time Password
+                      </div>
+                      
+                      <!-- Digit boxes -->
+                      <table border="0" cellpadding="0" cellspacing="0" align="center">
+                        <tr>
+                          ${otpDigits}
+                        </tr>
+                      </table>
+
+                      <div style="margin-top: 16px;">
+                        <span style="display: inline-block; font-size: 12px; font-weight: 600; color: #F59E0B; background: rgba(245, 158, 11, 0.12); padding: 4px 14px; border-radius: 20px; border: 1px solid rgba(245, 158, 11, 0.3);">
+                          ⏳ Valid for 15 minutes
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- Security Tip Box -->
+                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background: rgba(255, 255, 255, 0.02); border-left: 3px solid #9333EA; border-radius: 10px; padding: 14px 18px; margin-bottom: 24px;">
+                  <tr>
+                    <td style="font-size: 12px; line-height: 20px; color: #71717A;">
+                      🔒 <strong style="color: #D4D4D8;">Didn't request this?</strong> If you didn't initiate a password reset, you can safely ignore this email. No changes will be made to your account.
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- Divider -->
+                <hr style="border: none; border-top: 1px solid rgba(255, 255, 255, 0.06); margin: 24px 0;" />
+
+                <p style="margin: 0; font-size: 12px; line-height: 18px; color: #52525B;">
+                  Need help? Contact support or reply directly to this email.
+                </p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td align="center" style="padding: 24px 28px; background: #07060D; border-top: 1px solid rgba(255, 255, 255, 0.05);">
+                <p style="margin: 0 0 6px; font-size: 12px; font-weight: 600; color: #71717A;">
+                  Xpense • Smart Financial Tracking & Milestones
+                </p>
+                <p style="margin: 0; font-size: 11px; color: #3F3F46;">
+                  © ${new Date().getFullYear()} Xpense. All rights reserved. • Built with Privacy First
+                </p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
   </body>
   </html>
   `;

@@ -1,14 +1,49 @@
 import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
+import dns from 'dns';
 import { config } from '../config/env';
 
 // ─── Resend client (lazy-initialized) ────────────────────────────────────────
 let resendClient: Resend | null = null;
 
-function getResendClient(): Resend {
+function getResendClient(): Resend | null {
+  if (!config.email.resendApiKey) return null;
   if (!resendClient) {
     resendClient = new Resend(config.email.resendApiKey);
   }
   return resendClient;
+}
+
+/**
+ * Creates a Gmail SMTP transporter strictly bound to IPv4.
+ * This guarantees it works on Render and cloud hosts without IPv6 routing.
+ */
+function createGmailTransporter() {
+  const user = (config.email.user || '').trim();
+  const pass = (config.email.pass || '').replace(/\s+/g, '');
+
+  if (!user || !pass) {
+    throw new Error('EMAIL_USER or EMAIL_PASS is not configured in backend environment');
+  }
+
+  return nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: { user, pass },
+    // Force IPv4 lookup to prevent ENETUNREACH on Render/cloud containers
+    lookup: (hostname: string, _options: unknown, callback: (err: NodeJS.ErrnoException | null, address: string, family: number) => void) => {
+      dns.lookup(hostname, { family: 4 }, (err, address, family) => {
+        callback(err, address, family);
+      });
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
+  } as any);
 }
 
 /**
@@ -22,17 +57,15 @@ function maskEmail(email: string): string {
 }
 
 /**
- * Sends a password reset OTP verification code email via Resend SDK.
+ * Sends a password reset OTP verification code email.
+ * 1. Attempts Resend first.
+ * 2. If Resend fails (e.g., recipient restricted on test domain), falls back to Gmail SMTP (IPv4).
  */
 export async function sendPasswordResetEmail(
   toEmail: string,
   userName: string,
   otpCode: string,
 ): Promise<boolean> {
-  if (!config.email.resendApiKey) {
-    throw new Error('RESEND_API_KEY is not configured in backend environment');
-  }
-
   const htmlTemplate = `
   <!DOCTYPE html>
   <html>
@@ -188,20 +221,41 @@ export async function sendPasswordResetEmail(
   </html>
   `;
 
+  // 1. Try Resend first (fastest HTTP API)
   const resend = getResendClient();
+  if (resend) {
+    try {
+      const { data, error } = await resend.emails.send({
+        from: 'Xpense Security <onboarding@resend.dev>',
+        to: [toEmail],
+        subject: '🔒 Your Xpense Password Reset Code',
+        html: htmlTemplate,
+      });
 
-  const { data, error } = await resend.emails.send({
-    from: 'Xpense Security <onboarding@resend.dev>',
-    to: [toEmail],
-    subject: '🔒 Your Xpense Password Reset Code',
-    html: htmlTemplate,
-  });
-
-  if (error) {
-    console.error(`❌ Resend failed for ${maskEmail(toEmail)}:`, error);
-    throw new Error(error.message || 'Failed to send password reset email');
+      if (error) {
+        console.warn(`⚠️ Resend rejected delivery to ${maskEmail(toEmail)}: ${error.message}. Switching to Gmail SMTP...`);
+      } else {
+        console.log(`✉️ Password reset email delivered via Resend to ${maskEmail(toEmail)} (id: ${data?.id})`);
+        return true;
+      }
+    } catch (err: any) {
+      console.warn(`⚠️ Resend exception: ${err.message}. Switching to Gmail SMTP...`);
+    }
   }
 
-  console.log(`✉️ Password reset email sent via Resend to ${maskEmail(toEmail)} (id: ${data?.id})`);
-  return true;
+  // 2. Fallback to Gmail SMTP (IPv4 forced — works for ANY recipient email, no custom domain needed!)
+  try {
+    const transporter = createGmailTransporter();
+    const info = await transporter.sendMail({
+      from: `"Xpense Security" <${config.email.user || 'support@xpense.app'}>`,
+      to: toEmail,
+      subject: '🔒 Your Xpense Password Reset Code',
+      html: htmlTemplate,
+    });
+    console.log(`✉️ Password reset email delivered via Gmail SMTP (IPv4) to ${maskEmail(toEmail)} (msgId: ${info.messageId})`);
+    return true;
+  } catch (err: any) {
+    console.error(`❌ All email delivery options failed for ${maskEmail(toEmail)}:`, err.message || err);
+    throw new Error(err.message || 'Failed to send password reset email');
+  }
 }

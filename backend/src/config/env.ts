@@ -55,5 +55,6 @@ export const config = {
     secure: optional('EMAIL_SECURE', 'false') === 'true',
     resendApiKey: optional('RESEND_API_KEY', ''),
     brevoApiKey: optional('BREVO_API_KEY', ''),
+    brevoSenderEmail: optional('BREVO_SENDER_EMAIL', optional('EMAIL_USER', '')),
   },
 };

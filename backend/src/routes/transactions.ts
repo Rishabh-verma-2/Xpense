@@ -98,6 +98,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       categoryName,
       categoryIcon,
       categoryColor,
+      paymentMethod,
     } = req.body;
 
     if (!type || amount === undefined) {
@@ -138,6 +139,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       type,
       amount: parseFloat(amount),
       note: finalNote,
+      paymentMethod: (paymentMethod || 'cash').toLowerCase().trim(),
       date: date ? new Date(date) : new Date(),
       isRecurring: !!isRecurring,
     });
@@ -164,6 +166,7 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
       categoryName,
       categoryIcon,
       categoryColor,
+      paymentMethod,
     } = req.body;
 
     const finalNote = note !== undefined ? note : notes;
@@ -202,6 +205,7 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
         type: type || 'expense',
         amount: amount !== undefined ? parseFloat(amount) : 0,
         note: finalNote || '',
+        paymentMethod: (paymentMethod || 'cash').toLowerCase().trim(),
         date: date ? new Date(date) : new Date(),
         isRecurring: !!isRecurring,
       });
@@ -233,12 +237,13 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
     const updated = await Transaction.findByIdAndUpdate(
       req.params.id,
       {
-        ...(updateCatId !== undefined && { categoryId: updateCatId }),
-        ...(type        !== undefined && { type }),
-        ...(amount      !== undefined && { amount: parseFloat(amount) }),
-        ...(finalNote   !== undefined && { note: finalNote }),
-        ...(date        !== undefined && { date: new Date(date) }),
-        ...(isRecurring !== undefined && { isRecurring: !!isRecurring }),
+        ...(updateCatId     !== undefined && { categoryId: updateCatId }),
+        ...(type            !== undefined && { type }),
+        ...(amount          !== undefined && { amount: parseFloat(amount) }),
+        ...(finalNote       !== undefined && { note: finalNote }),
+        ...(paymentMethod   !== undefined && { paymentMethod: paymentMethod.toLowerCase().trim() }),
+        ...(date            !== undefined && { date: new Date(date) }),
+        ...(isRecurring     !== undefined && { isRecurring: !!isRecurring }),
       },
       { new: true, runValidators: true }
     ).populate('categoryId', 'name icon color type');

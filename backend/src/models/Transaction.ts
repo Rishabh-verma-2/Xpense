@@ -7,6 +7,7 @@ export interface ITransaction extends Document {
   categoryId: Types.ObjectId;
   type: 'income' | 'expense';
   amount: number;
+  paymentMethod: string;
   note?: string;
   date: Date;
   isRecurring: boolean;
@@ -38,6 +39,11 @@ const TransactionSchema = new Schema<ITransaction>(
       type: Number,
       required: [true, 'Amount is required'],
       min: [0.01, 'Amount must be greater than 0'],
+    },
+    paymentMethod: {
+      type: String,
+      default: 'cash',
+      trim: true,
     },
     note: {
       type: String,

@@ -176,6 +176,7 @@ export const transactionsApi = {
     categoryId: string;
     type: string;
     amount: number;
+    paymentMethod?: string;
     note?: string;
     date?: string;
     categoryName?: string;
@@ -185,7 +186,17 @@ export const transactionsApi = {
     const { data } = await api.post('/api/transactions', payload);
     return data;
   },
-  async update(id: string, payload: Partial<{ categoryId: string; type: string; amount: number; note: string; date: string }>) {
+  async update(
+    id: string,
+    payload: Partial<{
+      categoryId: string;
+      type: string;
+      amount: number;
+      paymentMethod: string;
+      note: string;
+      date: string;
+    }>
+  ) {
     const { data } = await api.put(`/api/transactions/${id}`, payload);
     return data;
   },

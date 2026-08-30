@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,8 +30,9 @@ type Props = {
   navigation: NativeStackNavigationProp<HistoryStackParamList, 'HistoryList'>;
 };
 
-// ─── Payment method filter options ───────────────────────────────────────────
+// ─── Filter & Sort Options ───────────────────────────────────────────────────
 type PaymentMethodFilter = 'all' | 'upi' | 'cash' | 'card' | 'netbanking' | 'wallet';
+type SortOption = 'newest' | 'oldest' | 'highest' | 'lowest';
 
 const PAYMENT_METHOD_OPTIONS: {
   key: PaymentMethodFilter;
@@ -45,6 +48,13 @@ const PAYMENT_METHOD_OPTIONS: {
   { key: 'wallet', label: 'Wallet', icon: 'wallet-outline', color: '#F472B6' },
 ];
 
+const SORT_OPTIONS: { key: SortOption; label: string; icon: string }[] = [
+  { key: 'newest', label: 'Newest First', icon: 'calendar-outline' },
+  { key: 'oldest', label: 'Oldest First', icon: 'time-outline' },
+  { key: 'highest', label: 'Highest Amount', icon: 'trending-up-outline' },
+  { key: 'lowest', label: 'Lowest Amount', icon: 'trending-down-outline' },
+];
+
 export default function HistoryScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const topInset = getSafeTopInset(insets);
@@ -55,13 +65,57 @@ export default function HistoryScreen({ navigation }: Props) {
   const tc = theme.colors;
   const currencySymbol = settings?.currencySymbol ?? '₹';
 
+  // ─── Filter States ──────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<'all' | 'expense' | 'income'>('all');
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethodFilter>('all');
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
-  // ── Filtered transactions (type + method + search) ────────────────────────
+  // Draft states for the modal
+  const [draftMethod, setDraftMethod] = useState<PaymentMethodFilter>('all');
+  const [draftSort, setDraftSort] = useState<SortOption>('newest');
+
+  // Count active non-default filters (excluding the top 3-segment type tabs)
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (selectedMethod !== 'all') count++;
+    if (sortBy !== 'newest') count++;
+    return count;
+  }, [selectedMethod, sortBy]);
+
+  // Open modal and sync drafts
+  const handleOpenFilterModal = () => {
+    hapticSelection();
+    setDraftMethod(selectedMethod);
+    setDraftSort(sortBy);
+    setIsFilterModalOpen(true);
+  };
+
+  const handleApplyFilters = () => {
+    hapticSelection();
+    setSelectedMethod(draftMethod);
+    setSortBy(draftSort);
+    setIsFilterModalOpen(false);
+  };
+
+  const handleResetModalFilters = () => {
+    hapticSelection();
+    setDraftMethod('all');
+    setDraftSort('newest');
+  };
+
+  const handleResetAllFilters = () => {
+    hapticSelection();
+    setSelectedType('all');
+    setSelectedMethod('all');
+    setSortBy('newest');
+    setSearchQuery('');
+  };
+
+  // ── Filtered & Sorted transactions ─────────────────────────────────────────
   const filteredTransactions = useMemo(() => {
-    return transactions.filter((t) => {
+    const list = transactions.filter((t) => {
       // Type filter
       if (selectedType !== 'all' && t.type !== selectedType) return false;
 
@@ -84,27 +138,25 @@ export default function HistoryScreen({ navigation }: Props) {
       }
       return true;
     });
-  }, [transactions, selectedType, selectedMethod, searchQuery, getById]);
 
-  // ── Count badges for type tabs ────────────────────────────────────────────
+    // Sorting
+    return list.sort((a, b) => {
+      if (sortBy === 'newest') return new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (sortBy === 'oldest') return new Date(a.date).getTime() - new Date(b.date).getTime();
+      if (sortBy === 'highest') return b.amount - a.amount;
+      if (sortBy === 'lowest') return a.amount - b.amount;
+      return 0;
+    });
+  }, [transactions, selectedType, selectedMethod, searchQuery, sortBy, getById]);
+
+  // Counts for Segmented Control
   const counts = useMemo(() => ({
     all: transactions.length,
     expense: transactions.filter((t) => t.type === 'expense').length,
     income: transactions.filter((t) => t.type === 'income').length,
   }), [transactions]);
 
-  // ── Count badges for payment method tabs ─────────────────────────────────
-  const methodCounts = useMemo(() => {
-    const map: Record<string, number> = { all: 0 };
-    for (const t of transactions) {
-      map.all++;
-      const m = (t.paymentMethod || 'cash').toLowerCase().replace(/\s+/g, '');
-      map[m] = (map[m] || 0) + 1;
-    }
-    return map;
-  }, [transactions]);
-
-  // ── Filtered scope sums ───────────────────────────────────────────────────
+  // Scope sums for quick review
   const scopeSums = useMemo(() => {
     let income = 0;
     let expense = 0;
@@ -117,7 +169,7 @@ export default function HistoryScreen({ navigation }: Props) {
 
   const grouped = useMemo(() => groupByDate(filteredTransactions, (t) => t.date), [filteredTransactions]);
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── Render Transaction Card ───────────────────────────────────────────────
   const renderTransactionItem = (item: Transaction) => {
     const isExpense = item.type === 'expense';
     const amountColor = isExpense ? tc.expense : tc.income;
@@ -127,10 +179,8 @@ export default function HistoryScreen({ navigation }: Props) {
     const catColor = cat?.color || item.categoryColorSnapshot || (isExpense ? '#F43F5E' : '#10B981');
     const method = (item.paymentMethod || 'cash').toUpperCase();
 
-    // Highlight the method badge if it matches the active filter
     const methodKey = (item.paymentMethod || 'cash').toLowerCase().replace(/\s+/g, '') as PaymentMethodFilter;
     const methodOption = PAYMENT_METHOD_OPTIONS.find((o) => o.key === methodKey);
-    const isMethodHighlighted = selectedMethod !== 'all' && selectedMethod === methodKey;
 
     return (
       <TouchableOpacity
@@ -148,37 +198,16 @@ export default function HistoryScreen({ navigation }: Props) {
             {catName}
           </Text>
           <View style={styles.txMetaRow}>
-            {/* Payment method badge — highlighted when filter active */}
-            <View
-              style={[
-                styles.methodBadge,
-                {
-                  backgroundColor: isMethodHighlighted
-                    ? `${methodOption?.color || theme.accentColor}22`
-                    : tc.surface,
-                  borderColor: isMethodHighlighted
-                    ? `${methodOption?.color || theme.accentColor}55`
-                    : tc.cardBorder,
-                  borderWidth: isMethodHighlighted ? 1 : 1,
-                },
-              ]}
-            >
+            <View style={[styles.methodBadge, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
               {methodOption && (
                 <Ionicons
                   name={methodOption.icon as any}
                   size={9}
-                  color={isMethodHighlighted ? (methodOption.color) : tc.textMuted}
-                  style={{ marginRight: 2 }}
+                  color={tc.textMuted}
+                  style={{ marginRight: 3 }}
                 />
               )}
-              <Text
-                style={[
-                  styles.methodText,
-                  { color: isMethodHighlighted ? (methodOption?.color || theme.accentColor) : tc.textMuted },
-                ]}
-              >
-                {method}
-              </Text>
+              <Text style={[styles.methodText, { color: tc.textMuted }]}>{method}</Text>
             </View>
             <Text style={[styles.txSub, { color: tc.textMuted }]} numberOfLines={1}>
               {item.notes?.trim() ? item.notes : formatTransactionDate(item.date)}
@@ -196,16 +225,55 @@ export default function HistoryScreen({ navigation }: Props) {
     );
   };
 
+  const selectedMethodOption = PAYMENT_METHOD_OPTIONS.find((o) => o.key === selectedMethod);
+  const selectedSortOption = SORT_OPTIONS.find((o) => o.key === sortBy);
+
   return (
     <View style={[styles.container, { backgroundColor: tc.background, paddingTop: topInset }]}>
-
-      {/* ── Top Header ── */}
+      
+      {/* ── 1. Clean Header Row ── */}
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: tc.textPrimary }]}>Transaction History</Text>
-        <Text style={[styles.headerCount, { color: tc.textMuted }]}>{transactions.length} Total Records</Text>
+        <View>
+          <Text style={[styles.headerTitle, { color: tc.textPrimary }]}>History</Text>
+          <Text style={[styles.headerSubtitle, { color: tc.textMuted }]}>
+            {scopeSums.count} {scopeSums.count === 1 ? 'record' : 'records'}
+          </Text>
+        </View>
+
+        {/* Integrated Filter Trigger Button */}
+        <TouchableOpacity
+          style={[
+            styles.filterTriggerBtn,
+            {
+              backgroundColor: activeFiltersCount > 0 ? `${theme.accentColor}22` : tc.card,
+              borderColor: activeFiltersCount > 0 ? theme.accentColor : tc.cardBorder,
+            },
+          ]}
+          onPress={handleOpenFilterModal}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name={activeFiltersCount > 0 ? 'funnel' : 'options-outline'}
+            size={18}
+            color={activeFiltersCount > 0 ? theme.accentColor : tc.textPrimary}
+          />
+          <Text
+            style={[
+              styles.filterTriggerText,
+              { color: activeFiltersCount > 0 ? theme.accentColor : tc.textPrimary },
+            ]}
+          >
+            Filters
+          </Text>
+          {activeFiltersCount > 0 && (
+            <View style={[styles.filterBadge, { backgroundColor: theme.accentColor }]}>
+              <Text style={styles.filterBadgeText}>{activeFiltersCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
-      {/* ── Search Bar ── */}
+      {/* ── 2. Unified Search Bar ── */}
       <View style={styles.searchRow}>
         <View style={[styles.searchBar, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
           <Ionicons name="search-outline" size={18} color={tc.textMuted} />
@@ -224,172 +292,108 @@ export default function HistoryScreen({ navigation }: Props) {
         </View>
       </View>
 
-      {/* ── Type Filter (All / Expenses / Income) ── */}
-      <View style={styles.filterPillsRow}>
-        {[
-          { key: 'all' as const, label: 'All', count: counts.all },
-          { key: 'expense' as const, label: 'Expenses', count: counts.expense },
-          { key: 'income' as const, label: 'Income', count: counts.income },
-        ].map((tab) => {
-          const isSelected = selectedType === tab.key;
-          return (
-            <TouchableOpacity
-              key={tab.key}
-              style={[
-                styles.filterPill,
-                {
-                  backgroundColor: isSelected ? `${theme.accentColor}22` : tc.card,
-                  borderColor: isSelected ? theme.accentColor : tc.cardBorder,
-                },
-              ]}
-              onPress={() => {
-                hapticSelection();
-                setSelectedType(tab.key);
-              }}
-              activeOpacity={0.8}
-            >
-              <Text
+      {/* ── 3. Apple-Style Compact Segmented Control (All / Expense / Income) ── */}
+      <View style={styles.segmentedWrapper}>
+        <View style={[styles.segmentedContainer, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
+          {[
+            { key: 'all' as const, label: 'All', count: counts.all },
+            { key: 'expense' as const, label: 'Expenses', count: counts.expense },
+            { key: 'income' as const, label: 'Income', count: counts.income },
+          ].map((tab) => {
+            const isSelected = selectedType === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
                 style={[
-                  styles.filterPillText,
-                  { color: isSelected ? theme.accentColor : tc.textSecondary },
-                  isSelected && { fontWeight: '800' },
+                  styles.segmentButton,
+                  isSelected && [
+                    styles.segmentButtonActive,
+                    { backgroundColor: tc.card, borderColor: theme.accentColor },
+                  ],
                 ]}
-              >
-                {tab.label}
-              </Text>
-              <View
-                style={[
-                  styles.pillCountBadge,
-                  { backgroundColor: isSelected ? theme.accentColor : tc.surface },
-                ]}
+                onPress={() => {
+                  hapticSelection();
+                  setSelectedType(tab.key);
+                }}
+                activeOpacity={0.8}
               >
                 <Text
                   style={[
-                    styles.pillCountText,
-                    { color: isSelected ? '#FFFFFF' : tc.textMuted },
+                    styles.segmentText,
+                    { color: isSelected ? theme.accentColor : tc.textMuted },
+                    isSelected && styles.segmentTextActive,
                   ]}
                 >
-                  {tab.count}
+                  {tab.label}
                 </Text>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* ── Payment Method Filter Row ── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.methodFilterRow}
-      >
-        {PAYMENT_METHOD_OPTIONS.map((opt) => {
-          const isSelected = selectedMethod === opt.key;
-          const count = opt.key === 'all' ? methodCounts.all : (methodCounts[opt.key] || 0);
-
-          // Don't show methods with 0 transactions (except "All")
-          if (opt.key !== 'all' && count === 0) return null;
-
-          return (
-            <TouchableOpacity
-              key={opt.key}
-              style={[
-                styles.methodPill,
-                {
-                  backgroundColor: isSelected ? `${opt.color}22` : tc.card,
-                  borderColor: isSelected ? opt.color : tc.cardBorder,
-                  borderWidth: isSelected ? 1.5 : 1,
-                },
-              ]}
-              onPress={() => {
-                hapticSelection();
-                setSelectedMethod(opt.key);
-              }}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name={opt.icon as any}
-                size={13}
-                color={isSelected ? opt.color : tc.textMuted}
-              />
-              <Text
-                style={[
-                  styles.methodPillText,
-                  { color: isSelected ? opt.color : tc.textSecondary },
-                  isSelected && { fontWeight: '800' },
-                ]}
-              >
-                {opt.label}
-              </Text>
-              {count > 0 && (
                 <View
                   style={[
-                    styles.methodCountBadge,
-                    {
-                      backgroundColor: isSelected ? opt.color : tc.surface,
-                    },
+                    styles.segmentBadge,
+                    { backgroundColor: isSelected ? `${theme.accentColor}22` : 'transparent' },
                   ]}
                 >
-                  <Text style={[styles.methodCountText, { color: isSelected ? '#FFFFFF' : tc.textMuted }]}>
-                    {count}
+                  <Text
+                    style={[
+                      styles.segmentBadgeText,
+                      { color: isSelected ? theme.accentColor : tc.textMuted },
+                    ]}
+                  >
+                    {tab.count}
                   </Text>
                 </View>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-
-      {/* ── Active Filter Summary Strip ── */}
-      {(selectedMethod !== 'all' || selectedType !== 'all' || searchQuery) && (
-        <View style={[styles.activeFilterStrip, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
-          <View style={styles.activeFilterLeft}>
-            <Ionicons name="funnel" size={12} color={theme.accentColor} />
-            <Text style={[styles.activeFilterText, { color: tc.textSecondary }]}>
-              <Text style={{ color: tc.textPrimary, fontWeight: '800' }}>{scopeSums.count}</Text>
-              {' '}result{scopeSums.count !== 1 ? 's' : ''}
-              {selectedMethod !== 'all' ? ` · ${PAYMENT_METHOD_OPTIONS.find(o => o.key === selectedMethod)?.label}` : ''}
-              {selectedType !== 'all' ? ` · ${selectedType === 'expense' ? 'Expenses' : 'Income'}` : ''}
-              {searchQuery ? ` · "${searchQuery}"` : ''}
-            </Text>
-          </View>
-          <View style={styles.activeFilterAmounts}>
-            {scopeSums.income > 0 && (
-              <Text style={[styles.incomeScopeText, { color: tc.income }]}>
-                +{formatCurrency(scopeSums.income, 'INR', currencySymbol)}
-              </Text>
-            )}
-            {scopeSums.expense > 0 && (
-              <Text style={[styles.expenseScopeText, { color: tc.expense }]}>
-                -{formatCurrency(scopeSums.expense, 'INR', currencySymbol)}
-              </Text>
-            )}
-          </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
+      </View>
+
+      {/* ── 4. Active Chips Row (Only visible when non-default filters applied) ── */}
+      {(selectedMethod !== 'all' || sortBy !== 'newest' || searchQuery.trim()) && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.activeChipsContainer}
+        >
+          {selectedMethod !== 'all' && selectedMethodOption && (
+            <View style={[styles.activeTagChip, { backgroundColor: `${selectedMethodOption.color}1E`, borderColor: selectedMethodOption.color }]}>
+              <Ionicons name={selectedMethodOption.icon as any} size={12} color={selectedMethodOption.color} />
+              <Text style={[styles.activeTagText, { color: selectedMethodOption.color }]}>
+                {selectedMethodOption.label}
+              </Text>
+              <TouchableOpacity onPress={() => setSelectedMethod('all')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close-circle" size={14} color={selectedMethodOption.color} />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {sortBy !== 'newest' && selectedSortOption && (
+            <View style={[styles.activeTagChip, { backgroundColor: `${theme.accentColor}1E`, borderColor: theme.accentColor }]}>
+              <Ionicons name={selectedSortOption.icon as any} size={12} color={theme.accentColor} />
+              <Text style={[styles.activeTagText, { color: theme.accentColor }]}>
+                {selectedSortOption.label}
+              </Text>
+              <TouchableOpacity onPress={() => setSortBy('newest')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close-circle" size={14} color={theme.accentColor} />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {searchQuery.trim() && (
+            <View style={[styles.activeTagChip, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
+              <Text style={[styles.activeTagText, { color: tc.textSecondary }]}>"{searchQuery}"</Text>
+              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="close-circle" size={14} color={tc.textMuted} />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <TouchableOpacity onPress={handleResetAllFilters} style={styles.clearAllTextBtn}>
+            <Text style={[styles.clearAllText, { color: theme.accentColor }]}>Clear all</Text>
+          </TouchableOpacity>
+        </ScrollView>
       )}
 
-      {/* ── Scope Summary Strip (always visible) ── */}
-      {filteredTransactions.length > 0 && !selectedMethod && !selectedType && !searchQuery && (
-        <View style={[styles.scopeSummaryStrip, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
-          <Text style={[styles.scopeSummaryText, { color: tc.textSecondary }]}>
-            Showing <Text style={{ fontWeight: '800', color: tc.textPrimary }}>{scopeSums.count}</Text> transactions
-          </Text>
-          <View style={styles.scopePills}>
-            {scopeSums.income > 0 && (
-              <Text style={[styles.incomeScopeText, { color: tc.income }]}>
-                +{formatCurrency(scopeSums.income, 'INR', currencySymbol)}
-              </Text>
-            )}
-            {scopeSums.expense > 0 && (
-              <Text style={[styles.expenseScopeText, { color: tc.expense }]}>
-                -{formatCurrency(scopeSums.expense, 'INR', currencySymbol)}
-              </Text>
-            )}
-          </View>
-        </View>
-      )}
-
-      {/* ── Transaction Feed ── */}
+      {/* ── 5. Transaction Feed List ── */}
       {grouped.length === 0 ? (
         <View style={styles.emptyWrap}>
           <EmptyState
@@ -397,24 +401,19 @@ export default function HistoryScreen({ navigation }: Props) {
             title="No Transactions Found"
             subtitle={
               selectedMethod !== 'all'
-                ? `No ${PAYMENT_METHOD_OPTIONS.find(o => o.key === selectedMethod)?.label} transactions found.`
+                ? `No ${selectedMethodOption?.label} transactions found.`
                 : searchQuery
                 ? 'No matching records found for this query.'
                 : 'Add an expense or income to begin.'
             }
           />
-          {/* Clear filters button */}
-          {(selectedMethod !== 'all' || selectedType !== 'all' || searchQuery.trim()) && (
+          {(selectedMethod !== 'all' || selectedType !== 'all' || searchQuery.trim() || sortBy !== 'newest') && (
             <TouchableOpacity
               style={[styles.clearFiltersBtn, { backgroundColor: `${theme.accentColor}22`, borderColor: theme.accentColor }]}
-              onPress={() => {
-                setSelectedMethod('all');
-                setSelectedType('all');
-                setSearchQuery('');
-              }}
+              onPress={handleResetAllFilters}
             >
               <Ionicons name="close-circle-outline" size={16} color={theme.accentColor} />
-              <Text style={[styles.clearFiltersBtnText, { color: theme.accentColor }]}>Clear All Filters</Text>
+              <Text style={[styles.clearFiltersBtnText, { color: theme.accentColor }]}>Reset All Filters</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -447,28 +446,208 @@ export default function HistoryScreen({ navigation }: Props) {
           }}
         />
       )}
+
+      {/* ── 6. Bottom Sheet Filter Modal ── */}
+      <Modal
+        visible={isFilterModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsFilterModalOpen(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setIsFilterModalOpen(false)}>
+          <Pressable
+            style={[
+              styles.modalSheet,
+              {
+                backgroundColor: tc.card,
+                borderColor: tc.cardBorder,
+                paddingBottom: insets.bottom + 20,
+              },
+            ]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* Sheet Handle */}
+            <View style={styles.sheetHandle} />
+
+            {/* Modal Header */}
+            <View style={styles.modalHeaderRow}>
+              <View>
+                <Text style={[styles.modalTitle, { color: tc.textPrimary }]}>Filter Transactions</Text>
+                <Text style={[styles.modalSubtitle, { color: tc.textMuted }]}>
+                  Refine by payment method and order
+                </Text>
+              </View>
+              <TouchableOpacity onPress={handleResetModalFilters} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Text style={[styles.modalResetText, { color: theme.accentColor }]}>Reset</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
+              
+              {/* Payment Methods */}
+              <Text style={[styles.modalSectionTitle, { color: tc.textSecondary }]}>Payment Method</Text>
+              <View style={styles.methodGrid}>
+                {PAYMENT_METHOD_OPTIONS.map((opt) => {
+                  const isSelected = draftMethod === opt.key;
+                  return (
+                    <TouchableOpacity
+                      key={opt.key}
+                      style={[
+                        styles.methodGridItem,
+                        {
+                          backgroundColor: isSelected ? `${opt.color}22` : tc.surface,
+                          borderColor: isSelected ? opt.color : tc.cardBorder,
+                        },
+                      ]}
+                      onPress={() => {
+                        hapticSelection();
+                        setDraftMethod(opt.key);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name={opt.icon as any} size={16} color={isSelected ? opt.color : tc.textMuted} />
+                      <Text
+                        style={[
+                          styles.methodGridLabel,
+                          { color: isSelected ? opt.color : tc.textSecondary },
+                          isSelected && { fontWeight: '700' },
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Sort Options */}
+              <Text style={[styles.modalSectionTitle, { color: tc.textSecondary, marginTop: 20 }]}>
+                Sort By
+              </Text>
+              <View style={styles.sortOptionsCol}>
+                {SORT_OPTIONS.map((opt) => {
+                  const isSelected = draftSort === opt.key;
+                  return (
+                    <TouchableOpacity
+                      key={opt.key}
+                      style={[
+                        styles.sortRow,
+                        {
+                          backgroundColor: isSelected ? `${theme.accentColor}15` : tc.surface,
+                          borderColor: isSelected ? theme.accentColor : tc.cardBorder,
+                        },
+                      ]}
+                      onPress={() => {
+                        hapticSelection();
+                        setDraftSort(opt.key);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <View style={styles.sortLeft}>
+                        <Ionicons
+                          name={opt.icon as any}
+                          size={18}
+                          color={isSelected ? theme.accentColor : tc.textMuted}
+                        />
+                        <Text
+                          style={[
+                            styles.sortLabel,
+                            { color: isSelected ? theme.accentColor : tc.textPrimary },
+                            isSelected && { fontWeight: '700' },
+                          ]}
+                        >
+                          {opt.label}
+                        </Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.radioCircle,
+                          { borderColor: isSelected ? theme.accentColor : tc.cardBorder },
+                        ]}
+                      >
+                        {isSelected && (
+                          <View style={[styles.radioFill, { backgroundColor: theme.accentColor }]} />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+
+            {/* Apply Button */}
+            <TouchableOpacity
+              style={styles.applyBtn}
+              onPress={handleApplyFilters}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={theme.accentGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.applyBtnGrad}
+              >
+                <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.applyBtnText}>Apply Filters</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: {
+    flex: 1,
+  },
 
+  // Header
   header: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 6,
+    paddingBottom: 10,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    letterSpacing: -0.3,
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
-  headerCount: {
+  headerSubtitle: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
+    marginTop: 1,
+  },
+  filterTriggerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  filterTriggerText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  filterBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  filterBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
   },
 
   // Search
@@ -479,145 +658,105 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    height: 42,
     borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
     borderWidth: 1,
+    paddingHorizontal: 12,
     gap: 8,
   },
   searchInput: {
     flex: 1,
     fontSize: 13,
-    padding: 0,
+    paddingVertical: 0,
   },
-  clearSearchBtn: { padding: 2 },
+  clearSearchBtn: {
+    padding: 4,
+  },
 
-  // Type Filter Pills
-  filterPillsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  // Segmented Control
+  segmentedWrapper: {
     paddingHorizontal: 16,
-    marginBottom: 10,
+    marginBottom: 8,
   },
-  filterPill: {
+  segmentedContainer: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    padding: 3,
+    borderWidth: 1,
+  },
+  segmentButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    borderRadius: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    gap: 5,
+  },
+  segmentButtonActive: {
     borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  filterPillText: {
+  segmentText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
   },
-  pillCountBadge: {
+  segmentTextActive: {
+    fontWeight: '800',
+  },
+  segmentBadge: {
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 6,
   },
-  pillCountText: {
+  segmentBadgeText: {
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '700',
   },
 
-  // Payment Method Filter Row
-  methodFilterRow: {
+  // Active Chips
+  activeChipsContainer: {
     paddingHorizontal: 16,
-    paddingBottom: 10,
+    paddingBottom: 8,
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
-  methodPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingVertical: 7,
-    paddingHorizontal: 11,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  methodPillText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  methodCountBadge: {
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  methodCountText: {
-    fontSize: 9,
-    fontWeight: '800',
-  },
-
-  // Active filter summary
-  activeFilterStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    marginHorizontal: 16,
-    marginBottom: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 8,
-  },
-  activeFilterLeft: {
+  activeTagChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    flex: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
   },
-  activeFilterText: {
+  activeTagText: {
     fontSize: 11,
-    flex: 1,
-    lineHeight: 15,
+    fontWeight: '700',
   },
-  activeFilterAmounts: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexShrink: 0,
+  clearAllTextBtn: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+  },
+  clearAllText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
 
-  // Scope summary
-  scopeSummaryStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    marginBottom: 12,
-  },
-  scopeSummaryText: { fontSize: 11 },
-  scopePills: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  incomeScopeText: {
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  expenseScopeText: {
-    fontSize: 11,
-    fontWeight: '800',
-  },
-
-  // List
+  // Transaction Feed
   listContainer: {
     paddingHorizontal: 16,
+    paddingTop: 4,
     paddingBottom: 110,
   },
-  sectionBlock: { marginBottom: 16 },
+  sectionBlock: {
+    marginBottom: 16,
+  },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -635,9 +774,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
   },
-  sectionCardList: { gap: 8 },
+  sectionCardList: {
+    gap: 8,
+  },
 
-  // Transaction Cards
+  // Cards
   txCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -653,7 +794,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  txInfo: { flex: 1 },
+  txInfo: {
+    flex: 1,
+  },
   txTitle: {
     fontSize: 14,
     fontWeight: '700',
@@ -691,7 +834,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
-  // Empty state
+  // Empty State
   emptyWrap: {
     flex: 1,
     justifyContent: 'center',
@@ -711,5 +854,128 @@ const styles = StyleSheet.create({
   clearFiltersBtnText: {
     fontSize: 13,
     fontWeight: '700',
+  },
+
+  // Modal Bottom Sheet
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    padding: 20,
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  modalResetText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  modalSectionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+  },
+
+  // Method Grid in Sheet
+  methodGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  methodGridItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  methodGridLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  // Sort Options
+  sortOptionsCol: {
+    gap: 8,
+  },
+  sortRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  sortLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  sortLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  radioCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioFill: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+
+  // Apply Button
+  applyBtn: {
+    marginTop: 18,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  applyBtnGrad: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+  },
+  applyBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

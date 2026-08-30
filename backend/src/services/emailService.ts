@@ -1,17 +1,18 @@
-import { Resend } from 'resend';
+import { BrevoClient } from '@getbrevo/brevo';
 import nodemailer from 'nodemailer';
 import dns from 'dns';
 import { config } from '../config/env';
 
-// ─── Resend client (lazy-initialized) ────────────────────────────────────────
-let resendClient: Resend | null = null;
+// ─── Brevo Client (lazy-initialized) ─────────────────────────────────────────
+let brevoClient: BrevoClient | null = null;
 
-function getResendClient(): Resend | null {
-  if (!config.email.resendApiKey) return null;
-  if (!resendClient) {
-    resendClient = new Resend(config.email.resendApiKey);
+function getBrevoClient(): BrevoClient | null {
+  const apiKey = (config.email.brevoApiKey || '').trim();
+  if (!apiKey || apiKey.includes('your_brevo_api_key')) return null;
+  if (!brevoClient) {
+    brevoClient = new BrevoClient({ apiKey });
   }
-  return resendClient;
+  return brevoClient;
 }
 
 /**
@@ -57,56 +58,9 @@ function maskEmail(email: string): string {
 }
 
 /**
- * Sends an email using Brevo (Sendinblue) HTTP REST API over port 443.
- * Works from any cloud platform (Render, Vercel) and can send to ANY recipient
- * using your verified personal email without buying a domain!
- */
-async function sendViaBrevoHttp(
-  apiKey: string,
-  senderEmail: string,
-  toEmail: string,
-  userName: string,
-  subject: string,
-  html: string,
-): Promise<boolean> {
-  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-    method: 'POST',
-    headers: {
-      'accept': 'application/json',
-      'api-key': apiKey.trim(),
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      sender: {
-        name: 'Xpense Security',
-        email: senderEmail.trim(),
-      },
-      to: [
-        {
-          email: toEmail,
-          name: userName || 'User',
-        },
-      ],
-      subject,
-      htmlContent: html,
-    }),
-  });
-
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Brevo API Error (${res.status}): ${errText}`);
-  }
-
-  const data: any = await res.json();
-  console.log(`✉️ Password reset email delivered via Brevo API to ${maskEmail(toEmail)} (msgId: ${data?.messageId})`);
-  return true;
-}
-
-/**
  * Sends a password reset OTP verification code email.
- * 1. Brevo HTTP REST API (Port 443 — sends to ANY email, no domain purchase needed!)
- * 2. Resend HTTP REST API (Port 443)
- * 3. Gmail SMTP (IPv4 fallback)
+ * Uses official @getbrevo/brevo Node SDK over HTTPS (Port 443).
+ * Falls back to Gmail SMTP (IPv4) if Brevo is unavailable.
  */
 export async function sendPasswordResetEmail(
   toEmail: string,
@@ -268,47 +222,34 @@ export async function sendPasswordResetEmail(
   </html>
   `;
 
-  // 1. Option A: Brevo HTTP REST API (Port 443 — works on Render, sends to ANY recipient!)
-  if (config.email.brevoApiKey && !config.email.brevoApiKey.includes('your_brevo_api_key')) {
+  // 1. Primary: Brevo Node SDK (@getbrevo/brevo) over HTTPS Port 443
+  const brevo = getBrevoClient();
+  if (brevo) {
     try {
-      const sender = config.email.brevoSenderEmail || config.email.user;
-      await sendViaBrevoHttp(
-        config.email.brevoApiKey,
-        sender,
-        toEmail,
-        userName,
-        '🔒 Your Xpense Password Reset Code',
-        htmlTemplate,
-      );
-      return true;
-    } catch (err: any) {
-      console.warn(`⚠️ Brevo delivery failed for ${maskEmail(toEmail)}: ${err.message}. Trying next provider...`);
-    }
-  }
-
-  // 2. Option B: Resend HTTP REST API
-  const resend = getResendClient();
-  if (resend) {
-    try {
-      const { data, error } = await resend.emails.send({
-        from: 'Xpense Security <onboarding@resend.dev>',
-        to: [toEmail],
+      const senderEmail = (config.email.brevoSenderEmail || config.email.user || '').trim();
+      const response = await brevo.transactionalEmails.sendTransacEmail({
+        sender: {
+          name: 'Xpense Security',
+          email: senderEmail,
+        },
+        to: [
+          {
+            email: toEmail,
+            name: userName || 'User',
+          },
+        ],
         subject: '🔒 Your Xpense Password Reset Code',
-        html: htmlTemplate,
+        htmlContent: htmlTemplate,
       });
 
-      if (error) {
-        console.warn(`⚠️ Resend rejected delivery to ${maskEmail(toEmail)}: ${error.message}. Switching to Gmail SMTP...`);
-      } else {
-        console.log(`✉️ Password reset email delivered via Resend to ${maskEmail(toEmail)} (id: ${data?.id})`);
-        return true;
-      }
+      console.log(`✉️ Password reset email delivered via Brevo SDK to ${maskEmail(toEmail)} (msgId: ${response?.messageId})`);
+      return true;
     } catch (err: any) {
-      console.warn(`⚠️ Resend exception: ${err.message}. Switching to Gmail SMTP...`);
+      console.warn(`⚠️ Brevo SDK delivery failed for ${maskEmail(toEmail)}: ${err.message}. Trying Gmail fallback...`);
     }
   }
 
-  // 3. Option C: Fallback to Gmail SMTP (IPv4)
+  // 2. Fallback: Gmail SMTP (IPv4)
   try {
     const transporter = createGmailTransporter();
     const info = await transporter.sendMail({

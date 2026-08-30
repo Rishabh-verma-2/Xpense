@@ -55,6 +55,8 @@ export default function BudgetsScreen() {
   const [selectedEmoji, setSelectedEmoji] = useState('🎯');
   const [goalSaving, setGoalSaving] = useState(false);
   const [quickAddAmount, setQuickAddAmount] = useState('');
+  const [showDeleteGoalModal, setShowDeleteGoalModal] = useState(false);
+  const [deletingGoal, setDeletingGoal] = useState(false);
 
   // Sync state when goal changes
   useEffect(() => {
@@ -67,6 +69,10 @@ export default function BudgetsScreen() {
       setIsEditingGoal(false);
     } else {
       setIsEditingGoal(true);
+      setGoalName('');
+      setGoalTargetAmount('');
+      setGoalSavedAmount('');
+      setGoalTargetDate('');
     }
   }, [goal]);
 
@@ -164,26 +170,25 @@ export default function BudgetsScreen() {
   };
 
   const handleDeleteGoal = () => {
-    Alert.alert(
-      'Delete Savings Goal',
-      'Are you sure you want to delete this savings goal from your account?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await deleteGoal();
-            showInfo('Goal Deleted', 'Your savings goal has been deleted from cloud database.');
-            setIsEditingGoal(true);
-            setGoalName('');
-            setGoalTargetAmount('');
-            setGoalSavedAmount('');
-            setGoalTargetDate('');
-          },
-        },
-      ]
-    );
+    setShowDeleteGoalModal(true);
+  };
+
+  const confirmDeleteGoal = async () => {
+    setDeletingGoal(true);
+    try {
+      await deleteGoal();
+      setShowDeleteGoalModal(false);
+      setIsEditingGoal(true);
+      setGoalName('');
+      setGoalTargetAmount('');
+      setGoalSavedAmount('');
+      setGoalTargetDate('');
+      showInfo('Goal Removed 🗑️', 'Savings goal deleted from cloud storage.');
+    } catch {
+      showError('Error', 'Could not delete savings goal.');
+    } finally {
+      setDeletingGoal(false);
+    }
   };
 
   const handleSaveBudget = async () => {
@@ -519,7 +524,7 @@ export default function BudgetsScreen() {
               <View style={[styles.textInputWrapper, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
                 <TextInput
                   style={[styles.textInput, { color: tc.textPrimary }]}
-                  placeholder="50000"
+                  placeholder="Enter target (e.g. 50000)"
                   placeholderTextColor={tc.textMuted}
                   value={goalTargetAmount}
                   onChangeText={setGoalTargetAmount}
@@ -534,7 +539,7 @@ export default function BudgetsScreen() {
               <View style={[styles.textInputWrapper, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
                 <TextInput
                   style={[styles.textInput, { color: tc.textPrimary }]}
-                  placeholder="0"
+                  placeholder="Enter amount already saved (e.g. 0)"
                   placeholderTextColor={tc.textMuted}
                   value={goalSavedAmount}
                   onChangeText={setGoalSavedAmount}
@@ -549,7 +554,7 @@ export default function BudgetsScreen() {
               <View style={[styles.textInputWrapper, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
                 <TextInput
                   style={[styles.textInput, { color: tc.textPrimary }]}
-                  placeholder="2026-12-31"
+                  placeholder="YYYY-MM-DD (e.g. 2026-12-31)"
                   placeholderTextColor={tc.textMuted}
                   value={goalTargetDate}
                   onChangeText={setGoalTargetDate}
@@ -977,7 +982,7 @@ export default function BudgetsScreen() {
         </>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Budget Confirmation Modal */}
       <ConfirmModal
         visible={!!deletingBudgetId}
         title="Delete Budget?"
@@ -987,6 +992,18 @@ export default function BudgetsScreen() {
         loading={deleting}
         onConfirm={confirmDeleteBudget}
         onCancel={() => setDeletingBudgetId(null)}
+      />
+
+      {/* Delete Savings Goal Confirmation Modal */}
+      <ConfirmModal
+        visible={showDeleteGoalModal}
+        title="Delete Savings Goal?"
+        message="Are you sure you want to remove your savings goal? This will delete your target milestone from cloud database."
+        confirmLabel="Delete Goal"
+        isDestructive
+        loading={deletingGoal}
+        onConfirm={confirmDeleteGoal}
+        onCancel={() => setShowDeleteGoalModal(false)}
       />
     </View>
   );

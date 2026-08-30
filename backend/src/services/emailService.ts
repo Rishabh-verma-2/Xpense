@@ -231,3 +231,208 @@ export async function sendPasswordResetEmail(
     throw new Error(err.message || 'Failed to send password reset email');
   }
 }
+
+/**
+ * Sends a personalized "Message from Xpense" + August Spending Statement with PDF attachment.
+ * Uses official @getbrevo/brevo Node SDK with base64 attachment over HTTPS (Port 443).
+ */
+export async function sendAugustSpendingReportEmail(params: {
+  toEmail: string;
+  userName: string;
+  totalIncome: number;
+  totalExpense: number;
+  netSavings: number;
+  transactionCount: number;
+  pdfBuffer: Buffer;
+}): Promise<boolean> {
+  const {
+    toEmail,
+    userName,
+    totalIncome,
+    totalExpense,
+    netSavings,
+    transactionCount,
+    pdfBuffer,
+  } = params;
+
+  const pdfFileName = `Xpense_August_2026_Statement_${(userName || 'User').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+
+  const htmlTemplate = `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Message from Xpense - August 2026 Report</title>
+  </head>
+  <body style="margin: 0; padding: 0; background-color: #06060D; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #FFFFFF;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #06060D; padding: 40px 16px;">
+      <tr>
+        <td align="center">
+          <!-- Main Container -->
+          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 540px; background: #0E0C1A; border-radius: 24px; overflow: hidden; border: 1px solid rgba(168, 85, 247, 0.25); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);">
+            
+            <!-- Hero Header with Logo -->
+            <tr>
+              <td align="center" style="background: linear-gradient(135deg, #2A0E52 0%, #15092A 100%); padding: 36px 24px 28px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+                <img src="https://raw.githubusercontent.com/Rishabh-verma-2/Xpense/main/assets/Xpense_icon.png" 
+                     alt="Xpense Logo" 
+                     width="64" 
+                     height="64" 
+                     style="display: block; border-radius: 18px; border: 2px solid rgba(192, 132, 252, 0.5); box-shadow: 0 10px 30px rgba(147, 51, 234, 0.45); margin-bottom: 14px;" />
+
+                <h1 style="margin: 0; font-size: 26px; font-weight: 900; letter-spacing: -0.5px; color: #FFFFFF;">
+                  Xpense<span style="color: #A855F7;">.</span>
+                </h1>
+                
+                <div style="display: inline-block; margin-top: 10px; padding: 4px 14px; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(192, 132, 252, 0.35); border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #D8B4FE;">
+                  📊 August 2026 Financial Recap
+                </div>
+              </td>
+            </tr>
+
+            <!-- Body Content -->
+            <tr>
+              <td style="padding: 32px 28px 24px;">
+                <h2 style="margin: 0 0 14px; font-size: 20px; font-weight: 800; color: #FFFFFF;">
+                  A Note from the Xpense Team, 👋
+                </h2>
+                
+                <p style="margin: 0 0 16px; font-size: 14px; line-height: 24px; color: #D4D4D8;">
+                  Dear <strong style="color: #FFFFFF;">${userName || 'Valued User'}</strong>,
+                </p>
+                <p style="margin: 0 0 20px; font-size: 14px; line-height: 24px; color: #A1A1AA;">
+                  As August comes to a close, we wanted to take a moment to celebrate your dedication to tracking your personal finances. Building wealth starts with awareness, and every transaction logged brings you closer to your financial milestones.
+                </p>
+
+                <!-- August Summary Cards Grid -->
+                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 24px;">
+                  <tr>
+                    <td width="48%" style="padding: 12px 14px; background: rgba(220, 38, 38, 0.08); border: 1px solid rgba(248, 113, 113, 0.25); border-radius: 14px;">
+                      <div style="font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #F87171; margin-bottom: 4px;">TOTAL SPENT</div>
+                      <div style="font-size: 18px; font-weight: 900; color: #FFFFFF;">₹${totalExpense.toLocaleString('en-IN')}</div>
+                    </td>
+                    <td width="4%"></td>
+                    <td width="48%" style="padding: 12px 14px; background: rgba(5, 150, 105, 0.08); border: 1px solid rgba(52, 211, 153, 0.25); border-radius: 14px;">
+                      <div style="font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #34D399; margin-bottom: 4px;">TOTAL INCOME</div>
+                      <div style="font-size: 18px; font-weight: 900; color: #FFFFFF;">₹${totalIncome.toLocaleString('en-IN')}</div>
+                    </td>
+                  </tr>
+                  <tr><td height="10" colspan="3"></td></tr>
+                  <tr>
+                    <td width="48%" style="padding: 12px 14px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(96, 165, 250, 0.25); border-radius: 14px;">
+                      <div style="font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #60A5FA; margin-bottom: 4px;">NET SAVINGS</div>
+                      <div style="font-size: 18px; font-weight: 900; color: #FFFFFF;">${netSavings >= 0 ? '+' : ''}₹${netSavings.toLocaleString('en-IN')}</div>
+                    </td>
+                    <td width="4%"></td>
+                    <td width="48%" style="padding: 12px 14px; background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(192, 132, 252, 0.25); border-radius: 14px;">
+                      <div style="font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #C084FC; margin-bottom: 4px;">TRANSACTIONS</div>
+                      <div style="font-size: 18px; font-weight: 900; color: #FFFFFF;">${transactionCount} logged</div>
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- Attached PDF Badge -->
+                <div style="padding: 14px 18px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(124, 58, 237, 0.08) 100%); border: 1px dashed rgba(192, 132, 252, 0.5); border-radius: 16px; margin-bottom: 24px;">
+                  <div style="font-size: 13px; font-weight: 800; color: #FFFFFF; margin-bottom: 4px;">
+                    📎 PDF Financial Statement Attached
+                  </div>
+                  <div style="font-size: 12px; color: #D8B4FE;">
+                    We have compiled and attached your full itemized statement as <strong>${pdfFileName}</strong>. You can download and keep it for your financial records.
+                  </div>
+                </div>
+
+                <!-- Recent App Updates -->
+                <div style="padding: 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 14px; margin-bottom: 20px;">
+                  <div style="font-size: 12px; font-weight: 700; color: #E4E4E7; margin-bottom: 6px;">✨ What's New in Xpense:</div>
+                  <ul style="margin: 0; padding-left: 18px; font-size: 12px; color: #A1A1AA; line-height: 20px;">
+                    <li><strong>Cloud Savings Goals:</strong> Set target milestones directly synced to your account.</li>
+                    <li><strong>Smart Payment Method Sync:</strong> UPI, Cash, and Card tagging preserved across all devices.</li>
+                    <li><strong>Refined History Filters:</strong> Modern Apple-style segmented tabs and slide-up filter sheet.</li>
+                  </ul>
+                </div>
+
+                <p style="margin: 0; font-size: 13px; color: #71717A; line-height: 20px;">
+                  Have a productive September ahead,<br>
+                  <strong style="color: #A855F7;">The Xpense Team</strong>
+                </p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td align="center" style="padding: 20px 24px; background: #07060D; border-top: 1px solid rgba(255, 255, 255, 0.05);">
+                <p style="margin: 0 0 4px; font-size: 11px; font-weight: 600; color: #71717A;">
+                  Xpense • Smart Financial Tracking & Milestones
+                </p>
+                <p style="margin: 0; font-size: 10px; color: #3F3F46;">
+                  © ${new Date().getFullYear()} Xpense. All rights reserved. • Built with Privacy First
+                </p>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+  </html>
+  `;
+
+  // 1. Primary: Brevo Node SDK with PDF attachment over HTTPS Port 443
+  const brevo = getBrevoClient();
+  if (brevo) {
+    try {
+      const senderEmail = (config.email.brevoSenderEmail || config.email.user || '').trim();
+      const response = await brevo.transactionalEmails.sendTransacEmail({
+        sender: {
+          name: 'Xpense Financial',
+          email: senderEmail,
+        },
+        to: [
+          {
+            email: toEmail,
+            name: userName || 'Valued User',
+          },
+        ],
+        subject: `📊 A Message from Xpense + Your August 2026 Financial Statement`,
+        htmlContent: htmlTemplate,
+        attachment: [
+          {
+            name: pdfFileName,
+            content: pdfBuffer.toString('base64'),
+          },
+        ],
+      });
+
+      console.log(`✉️ August report email with PDF attached delivered via Brevo to ${maskEmail(toEmail)} (msgId: ${response?.messageId})`);
+      return true;
+    } catch (err: any) {
+      console.warn(`⚠️ Brevo SDK report delivery failed for ${maskEmail(toEmail)}: ${err.message}. Trying Gmail fallback...`);
+    }
+  }
+
+  // 2. Fallback: Gmail SMTP with PDF attachment
+  try {
+    const transporter = createGmailTransporter();
+    const info = await transporter.sendMail({
+      from: `"Xpense Financial" <${config.email.user || 'support@xpense.app'}>`,
+      to: toEmail,
+      subject: `📊 A Message from Xpense + Your August 2026 Financial Statement`,
+      html: htmlTemplate,
+      attachments: [
+        {
+          filename: pdfFileName,
+          content: pdfBuffer,
+          contentType: 'application/pdf',
+        },
+      ],
+    });
+    console.log(`✉️ August report email with PDF delivered via Gmail SMTP (IPv4) to ${maskEmail(toEmail)} (msgId: ${info.messageId})`);
+    return true;
+  } catch (err: any) {
+    console.error(`❌ All delivery options failed for August report to ${maskEmail(toEmail)}:`, err.message || err);
+    throw new Error(err.message || 'Failed to send August statement email');
+  }
+}
+

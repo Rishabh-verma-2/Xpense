@@ -1,4 +1,5 @@
 import { Router, Response } from 'express';
+import { Types } from 'mongoose';
 import { Goal } from '../models/Goal';
 import { authenticate, AuthRequest } from '../middleware/auth';
 
@@ -9,7 +10,7 @@ router.use(authenticate);
 // Returns the active goal for the authenticated user
 router.get('/', async (req: AuthRequest, res: Response) => {
   try {
-    const goal = await Goal.findOne({ userId: req.userId }).sort({ updatedAt: -1 });
+    const goal = await Goal.findOne({ userId: new Types.ObjectId(req.userId) }).sort({ updatedAt: -1 });
     return res.json({ success: true, data: goal || null });
   } catch (err: any) {
     console.error('[GET /api/goals]', err);
@@ -35,7 +36,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     const saved = Number(savedAmount) || 0;
     const isCompleted = saved >= target;
 
-    let goal = await Goal.findOne({ userId: req.userId });
+    let goal = await Goal.findOne({ userId: new Types.ObjectId(req.userId) });
 
     if (goal) {
       goal.name = name.trim();
@@ -49,7 +50,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       await goal.save();
     } else {
       goal = await Goal.create({
-        userId: req.userId,
+        userId: new Types.ObjectId(req.userId),
         name: name.trim(),
         targetAmount: target,
         savedAmount: Math.max(0, saved),
@@ -79,7 +80,7 @@ router.patch('/progress', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, message: 'Valid saved amount is required' });
     }
 
-    const goal = await Goal.findOne({ userId: req.userId });
+    const goal = await Goal.findOne({ userId: new Types.ObjectId(req.userId) });
     if (!goal) {
       return res.status(404).json({ success: false, message: 'No goal found to update' });
     }
@@ -99,7 +100,7 @@ router.patch('/progress', async (req: AuthRequest, res: Response) => {
 // Removes the user's savings goal
 router.delete('/', async (req: AuthRequest, res: Response) => {
   try {
-    await Goal.deleteMany({ userId: req.userId });
+    await Goal.deleteMany({ userId: new Types.ObjectId(req.userId) });
     return res.json({ success: true, message: 'Goal successfully removed' });
   } catch (err: any) {
     console.error('[DELETE /api/goals]', err);

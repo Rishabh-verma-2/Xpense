@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,9 @@ import {
   ScrollView,
   Modal,
   Pressable,
+  BackHandler,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -83,6 +85,29 @@ export default function HistoryScreen({ navigation }: Props) {
     if (sortBy !== 'newest') count++;
     return count;
   }, [selectedMethod, sortBy]);
+
+  // ── Hardware Back Button Handling ──────────────────────────────────────────
+  // If filter modal is open, close it; otherwise smoothly return to Dashboard tab
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        if (isFilterModalOpen) {
+          setIsFilterModalOpen(false);
+          return true;
+        }
+        // Navigate to Dashboard tab
+        const parent = navigation.getParent();
+        if (parent) {
+          parent.navigate('DashboardTab');
+          return true;
+        }
+        return false;
+      };
+
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [isFilterModalOpen, navigation])
+  );
 
   // Open modal and sync drafts
   const handleOpenFilterModal = () => {
@@ -233,11 +258,21 @@ export default function HistoryScreen({ navigation }: Props) {
       
       {/* ── 1. Clean Header Row ── */}
       <View style={styles.header}>
-        <View>
-          <Text style={[styles.headerTitle, { color: tc.textPrimary }]}>History</Text>
-          <Text style={[styles.headerSubtitle, { color: tc.textMuted }]}>
-            {scopeSums.count} {scopeSums.count === 1 ? 'record' : 'records'}
-          </Text>
+        <View style={styles.headerTitleGroup}>
+          <TouchableOpacity
+            style={[styles.headerBackBtn, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}
+            onPress={() => navigation.getParent()?.navigate('DashboardTab')}
+            activeOpacity={0.8}
+            accessibilityLabel="Back to Home Dashboard"
+          >
+            <Ionicons name="arrow-back" size={18} color={tc.textPrimary} />
+          </TouchableOpacity>
+          <View>
+            <Text style={[styles.headerTitle, { color: tc.textPrimary }]}>History</Text>
+            <Text style={[styles.headerSubtitle, { color: tc.textMuted }]}>
+              {scopeSums.count} {scopeSums.count === 1 ? 'record' : 'records'}
+            </Text>
+          </View>
         </View>
 
         {/* Integrated Filter Trigger Button */}
@@ -613,8 +648,21 @@ const styles = StyleSheet.create({
     paddingTop: 6,
     paddingBottom: 10,
   },
+  headerTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerBackBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
     letterSpacing: -0.5,
   },

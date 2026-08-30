@@ -92,11 +92,23 @@ export default function RootNavigator() {
   // ─── Hardware Back Button Handling (Native Android) ──────────────────────
   useEffect(() => {
     const onAndroidBackPress = () => {
-      if (navigationRef.isReady() && navigationRef.canGoBack()) {
-        navigationRef.goBack();
-        return true; // Go back exactly 1 step in stack
+      if (navigationRef.isReady()) {
+        if (navigationRef.canGoBack()) {
+          navigationRef.goBack();
+          return true; // Go back exactly 1 step in stack
+        }
+        const currentRoute: any = navigationRef.getCurrentRoute();
+        if (
+          currentRoute &&
+          currentRoute.name !== 'DashboardTab' &&
+          currentRoute.name !== 'Splash' &&
+          currentRoute.name !== 'Landing'
+        ) {
+          (navigationRef as any).navigate('MainTabs', { screen: 'DashboardTab' });
+          return true;
+        }
       }
-      return false; // Exit app only when at root
+      return false; // Exit app only when at Dashboard root
     };
 
     const backHandler = BackHandler.addEventListener(

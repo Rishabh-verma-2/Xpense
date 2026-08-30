@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Platform,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,11 +14,24 @@ import type { SettingsStackParamList } from '../../../core/navigation/types';
 import { useAppTheme } from '../../../context/ThemeContext';
 import { useToast } from '../../../context/ToastContext';
 import { ScreenHeader } from '../../../shared/components/ScreenHeader';
-import { ThemeId } from '../../../core/theme/themes';
+import { ThemeId, ThemeDefinition } from '../../../core/theme/themes';
 
 type Props = {
   navigation: NativeStackNavigationProp<SettingsStackParamList, 'ThemeSettings'>;
 };
+
+const THEME_GROUPS = [
+  {
+    label: 'DARK THEMES',
+    ids: ['obsidian', 'emerald', 'sapphire', 'amber', 'rosegold', 'midnight', 'aurora'],
+  },
+  {
+    label: 'LIGHT THEMES',
+    ids: ['pearl'],
+  },
+];
+
+const NEW_THEME_IDS = new Set(['rosegold', 'midnight', 'aurora']);
 
 export default function ThemeSettingsScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
@@ -27,10 +39,114 @@ export default function ThemeSettingsScreen({ navigation }: Props) {
   const tc = theme.colors;
   const { showSuccess } = useToast();
 
+  const themeMap = new Map(availableThemes.map((t) => [t.id, t]));
+
   const handleSelectTheme = async (id: ThemeId, name: string) => {
     if (id === themeId) return;
     await setThemeId(id);
     showSuccess('Theme Applied! ✨', `${name} is now active across all screens.`);
+  };
+
+  const renderThemeCard = (item: ThemeDefinition) => {
+    const isSelected = item.id === themeId;
+    const isNew = NEW_THEME_IDS.has(item.id);
+
+    return (
+      <TouchableOpacity
+        key={item.id}
+        style={[
+          styles.themeCard,
+          {
+            backgroundColor: tc.card,
+            borderColor: isSelected ? item.accentColor : tc.cardBorder,
+            borderWidth: isSelected ? 1.8 : 1,
+          },
+        ]}
+        onPress={() => handleSelectTheme(item.id, item.name)}
+        activeOpacity={0.85}
+      >
+        {/* Mini Mock Hero */}
+        <View style={styles.mockHeroCard}>
+          <LinearGradient
+            colors={item.heroGradient}
+            style={styles.mockHeroGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.mockSpecularLine} />
+            <View style={styles.mockHeroTop}>
+              <View style={styles.mockPillRow}>
+                <View style={[styles.mockDot, { backgroundColor: item.colors.income }]} />
+                <Text style={[styles.mockHeroLabel, { color: item.colors.textSecondary }]}>
+                  NET WORTH
+                </Text>
+              </View>
+              <View style={styles.badgeRow}>
+                {isNew && (
+                  <View style={[styles.newBadge, { backgroundColor: '#10B981' }]}>
+                    <Text style={styles.newBadgeText}>NEW</Text>
+                  </View>
+                )}
+                <View style={[styles.mockModeBadge, { borderColor: item.accentColor }]}>
+                  <Text style={[styles.mockModeText, { color: item.accentColor }]}>
+                    {item.mode.toUpperCase()}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <Text style={[styles.mockBalance, { color: item.colors.textPrimary }]}>
+              ₹2,48,500
+            </Text>
+
+            {/* Swatch Row */}
+            <View style={styles.swatchRow}>
+              {item.previewColors.map((col, idx) => (
+                <View
+                  key={idx}
+                  style={[
+                    styles.swatchDot,
+                    { backgroundColor: col, borderColor: 'rgba(255,255,255,0.2)' },
+                  ]}
+                />
+              ))}
+              {/* Mini progress bar preview */}
+              <View style={styles.swatchProgressTrack}>
+                <View
+                  style={[styles.swatchProgressFill, { backgroundColor: item.accentColor, width: '65%' }]}
+                />
+              </View>
+            </View>
+          </LinearGradient>
+        </View>
+
+        {/* Theme Info Row */}
+        <View style={styles.themeInfoRow}>
+          <View style={styles.themeTextCol}>
+            <View style={styles.themeTitleRow}>
+              <Text style={[styles.themeTitle, { color: tc.textPrimary }]}>{item.name}</Text>
+              {isSelected && (
+                <View style={[styles.activeTag, { backgroundColor: item.accentColor }]}>
+                  <Text style={styles.activeTagText}>ACTIVE</Text>
+                </View>
+              )}
+            </View>
+            <Text style={[styles.themeTagline, { color: tc.textSecondary }]}>{item.tagline}</Text>
+          </View>
+
+          <View
+            style={[
+              styles.radioCircle,
+              isSelected
+                ? { borderColor: item.accentColor, backgroundColor: item.accentColor }
+                : { borderColor: tc.cardBorder },
+            ]}
+          >
+            {isSelected && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
   };
 
   return (
@@ -41,156 +157,125 @@ export default function ThemeSettingsScreen({ navigation }: Props) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.sectionHeaderTitle, { color: tc.textMuted }]}>CURATED LUXURY THEMES</Text>
-        <Text style={[styles.sectionSubtitle, { color: tc.textSecondary }]}>
-          Select a custom palette to transform gradients, card glows, and dashboard aesthetics.
+        {/* Active theme hero preview */}
+        <LinearGradient
+          colors={theme.heroGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.activeThemeHero}
+        >
+          <View style={styles.activeHeroContent}>
+            <Text style={styles.activeHeroLabel}>CURRENTLY ACTIVE</Text>
+            <Text style={styles.activeHeroName}>{theme.name}</Text>
+            <Text style={styles.activeHeroTagline}>{theme.tagline}</Text>
+          </View>
+          <View style={[styles.activeHeroAccent, { backgroundColor: theme.accentColor }]} />
+        </LinearGradient>
+
+        {/* Theme groups */}
+        {THEME_GROUPS.map((group) => {
+          const groupThemes = group.ids
+            .map((id) => themeMap.get(id as ThemeId))
+            .filter(Boolean) as ThemeDefinition[];
+
+          if (groupThemes.length === 0) return null;
+
+          return (
+            <View key={group.label}>
+              <View style={styles.groupHeaderRow}>
+                <Text style={[styles.groupLabel, { color: tc.textMuted }]}>{group.label}</Text>
+                <View style={[styles.groupLine, { backgroundColor: tc.cardBorder }]} />
+              </View>
+              <View style={styles.themeList}>
+                {groupThemes.map(renderThemeCard)}
+              </View>
+            </View>
+          );
+        })}
+
+        <Text style={[styles.footerNote, { color: tc.textMuted }]}>
+          🎨 More themes coming soon. Theme selection is saved across app sessions.
         </Text>
-
-        <View style={styles.themeList}>
-          {availableThemes.map((item) => {
-            const isSelected = item.id === themeId;
-
-            return (
-              <TouchableOpacity
-                key={item.id}
-                style={[
-                  styles.themeCard,
-                  {
-                    backgroundColor: tc.card,
-                    borderColor: isSelected ? item.accentColor : tc.cardBorder,
-                  },
-                ]}
-                onPress={() => handleSelectTheme(item.id, item.name)}
-                activeOpacity={0.85}
-              >
-                {/* Mini Mock Dashboard Hero Card */}
-                <View style={styles.mockHeroCard}>
-                  <LinearGradient
-                    colors={item.heroGradient}
-                    style={styles.mockHeroGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <View style={styles.mockSpecularLine} />
-                    <View style={styles.mockHeroTop}>
-                      <View style={styles.mockPillRow}>
-                        <View
-                          style={[
-                            styles.mockDot,
-                            { backgroundColor: item.colors.income },
-                          ]}
-                        />
-                        <Text style={[styles.mockHeroLabel, { color: item.colors.textSecondary }]}>
-                          NET WORTH
-                        </Text>
-                      </View>
-                      <View style={[styles.mockModeBadge, { borderColor: item.accentColor }]}>
-                        <Text style={[styles.mockModeText, { color: item.accentColor }]}>
-                          {item.mode.toUpperCase()}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <Text style={[styles.mockBalance, { color: item.colors.textPrimary }]}>
-                      ₹2,48,500
-                    </Text>
-
-                    {/* Color Swatch Dots */}
-                    <View style={styles.swatchRow}>
-                      {item.previewColors.map((col, idx) => (
-                        <View
-                          key={idx}
-                          style={[
-                            styles.swatchDot,
-                            { backgroundColor: col, borderColor: 'rgba(255, 255, 255, 0.2)' },
-                          ]}
-                        />
-                      ))}
-                    </View>
-                  </LinearGradient>
-                </View>
-
-                {/* Theme Details Row */}
-                <View style={styles.themeInfoRow}>
-                  <View style={styles.themeTextCol}>
-                    <View style={styles.themeTitleRow}>
-                      <Text style={[styles.themeTitle, { color: tc.textPrimary }]}>{item.name}</Text>
-                      {isSelected && (
-                        <View style={[styles.activeTag, { backgroundColor: item.accentColor }]}>
-                          <Text style={styles.activeTagText}>ACTIVE</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={[styles.themeTagline, { color: tc.textSecondary }]}>{item.tagline}</Text>
-                  </View>
-
-                  <View
-                    style={[
-                      styles.radioCircle,
-                      isSelected
-                        ? {
-                            borderColor: item.accentColor,
-                            backgroundColor: item.accentColor,
-                          }
-                        : {
-                            borderColor: tc.cardBorder,
-                          },
-                    ]}
-                  >
-                    {isSelected && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    // backgroundColor: '#07060E', // <- wired via theme.colors.background inline
-  },
+  container: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingBottom: 110, // Full clearance for floating bottom bar
-    gap: 12,
+    paddingBottom: 110,
+    gap: 16,
   },
-  sectionHeaderTitle: {
+
+  // Active theme hero
+  activeThemeHero: {
+    borderRadius: 20,
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  activeHeroContent: { flex: 1 },
+  activeHeroLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: 'rgba(255,255,255,0.5)',
+    letterSpacing: 1.2,
+    marginBottom: 4,
+  },
+  activeHeroName: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
+  },
+  activeHeroTagline: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.65)',
+    marginTop: 3,
+  },
+  activeHeroAccent: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    opacity: 0.5,
+  },
+
+  // Group header
+  groupHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: -4,
+  },
+  groupLabel: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#94A3B8',
     letterSpacing: 1,
-    marginLeft: 4,
   },
-  sectionSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
-    marginLeft: 4,
-    marginBottom: 6,
-    lineHeight: 16,
+  groupLine: {
+    flex: 1,
+    height: 1,
   },
-  themeList: {
-    gap: 14,
-  },
+
+  // Theme list
+  themeList: { gap: 12 },
   themeCard: {
-    backgroundColor: '#120F20',
     borderRadius: 20,
     padding: 14,
-    borderWidth: 1.2,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
     gap: 12,
   },
 
-  // Mock Hero Card
+  // Mock hero card
   mockHeroCard: {
-    borderRadius: 16,
+    borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   mockHeroGradient: {
     padding: 14,
@@ -202,13 +287,13 @@ const styles = StyleSheet.create({
     left: 10,
     right: 10,
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    backgroundColor: 'rgba(255,255,255,0.3)',
   },
   mockHeroTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   mockPillRow: {
     flexDirection: 'row',
@@ -225,12 +310,28 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.5,
   },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  newBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  newBadgeText: {
+    fontSize: 8,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
   mockModeBadge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
     borderWidth: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
   },
   mockModeText: {
     fontSize: 8.5,
@@ -245,6 +346,7 @@ const styles = StyleSheet.create({
   },
   swatchRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
   },
   swatchDot: {
@@ -253,8 +355,19 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     borderWidth: 1,
   },
+  swatchProgressTrack: {
+    flex: 1,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    overflow: 'hidden',
+  },
+  swatchProgressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
 
-  // Details
+  // Theme info
   themeInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -274,7 +387,6 @@ const styles = StyleSheet.create({
   themeTitle: {
     fontSize: 14.5,
     fontWeight: '800',
-    color: '#FFFFFF',
   },
   activeTag: {
     paddingHorizontal: 6,
@@ -289,15 +401,20 @@ const styles = StyleSheet.create({
   },
   themeTagline: {
     fontSize: 11.5,
-    color: '#94A3B8',
   },
   radioCircle: {
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  footerNote: {
+    fontSize: 12,
+    textAlign: 'center',
+    paddingVertical: 4,
+    lineHeight: 18,
   },
 });

@@ -10,7 +10,8 @@ import ExportScreen from '../../features/export/screens/ExportScreen';
 import FeedbackScreen from '../../features/settings/screens/FeedbackScreen';
 import HelpFaqScreen from '../../features/settings/screens/HelpFaqScreen';
 import ThemeSettingsScreen from '../../features/settings/screens/ThemeSettingsScreen';
-import { colors } from '../theme';
+import SavingsGoalScreen from '../../features/savings/screens/SavingsGoalScreen';
+import { useAppTheme } from '../../context/ThemeContext';
 
 import { SettingsStackParamList } from './types';
 export type { SettingsStackParamList };
@@ -18,13 +19,15 @@ export type { SettingsStackParamList };
 const Stack = createNativeStackNavigator<SettingsStackParamList>();
 
 export function SettingsStackNavigator() {
+  const { theme } = useAppTheme();
+
   return (
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
         animation: 'default',
         gestureEnabled: true,
-        contentStyle: { backgroundColor: colors.background },
+        contentStyle: { backgroundColor: theme.colors.background },
       }}
     >
       <Stack.Screen name="SettingsHome" component={SettingsScreen} />
@@ -45,6 +48,7 @@ export function SettingsStackNavigator() {
       <Stack.Screen name="Export" component={ExportScreen} />
       <Stack.Screen name="Feedback" component={FeedbackScreen} />
       <Stack.Screen name="HelpFaq" component={HelpFaqScreen} />
+      <Stack.Screen name="SavingsGoal" component={SavingsGoalScreen} />
     </Stack.Navigator>
   );
 }

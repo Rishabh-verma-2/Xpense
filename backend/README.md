@@ -1,8 +1,22 @@
-# Xpense Backend
+# 🚀 Xpense Backend API
 
-Express + TypeScript + Prisma REST API for the Xpense mobile app.
+High-performance REST API powering the Xpense cross-platform application. Built with **Express**, **TypeScript**, and **MongoDB Atlas** (via Mongoose), featuring cloud-native email security with the official **Brevo Node SDK** (`@getbrevo/brevo`).
 
-## Quick Start
+---
+
+## 🛠️ Tech Stack
+
+- **Runtime**: Node.js (v18+)
+- **Framework**: Express.js
+- **Language**: TypeScript (`ts-node-dev`)
+- **Database**: MongoDB Atlas via Mongoose ORM
+- **Email Delivery**: Brevo HTTP REST API (`@getbrevo/brevo`, Port 443) with IPv4 Gmail SMTP fallback
+- **Authentication**: JSON Web Tokens (JWT) + `bcryptjs`
+- **Security**: Helmet, CORS origin whitelisting, rate limiting
+
+---
+
+## ⚡ Quick Start
 
 ```bash
 cd backend
@@ -10,98 +24,86 @@ cd backend
 # 1. Install dependencies
 npm install
 
-# 2. Copy & edit env
+# 2. Configure environment variables
 cp .env.example .env
+# Fill in your MONGO_URI, JWT_SECRET, and BREVO_API_KEY
 
-# 3. Generate Prisma client & run migrations
-npm run db:generate
-npm run db:migrate      # creates dev.db (SQLite)
-
-# 4. (Optional) Seed demo data
-npm run db:seed
-
-# 5. Start dev server
+# 3. Start development server
 npm run dev
+
+# 4. Build for production
+npm run build
+npm start
 ```
 
-Server starts at **http://localhost:3000**
+*Server starts on `http://localhost:3000` (or `PORT` specified in `.env`).*
 
 ---
 
-## API Reference
+## 🔑 Environment Variables
 
-### Auth
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/auth/register` | ❌ | Register new user |
-| POST | `/api/auth/login` | ❌ | Login → returns JWT |
-| GET | `/api/auth/me` | ✅ | Get current user profile |
+```env
+PORT=3000
+NODE_ENV=development
 
-### Transactions
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/transactions` | ✅ | List (filter: month, year, type, categoryId) |
-| POST | `/api/transactions` | ✅ | Create transaction |
-| PUT | `/api/transactions/:id` | ✅ | Update transaction |
-| DELETE | `/api/transactions/:id` | ✅ | Delete transaction |
-| GET | `/api/transactions/summary` | ✅ | Monthly income/expense summary |
+# MongoDB Atlas
+MONGO_URI=mongodb+srv://<user>:<password>@cluster0.mongodb.net/xpense?retryWrites=true&w=majority
+MONGO_DB_NAME=xpense
 
-### Categories
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/categories` | ✅ | List all categories |
-| POST | `/api/categories` | ✅ | Create custom category |
-| PUT | `/api/categories/:id` | ✅ | Update category |
-| DELETE | `/api/categories/:id` | ✅ | Delete category |
+# Authentication
+JWT_SECRET=your_jwt_secret_key
+JWT_EXPIRES_IN=7d
 
-### Budgets
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/budgets` | ✅ | Budgets with actual spent amounts |
-| POST | `/api/budgets` | ✅ | Create or update budget |
-| DELETE | `/api/budgets/:id` | ✅ | Delete budget |
+# Brevo (Email Delivery over HTTPS Port 443)
+BREVO_API_KEY=xkeysib-your_brevo_api_key
+BREVO_SENDER_EMAIL=your_verified_sender@gmail.com
 
-### Analytics
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/analytics/monthly` | ✅ | 12-month income/expense per year |
-| GET | `/api/analytics/category` | ✅ | Expense breakdown by category |
+# Gmail SMTP Fallback (Optional)
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASS=your_gmail_app_password
+```
 
 ---
 
-## Folder Structure
+## 🌐 API Reference
 
-```
-backend/
-├── prisma/
-│   ├── schema.prisma        # DB schema (User, Transaction, Category, Budget, Goal)
-│   └── seed.ts              # Demo data seeder
-├── src/
-│   ├── config/
-│   │   ├── database.ts      # Prisma singleton
-│   │   └── env.ts           # Typed config from .env
-│   ├── middleware/
-│   │   ├── auth.ts          # JWT authenticate middleware
-│   │   └── errorHandler.ts  # Global error + 404 handler
-│   ├── routes/
-│   │   ├── auth.ts
-│   │   ├── transactions.ts
-│   │   ├── categories.ts
-│   │   ├── budgets.ts
-│   │   └── analytics.ts
-│   └── index.ts             # App entry point
-├── .env.example
-├── package.json
-└── tsconfig.json
-```
+### 🔐 Authentication (`/api/auth`)
+| Method | Endpoint | Auth | Description |
+|---|---|:---:|---|
+| `POST` | `/api/auth/register` | ❌ | Create new user account |
+| `POST` | `/api/auth/login` | ❌ | Login with email/phone & password |
+| `POST` | `/api/auth/google` | ❌ | Authenticate with Google ID token |
+| `GET` | `/api/auth/me` | 🔐 | Fetch current authenticated user |
+| `PUT` | `/api/auth/profile` | 🔐 | Update user profile details |
+| `PUT` | `/api/auth/change-password` | 🔐 | Change password with current verification |
+| `POST` | `/api/auth/forgot-password` | ❌ | Request 6-digit OTP verification email |
+| `POST` | `/api/auth/reset-password-otp` | ❌ | Reset password using 6-digit OTP |
 
-## Auth Flow
+### 💰 Transactions (`/api/transactions`)
+| Method | Endpoint | Auth | Description |
+|---|---|:---:|---|
+| `GET` | `/api/transactions` | 🔐 | List transactions (supports pagination & month filter) |
+| `POST` | `/api/transactions` | 🔐 | Create income or expense record |
+| `GET` | `/api/transactions/:id` | 🔐 | Fetch single transaction |
+| `PUT` | `/api/transactions/:id` | 🔐 | Update transaction details |
+| `DELETE` | `/api/transactions/:id` | 🔐 | Delete transaction |
 
-All protected routes require: `Authorization: Bearer <token>`
+### 🏷️ Categories (`/api/categories`)
+| Method | Endpoint | Auth | Description |
+|---|---|:---:|---|
+| `GET` | `/api/categories` | 🔐 | List system & user custom categories |
+| `POST` | `/api/categories` | 🔐 | Create custom category |
+| `PUT` | `/api/categories/:id` | 🔐 | Update category |
+| `DELETE` | `/api/categories/:id` | 🔐 | Delete custom category |
 
-Tokens are returned from `/api/auth/login` and `/api/auth/register`.
+### 📊 Analytics (`/api/analytics`)
+| Method | Endpoint | Auth | Description |
+|---|---|:---:|---|
+| `GET` | `/api/analytics/monthly` | 🔐 | 12-month grouped income vs expense summary |
+| `GET` | `/api/analytics/categories` | 🔐 | Category spend breakdown with percentages |
 
-## Database
-
-- **Dev**: SQLite (`prisma/dev.db`) — zero config, just run `npm run db:migrate`
-- **Prod**: PostgreSQL — change `provider = "postgresql"` in `schema.prisma` and update `DATABASE_URL`
+### 🏥 System Health (`/health`)
+| Method | Endpoint | Auth | Description |
+|---|---|:---:|---|
+| `GET` | `/health` | ❌ | Server health status & uptime |
+| `GET` | `/health/db` | ❌ | MongoDB connection status and document counts |

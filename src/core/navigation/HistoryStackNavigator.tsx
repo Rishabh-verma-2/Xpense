@@ -3,7 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HistoryScreen from '../../features/history/screens/HistoryScreen';
 import TransactionDetailScreen from '../../features/transactions/screens/TransactionDetailScreen';
 import EditTransactionScreen from '../../features/transactions/screens/EditTransactionScreen';
-import { colors } from '../theme';
+import { useAppTheme } from '../../context/ThemeContext';
 
 import { HistoryStackParamList } from './types';
 export type { HistoryStackParamList };
@@ -11,13 +11,15 @@ export type { HistoryStackParamList };
 const Stack = createNativeStackNavigator<HistoryStackParamList>();
 
 export function HistoryStackNavigator() {
+  const { theme } = useAppTheme();
+
   return (
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
         animation: 'default',
         gestureEnabled: true,
-        contentStyle: { backgroundColor: colors.background },
+        contentStyle: { backgroundColor: theme.colors.background },
       }}
     >
       <Stack.Screen name="HistoryList" component={HistoryScreen} />

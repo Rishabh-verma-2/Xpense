@@ -4,11 +4,11 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-Express-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb&logoColor=white)](https://www.mongodb.com/atlas)
-[![Nodemailer](https://img.shields.io/badge/Nodemailer-SMTP_Security-007ACC?logo=gmail&logoColor=white)](https://nodemailer.com)
+[![Brevo](https://img.shields.io/badge/Brevo-Email_API_v3-0B99FF?logo=sendinblue&logoColor=white)](https://www.brevo.com/)
 [![PWA](https://img.shields.io/badge/PWA-Add_to_Home_Screen-C084FC?logo=pwa&logoColor=white)](#-progressive-web-app-pwa)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**Xpense** is a state-of-the-art, cross-platform personal finance management app built with **React Native (Expo SDK 54)** and an **Express/TypeScript + MongoDB Atlas** backend. Featuring a rich glassmorphic dark-mode interface, 60fps animations, Nodemailer email security, and full PWA installation support for iOS and Android.
+**Xpense** is a state-of-the-art, cross-platform personal finance management app built with **React Native (Expo SDK 54)** and an **Express/TypeScript + MongoDB Atlas** backend. Featuring a rich glassmorphic dark-mode interface, 60fps animations, Brevo HTTPS email security, and full PWA installation support for iOS and Android.
 
 ---
 
@@ -25,14 +25,19 @@
 - **Category Expenditure Progress Bars**: Color-coded spend bars with percentage distribution and top-category callouts.
 - **12-Month Grouped Annual Comparisons**: Grouped bar charts comparing annual income vs expenses with peak month badges.
 
+### 🎯 Smart Savings Goals
+- **Milestone Tracking**: Set savings targets with custom emojis, target dates, and real-time progress bars.
+- **Dashboard Progress Card**: Live savings milestone widget embedded directly into the main financial dashboard.
+
 ### 📄 Professional Exporting
 - **PDF Statements**: Export beautifully styled financial statements complete with category breakdown tables and monthly totals.
 - **CSV Data Logs**: Download raw CSV transaction logs ready for Excel analysis.
 
-### 🔒 Authentication & Nodemailer Security
+### 🔒 Authentication & Brevo Email Security
 - **JWT + MongoDB Authentication**: Secure email/phone registration and login.
 - **Google OAuth Integration**: Native Google Sign-In synchronized with MongoDB Atlas user records.
-- **Nodemailer Email Reset OTP**: Forgot password workflow sending HTML 6-digit verification codes to the user's email via SMTP.
+- **Brevo HTTPS Email OTP Reset**: Official `@getbrevo/brevo` Node SDK over Port 443 delivering branded HTML 6-digit verification codes with the official Xpense logo and digit badges.
+- **Zero-Block Fallback**: Automatic IPv4 Gmail SMTP fallback ensuring 100% email delivery across cloud firewalls.
 - **In-App Password Management**: Change password modal with eye toggles for password visibility.
 
 ### 📱 Progressive Web App (PWA)
@@ -54,7 +59,7 @@
 - **Runtime**: Node.js & Express
 - **Language**: TypeScript (`ts-node-dev`)
 - **Database**: MongoDB Atlas via Mongoose ORM
-- **Email Service**: Nodemailer (SMTP with Gmail App Passwords)
+- **Email Service**: Brevo HTTP REST API (`@getbrevo/brevo`) over Port 443 + IPv4 Gmail SMTP fallback
 - **Authentication**: JWT (`jsonwebtoken`) & `bcryptjs` password hashing
 
 ---
@@ -133,12 +138,17 @@ Xpense/
 
    # MongoDB Atlas Connection
    MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/xpense?retryWrites=true&w=majority
+   MONGO_DB_NAME=xpense
 
    # JWT Auth
    JWT_SECRET=your_super_secret_jwt_key
    JWT_EXPIRES_IN=7d
 
-   # Nodemailer SMTP Config (For Forgot Password Email OTP)
+   # Brevo Email Service (Port 443 HTTPS REST API)
+   BREVO_API_KEY=xkeysib-your_brevo_api_key
+   BREVO_SENDER_EMAIL=your_email@gmail.com
+
+   # Gmail SMTP Fallback (Optional)
    EMAIL_USER=your_email@gmail.com
    EMAIL_PASS=your_16_char_gmail_app_password
    ```

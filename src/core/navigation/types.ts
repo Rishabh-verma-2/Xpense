@@ -40,4 +40,6 @@ export type SettingsStackParamList = {
   Export: undefined;
   Feedback: undefined;
   HelpFaq: undefined;
+  SavingsGoal: undefined;
 };
+

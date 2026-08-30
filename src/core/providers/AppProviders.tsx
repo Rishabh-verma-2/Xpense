@@ -6,12 +6,12 @@ import { TransactionProvider } from '../../context/TransactionContext';
 import { BudgetProvider } from '../../context/BudgetContext';
 import { ToastProvider } from '../../context/ToastContext';
 import { ThemeProvider } from '../../context/ThemeContext';
-
+import { SavingsGoalProvider } from '../../context/SavingsGoalContext';
 import { NotificationProvider } from '../../context/NotificationContext';
 
 /**
  * Wraps the entire app in all context providers.
- * Order matters: Toast → Theme → Auth → Settings → Notifications → Categories → Transactions → Budgets
+ * Order matters: Toast → Theme → Auth → Settings → Notifications → Categories → Transactions → Budgets → SavingsGoal
  */
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
@@ -22,7 +22,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
             <NotificationProvider>
               <CategoryProvider>
                 <TransactionProvider>
-                  <BudgetProvider>{children}</BudgetProvider>
+                  <BudgetProvider>
+                    <SavingsGoalProvider>{children}</SavingsGoalProvider>
+                  </BudgetProvider>
                 </TransactionProvider>
               </CategoryProvider>
             </NotificationProvider>

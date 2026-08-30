@@ -22,11 +22,12 @@ import { useCategories } from '@/context/CategoryContext';
 import { useAuth } from '@/context/AuthContext';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useNotifications } from '@/context/NotificationContext';
+import { useSavingsGoal } from '@/context/SavingsGoalContext';
 import { formatCurrency } from '@/shared/utils/currencyUtils';
 import { formatTransactionDate, getMonthKey, getMonthLabel } from '@/shared/utils/dateUtils';
 import { Transaction } from '@/shared/types/transaction.types';
 import { EmptyState } from '@/shared/components/EmptyState';
-import { hapticMedium } from '@/shared/utils/haptics';
+import { hapticMedium, hapticLight } from '@/shared/utils/haptics';
 
 export default function DashboardScreen() {
   const navigation = useNavigation<any>();
@@ -37,6 +38,7 @@ export default function DashboardScreen() {
   const { settings, updateSettings } = useSettings();
   const { categories, getById } = useCategories();
   const { unreadCount } = useNotifications();
+  const { goal } = useSavingsGoal();
 
   const insets = useSafeAreaInsets();
   const topInset = getSafeTopInset(insets);
@@ -48,9 +50,13 @@ export default function DashboardScreen() {
   const headerFade = useRef(new Animated.Value(0)).current;
   const cardScale = useRef(new Animated.Value(0.96)).current;
   const contentFade = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   const onboardingFade = useRef(new Animated.Value(0)).current;
   const onboardingScale = useRef(new Animated.Value(0.92)).current;
+
+  // Bar entrance anims (staggered per bar)
+  const barAnims = useRef([...Array(7)].map(() => new Animated.Value(0))).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -58,7 +64,23 @@ export default function DashboardScreen() {
       Animated.spring(cardScale, { toValue: 1, friction: 8, tension: 70, useNativeDriver: true }),
       Animated.timing(contentFade, { toValue: 1, duration: 350, useNativeDriver: true }),
     ]).start();
-  }, [headerFade, cardScale, contentFade]);
+
+    // Staggered bar entrance
+    Animated.stagger(
+      60,
+      barAnims.map((anim) =>
+        Animated.spring(anim, { toValue: 1, friction: 7, tension: 60, useNativeDriver: true })
+      )
+    ).start();
+
+    // Pulse live dot
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.6, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
 
   useEffect(() => {
     if (settings && !settings.onboardingCompleted) {
@@ -84,7 +106,6 @@ export default function DashboardScreen() {
   const currentMonthKey = useMemo(() => getMonthKey(new Date()), []);
   const currentMonthLabel = useMemo(() => getMonthLabel(currentMonthKey), [currentMonthKey]);
 
-  // Dynamic time greeting
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Good Morning';
@@ -92,7 +113,6 @@ export default function DashboardScreen() {
     return 'Good Evening';
   }, []);
 
-  // Compute live financial totals
   const totalBalance = useMemo(() => {
     return transactions.reduce((sum, t) => {
       return t.type === 'income' ? sum + t.amount : sum - t.amount;
@@ -123,7 +143,13 @@ export default function DashboardScreen() {
     return { label: 'Review Budget', color: '#F43F5E', icon: 'alert-circle' };
   }, [savingsRate]);
 
-  // 7-Day Spending Sparkline Calculation
+  const monthlyTxCount = useMemo(() => {
+    return transactions.filter((t) => getMonthKey(t.date) === currentMonthKey).length;
+  }, [transactions, currentMonthKey]);
+
+  const netMonthlySavings = useMemo(() => monthlyIncome - monthlyExpense, [monthlyIncome, monthlyExpense]);
+
+  // 7-Day Spending Sparkline
   const sparklineData = useMemo(() => {
     const days: { label: string; dateStr: string; amount: number }[] = [];
     const now = new Date();
@@ -133,67 +159,53 @@ export default function DashboardScreen() {
       const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
       const isoDatePrefix = d.toISOString().split('T')[0];
       const dayLabel = dayNames[d.getDay()];
-
       const dayExpense = transactions
         .filter((t) => t.type === 'expense' && t.date.startsWith(isoDatePrefix))
         .reduce((sum, t) => sum + t.amount, 0);
-
-      days.push({
-        label: dayLabel,
-        dateStr: isoDatePrefix,
-        amount: dayExpense,
-      });
+      days.push({ label: dayLabel, dateStr: isoDatePrefix, amount: dayExpense });
     }
-
     const maxDayAmount = Math.max(...days.map((d) => d.amount), 1);
     return { days, maxDayAmount };
   }, [transactions]);
 
-  // Top Category Spending Breakdown
+  // Top Categories
   const topCategories = useMemo(() => {
     const catMap: Record<string, { name: string; icon: string; color: string; amount: number }> = {};
     const currentMonthTxs = transactions.filter(
       (t) => t.type === 'expense' && getMonthKey(t.date) === currentMonthKey
     );
-
     for (const t of currentMonthTxs) {
       const cat = getById(t.categoryId);
       const catId = t.categoryId || 'other';
       const name = cat?.name || t.categoryNameSnapshot || 'Other';
       const icon = cat?.icon || t.categoryIconSnapshot || 'pricetag-outline';
       const color = cat?.color || t.categoryColorSnapshot || '#7C3AED';
-
       if (!catMap[catId]) {
         catMap[catId] = { name, icon, color, amount: 0 };
       }
       catMap[catId].amount += t.amount;
     }
-
-    return Object.values(catMap)
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 4);
+    return Object.values(catMap).sort((a, b) => b.amount - a.amount).slice(0, 4);
   }, [transactions, currentMonthKey, getById]);
 
-  const recentTransactions = useMemo(() => {
-    return transactions.slice(0, 5);
-  }, [transactions]);
+  const recentTransactions = useMemo(() => transactions.slice(0, 5), [transactions]);
+
+  // Savings goal derived data
+  const goalProgress = goal && goal.targetAmount > 0
+    ? Math.min(100, Math.round((goal.savedAmount / goal.targetAmount) * 100))
+    : 0;
+  const goalDaysLeft = goal
+    ? Math.max(0, Math.ceil((new Date(goal.targetDate).getTime() - Date.now()) / 86400000))
+    : 0;
 
   const handleAddTransaction = (type?: 'expense' | 'income') => {
     hapticMedium();
     navigation.navigate('AddTransaction', { type });
   };
 
-  const handleNavigateReports = () => {
-    navigation.navigate('ReportsTab');
-  };
-
-  const handleNavigateHistory = () => {
-    navigation.navigate('HistoryTab');
-  };
-
-  const handleNavigateSettings = () => {
-    navigation.navigate('SettingsTab');
-  };
+  const handleNavigateReports = () => navigation.navigate('ReportsTab');
+  const handleNavigateHistory = () => navigation.navigate('HistoryTab');
+  const handleNavigateSettings = () => navigation.navigate('SettingsTab');
 
   const userName = user?.name ? user.name : 'Financial Pilot';
   const userInitial = userName.trim().charAt(0).toUpperCase() || 'X';
@@ -201,11 +213,8 @@ export default function DashboardScreen() {
   return (
     <View style={[styles.container, { backgroundColor: tc.background, paddingTop: topInset }]}>
 
-      {/* ── Sticky Top Header (outside ScrollView so it never scrolls) ── */}
-      <Animated.View style={[
-        styles.headerRow,
-        { opacity: headerFade, backgroundColor: tc.background },
-      ]}>
+      {/* ── Sticky Header ── */}
+      <Animated.View style={[styles.headerRow, { opacity: headerFade, backgroundColor: tc.background }]}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={handleNavigateSettings} activeOpacity={0.8}>
             {user?.avatar ? (
@@ -248,7 +257,7 @@ export default function DashboardScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Luxury Theme Hero Card ── */}
+        {/* ── Hero Balance Card ── */}
         <Animated.View style={[styles.heroCardContainer, { transform: [{ scale: cardScale }] }]}>
           <LinearGradient
             colors={theme.heroGradient}
@@ -256,15 +265,14 @@ export default function DashboardScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.heroCardGradient}
           >
-            {/* Ambient Background Light Mesh */}
             <View style={[styles.meshGlow1, { backgroundColor: theme.colors.mesh1 }]} />
             <View style={[styles.meshGlow2, { backgroundColor: theme.colors.mesh2 }]} />
             <View style={styles.specularTopLine} />
 
-            {/* Card Header: Label + Privacy Eye */}
+            {/* Card Header */}
             <View style={styles.cardHeaderRow}>
               <View style={styles.cardTagRow}>
-                <View style={styles.livePulseDot} />
+                <Animated.View style={[styles.livePulseDot, { transform: [{ scale: pulseAnim }] }]} />
                 <Text style={styles.cardSubTitle}>NET WORTH & BALANCE</Text>
               </View>
               <TouchableOpacity
@@ -280,16 +288,19 @@ export default function DashboardScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Main Balance Display */}
+            {/* Balance */}
             <View style={styles.balanceRow}>
               <Text style={styles.balanceMainText}>
                 {isBalanceHidden
                   ? `${currencySymbol} • • • • • •`
                   : formatCurrency(totalBalance, 'INR', currencySymbol)}
               </Text>
+              <View style={[styles.monthBadge, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
+                <Text style={styles.monthBadgeText}>{currentMonthLabel}</Text>
+              </View>
             </View>
 
-            {/* Inflow vs Outflow Split Bar */}
+            {/* Income / Expense Flow */}
             <View style={styles.flowRow}>
               <View style={styles.flowPill}>
                 <View style={[styles.flowIconBg, { backgroundColor: theme.colors.incomeMuted }]}>
@@ -298,9 +309,7 @@ export default function DashboardScreen() {
                 <View>
                   <Text style={styles.flowLabel}>Income</Text>
                   <Text style={styles.flowValueIncome}>
-                    {isBalanceHidden
-                      ? `${currencySymbol} • • • •`
-                      : `+${formatCurrency(monthlyIncome, 'INR', currencySymbol)}`}
+                    {isBalanceHidden ? `${currencySymbol} ••••` : `+${formatCurrency(monthlyIncome, 'INR', currencySymbol)}`}
                   </Text>
                 </View>
               </View>
@@ -314,15 +323,13 @@ export default function DashboardScreen() {
                 <View>
                   <Text style={styles.flowLabel}>Spent</Text>
                   <Text style={styles.flowValueExpense}>
-                    {isBalanceHidden
-                      ? `${currencySymbol} • • • •`
-                      : `-${formatCurrency(monthlyExpense, 'INR', currencySymbol)}`}
+                    {isBalanceHidden ? `${currencySymbol} ••••` : `-${formatCurrency(monthlyExpense, 'INR', currencySymbol)}`}
                   </Text>
                 </View>
               </View>
             </View>
 
-            {/* Savings Rate Footer Gauge */}
+            {/* Savings Gauge Footer */}
             <View style={styles.cardFooterSection}>
               <View style={styles.savingsLabelRow}>
                 <View style={styles.savingsStatusBadge}>
@@ -337,17 +344,61 @@ export default function DashboardScreen() {
               </View>
               <View style={styles.gaugeTrack}>
                 <LinearGradient
-                  colors={['#7C3AED', '#38BDF8']}
+                  colors={[theme.accentColor, tc.primaryLight || '#38BDF8']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={[styles.gaugeFill, { width: `${Math.min(100, Math.max(5, savingsRate))}%` }]}
+                  style={[styles.gaugeFill, { width: `${Math.min(100, Math.max(3, savingsRate))}%` }]}
                 />
               </View>
             </View>
           </LinearGradient>
         </Animated.View>
 
-        {/* ── Popped-Out Glass Quick Action Strip (Expense & Income) ── */}
+        {/* ── Monthly Snapshot Strip ── */}
+        <Animated.View style={[styles.snapshotStrip, { opacity: contentFade }]}>
+          {/* Budget Used */}
+          <View style={[styles.snapshotTile, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+            <View style={[styles.snapshotIconBg, { backgroundColor: `${tc.expense}22` }]}>
+              <Ionicons name="pie-chart-outline" size={16} color={tc.expense} />
+            </View>
+            <Text style={[styles.snapshotValue, { color: tc.textPrimary }]}>
+              {monthlyIncome > 0 ? `${Math.min(100, Math.round((monthlyExpense / monthlyIncome) * 100))}%` : '—'}
+            </Text>
+            <Text style={[styles.snapshotLabel, { color: tc.textMuted }]}>Budget Used</Text>
+          </View>
+
+          {/* Net Savings */}
+          <View style={[styles.snapshotTile, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+            <View style={[styles.snapshotIconBg, { backgroundColor: `${tc.income}22` }]}>
+              <Ionicons name="trending-up-outline" size={16} color={tc.income} />
+            </View>
+            <Text
+              style={[
+                styles.snapshotValue,
+                { color: netMonthlySavings >= 0 ? tc.income : tc.expense },
+              ]}
+              numberOfLines={1}
+            >
+              {isBalanceHidden
+                ? '••••'
+                : formatCurrency(Math.abs(netMonthlySavings), 'INR', currencySymbol)}
+            </Text>
+            <Text style={[styles.snapshotLabel, { color: tc.textMuted }]}>
+              {netMonthlySavings >= 0 ? 'Net Saved' : 'Overspent'}
+            </Text>
+          </View>
+
+          {/* Tx Count */}
+          <View style={[styles.snapshotTile, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+            <View style={[styles.snapshotIconBg, { backgroundColor: `${theme.accentColor}22` }]}>
+              <Ionicons name="receipt-outline" size={16} color={theme.accentColor} />
+            </View>
+            <Text style={[styles.snapshotValue, { color: tc.textPrimary }]}>{monthlyTxCount}</Text>
+            <Text style={[styles.snapshotLabel, { color: tc.textMuted }]}>This Month</Text>
+          </View>
+        </Animated.View>
+
+        {/* ── Quick Actions ── */}
         <Animated.View style={[styles.quickActionsContainer, { opacity: contentFade }]}>
           <TouchableOpacity
             style={styles.quickActionTile}
@@ -355,12 +406,12 @@ export default function DashboardScreen() {
             activeOpacity={0.82}
           >
             <LinearGradient
-              colors={['rgba(244, 63, 94, 0.28)', 'rgba(225, 29, 72, 0.12)']}
+              colors={['rgba(244, 63, 94, 0.22)', 'rgba(225, 29, 72, 0.08)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={styles.quickActionGradient}
+              style={[styles.quickActionGradient, { borderColor: 'rgba(244,63,94,0.2)' }]}
             >
-              <View style={[styles.quickActionIconCircle, { backgroundColor: theme.colors.expense }]}>
+              <View style={[styles.quickActionIconCircle, { backgroundColor: tc.expense }]}>
                 <Ionicons name="arrow-up" size={17} color="#FFF" />
               </View>
               <View style={styles.quickActionTextCol}>
@@ -376,12 +427,12 @@ export default function DashboardScreen() {
             activeOpacity={0.82}
           >
             <LinearGradient
-              colors={['rgba(16, 185, 129, 0.28)', 'rgba(5, 150, 105, 0.12)']}
+              colors={['rgba(16, 185, 129, 0.22)', 'rgba(5, 150, 105, 0.08)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={styles.quickActionGradient}
+              style={[styles.quickActionGradient, { borderColor: 'rgba(16,185,129,0.2)' }]}
             >
-              <View style={[styles.quickActionIconCircle, { backgroundColor: theme.colors.income }]}>
+              <View style={[styles.quickActionIconCircle, { backgroundColor: tc.income }]}>
                 <Ionicons name="arrow-down" size={17} color="#FFF" />
               </View>
               <View style={styles.quickActionTextCol}>
@@ -392,14 +443,19 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </Animated.View>
 
-        {/* ── 7-Day Spending Sparkline Widget ── */}
-        <Animated.View style={[styles.sparklineCard, { backgroundColor: tc.card, borderColor: tc.cardBorder, opacity: contentFade }]}>
+        {/* ── 7-Day Sparkline ── */}
+        <Animated.View
+          style={[styles.sparklineCard, { backgroundColor: tc.card, borderColor: tc.cardBorder, opacity: contentFade }]}
+        >
           <View style={styles.sparklineHeader}>
             <View>
               <Text style={[styles.sectionHeaderTitle, { color: tc.textPrimary }]}>Last 7 Days Outflow</Text>
               <Text style={[styles.sectionHeaderSub, { color: tc.textMuted }]}>Daily activity breakdown</Text>
             </View>
-            <TouchableOpacity onPress={handleNavigateReports} style={[styles.sparklineBadge, { backgroundColor: tc.primaryMuted, borderColor: `${tc.primary}4D` }]}>
+            <TouchableOpacity
+              onPress={handleNavigateReports}
+              style={[styles.sparklineBadge, { backgroundColor: tc.primaryMuted, borderColor: `${theme.accentColor}4D` }]}
+            >
               <Text style={[styles.sparklineBadgeText, { color: theme.accentColor }]}>View Trends</Text>
               <Ionicons name="chevron-forward" size={12} color={theme.accentColor} />
             </TouchableOpacity>
@@ -409,17 +465,34 @@ export default function DashboardScreen() {
             {sparklineData.days.map((day, idx) => {
               const heightPercent = Math.max(12, Math.round((day.amount / sparklineData.maxDayAmount) * 100));
               const isPeak = day.amount === sparklineData.maxDayAmount && day.amount > 0;
+              const barAnim = barAnims[idx];
 
               return (
-                <View key={idx} style={styles.barColumn}>
-                  <View style={[styles.barTrack, { backgroundColor: theme.mode === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(255, 255, 255, 0.05)' }]}>
+                <Animated.View
+                  key={idx}
+                  style={[
+                    styles.barColumn,
+                    {
+                      opacity: barAnim,
+                      transform: [{ scaleY: barAnim }],
+                    },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.barTrack,
+                      { backgroundColor: theme.mode === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)' },
+                    ]}
+                  >
                     <LinearGradient
                       colors={isPeak ? ['#F59E0B', '#D97706'] : [theme.accentColor, tc.primaryDark]}
                       style={[styles.barFill, { height: `${heightPercent}%` }]}
                     />
                   </View>
-                  <Text style={[styles.barLabel, { color: isPeak ? '#F59E0B' : tc.textMuted }]}>{day.label}</Text>
-                </View>
+                  <Text style={[styles.barLabel, { color: isPeak ? '#F59E0B' : tc.textMuted }]}>
+                    {day.label}
+                  </Text>
+                </Animated.View>
               );
             })}
           </View>
@@ -439,24 +512,32 @@ export default function DashboardScreen() {
               {topCategories.map((cat, idx) => {
                 const percentOfTotal =
                   monthlyExpense > 0 ? Math.round((cat.amount / monthlyExpense) * 100) : 0;
-
                 return (
-                  <View key={idx} style={[styles.categoryCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+                  <View
+                    key={idx}
+                    style={[styles.categoryCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}
+                  >
                     <View style={styles.categoryCardTop}>
                       <View style={[styles.categoryIconCircle, { backgroundColor: `${cat.color}22` }]}>
                         <Ionicons name={cat.icon as any} size={18} color={cat.color} />
                       </View>
                       <Text style={[styles.categoryPercentText, { color: tc.textMuted }]}>{percentOfTotal}%</Text>
                     </View>
-
                     <Text style={[styles.categoryNameText, { color: tc.textPrimary }]} numberOfLines={1}>
                       {cat.name}
                     </Text>
                     <Text style={[styles.categoryAmountText, { color: tc.textPrimary }]}>
                       {formatCurrency(cat.amount, 'INR', currencySymbol)}
                     </Text>
-
-                    <View style={[styles.categoryProgressTrack, { backgroundColor: theme.mode === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(255, 255, 255, 0.06)' }]}>
+                    <View
+                      style={[
+                        styles.categoryProgressTrack,
+                        {
+                          backgroundColor:
+                            theme.mode === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)',
+                        },
+                      ]}
+                    >
                       <View
                         style={[
                           styles.categoryProgressFill,
@@ -471,13 +552,100 @@ export default function DashboardScreen() {
           </Animated.View>
         )}
 
-        {/* ── Recent Transactions Feed ── */}
+        {/* ── Smart Savings Goal Widget ── */}
+        <Animated.View style={[{ opacity: contentFade }, styles.savingsGoalSection]}>
+          {goal ? (
+            /* Active goal card */
+            <TouchableOpacity
+              activeOpacity={0.88}
+              onPress={() => navigation.navigate('SettingsTab', { screen: 'SavingsGoal' })}
+            >
+              <LinearGradient
+                colors={theme.heroGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.goalWidget}
+              >
+                <View style={[styles.meshGlow1, { backgroundColor: theme.colors.mesh1, opacity: 0.5 }]} />
+                <View style={styles.goalWidgetTop}>
+                  <View style={styles.goalWidgetLeft}>
+                    <Text style={styles.goalWidgetEmoji}>{goal.emoji}</Text>
+                    <View>
+                      <Text style={styles.goalWidgetLabel}>SAVINGS GOAL</Text>
+                      <Text style={styles.goalWidgetName} numberOfLines={1}>{goal.name}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.goalWidgetRight}>
+                    <Text style={styles.goalWidgetPercent}>{goalProgress}%</Text>
+                    {goal.achieved && (
+                      <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                    )}
+                  </View>
+                </View>
+
+                <View style={styles.goalAmountsRow}>
+                  <Text style={styles.goalSavedText}>
+                    {formatCurrency(goal.savedAmount, 'INR', currencySymbol)}
+                  </Text>
+                  <Text style={styles.goalTargetText}>
+                    / {formatCurrency(goal.targetAmount, 'INR', currencySymbol)}
+                  </Text>
+                </View>
+
+                <View style={styles.goalProgressTrack}>
+                  <LinearGradient
+                    colors={goal.achieved ? ['#10B981', '#34D399'] : [theme.accentColor, tc.primaryLight || theme.accentColor]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={[styles.goalProgressFill, { width: `${Math.max(3, goalProgress)}%` }]}
+                  />
+                </View>
+
+                <View style={styles.goalFooterRow}>
+                  <Text style={styles.goalDaysText}>
+                    {goal.achieved ? '🎉 Achieved!' : `⏰ ${goalDaysLeft} days left`}
+                  </Text>
+                  <View style={styles.goalEditBtn}>
+                    <Text style={styles.goalEditBtnText}>Update →</Text>
+                  </View>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          ) : (
+            /* CTA to create goal */
+            <TouchableOpacity
+              activeOpacity={0.82}
+              onPress={() => navigation.navigate('SettingsTab', { screen: 'SavingsGoal' })}
+              style={[styles.goalCtaCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}
+            >
+              <LinearGradient
+                colors={[`${theme.accentColor}22`, `${theme.accentColor}08`]}
+                style={styles.goalCtaInner}
+              >
+                <View style={[styles.goalCtaIconBg, { backgroundColor: `${theme.accentColor}22` }]}>
+                  <Ionicons name="flag-outline" size={22} color={theme.accentColor} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.goalCtaTitle, { color: tc.textPrimary }]}>Set a Savings Goal</Text>
+                  <Text style={[styles.goalCtaSub, { color: tc.textMuted }]}>
+                    Track your journey to financial milestones
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={theme.accentColor} />
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+        </Animated.View>
+
+        {/* ── Recent Transactions ── */}
         <Animated.View style={[styles.recentSection, { opacity: contentFade }]}>
           <View style={styles.sectionHeaderRow}>
             <Text style={[styles.sectionTitleText, { color: tc.textPrimary }]}>Recent Transactions</Text>
             {transactions.length > 0 && (
               <TouchableOpacity onPress={handleNavigateHistory} activeOpacity={0.7}>
-                <Text style={[styles.seeAllText, { color: theme.accentColor }]}>View All ({transactions.length})</Text>
+                <Text style={[styles.seeAllText, { color: theme.accentColor }]}>
+                  View All ({transactions.length})
+                </Text>
               </TouchableOpacity>
             )}
           </View>
@@ -508,10 +676,17 @@ export default function DashboardScreen() {
                         {catName}
                       </Text>
                       <View style={styles.txMetaRow}>
-                        <View style={[styles.paymentMethodBadge, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
+                        <View
+                          style={[
+                            styles.paymentMethodBadge,
+                            { backgroundColor: tc.surface, borderColor: tc.cardBorder },
+                          ]}
+                        >
                           <Text style={[styles.paymentMethodText, { color: tc.textMuted }]}>{method}</Text>
                         </View>
-                        <Text style={[styles.txTimeText, { color: tc.textMuted }]}>{formatTransactionDate(tx.date)}</Text>
+                        <Text style={[styles.txTimeText, { color: tc.textMuted }]}>
+                          {formatTransactionDate(tx.date)}
+                        </Text>
                       </View>
                     </View>
 
@@ -548,7 +723,7 @@ export default function DashboardScreen() {
         </Animated.View>
       </ScrollView>
 
-      {/* ── First-Time User Onboarding Modal ── */}
+      {/* ── Onboarding Modal ── */}
       <Modal
         visible={showOnboardingModal}
         transparent
@@ -566,35 +741,22 @@ export default function DashboardScreen() {
             </LinearGradient>
 
             <View style={styles.modalBody}>
-              <View style={styles.onboardingFeatureRow}>
-                <View style={[styles.onboardingIconBg, { backgroundColor: 'rgba(124, 58, 237, 0.15)' }]}>
-                  <Ionicons name="wallet-outline" size={20} color="#7C3AED" />
+              {[
+                { icon: 'wallet-outline', color: '#7C3AED', bg: 'rgba(124,58,237,0.15)', title: 'Log Transactions', desc: 'Fast & intuitive income & expense logging.' },
+                { icon: 'pie-chart-outline', color: '#F59E0B', bg: 'rgba(245,158,11,0.15)', title: 'Category Budgets', desc: 'Set limits and get proactive warning alerts.' },
+                { icon: 'stats-chart-outline', color: '#10B981', bg: 'rgba(16,185,129,0.15)', title: 'Financial Reports', desc: 'Visual trends & one-tap PDF statements.' },
+                { icon: 'flag-outline', color: '#38BDF8', bg: 'rgba(56,189,248,0.15)', title: 'Savings Goals', desc: 'Track milestones with a live progress widget.' },
+              ].map((f, i) => (
+                <View key={i} style={styles.onboardingFeatureRow}>
+                  <View style={[styles.onboardingIconBg, { backgroundColor: f.bg }]}>
+                    <Ionicons name={f.icon as any} size={20} color={f.color} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.onboardingFeatureTitle}>{f.title}</Text>
+                    <Text style={styles.onboardingFeatureDesc}>{f.desc}</Text>
+                  </View>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.onboardingFeatureTitle}>Log Transactions</Text>
-                  <Text style={styles.onboardingFeatureDesc}>Fast & intuitive income & expense logging.</Text>
-                </View>
-              </View>
-
-              <View style={styles.onboardingFeatureRow}>
-                <View style={[styles.onboardingIconBg, { backgroundColor: 'rgba(245, 158, 11, 0.15)' }]}>
-                  <Ionicons name="pie-chart-outline" size={20} color="#F59E0B" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.onboardingFeatureTitle}>Category Budgets</Text>
-                  <Text style={styles.onboardingFeatureDesc}>Set limits and get proactive warning alerts.</Text>
-                </View>
-              </View>
-
-              <View style={styles.onboardingFeatureRow}>
-                <View style={[styles.onboardingIconBg, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
-                  <Ionicons name="stats-chart-outline" size={20} color="#10B981" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.onboardingFeatureTitle}>Financial Reports</Text>
-                  <Text style={styles.onboardingFeatureDesc}>Visual trends & one-tap PDF statements.</Text>
-                </View>
-              </View>
+              ))}
 
               <TouchableOpacity style={styles.modalButton} onPress={handleFinishOnboarding} activeOpacity={0.88}>
                 <LinearGradient
@@ -616,19 +778,14 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    // backgroundColor: '#07060E', // <- wired via theme.colors.background inline
-  },
-  scroll: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  scroll: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingBottom: 100, // Safe padding for popped-out glass bottom bar
+    paddingBottom: 120,
   },
 
-  // Header Row
+  // Header
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -660,7 +817,6 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 1.5,
-    borderColor: '#C084FC',
   },
   avatarText: {
     color: '#FFFFFF',
@@ -668,15 +824,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   greetingText: {
-    ...typography.caption,
-    color: '#94A3B8',
     fontSize: 12,
+    fontWeight: '500',
   },
   userNameText: {
-    ...typography.bodyMedium,
-    color: '#FFFFFF',
-    fontWeight: '800',
     fontSize: 16,
+    fontWeight: '800',
     letterSpacing: -0.3,
   },
   headerRight: {
@@ -688,9 +841,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -702,22 +853,21 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: '#C084FC',
   },
 
   // Hero Card
   heroCardContainer: {
     marginTop: 6,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   heroCardGradient: {
     borderRadius: 26,
     padding: 22,
     borderWidth: 1.2,
-    borderColor: 'rgba(192, 132, 252, 0.3)',
+    borderColor: 'rgba(192, 132, 252, 0.25)',
     overflow: 'hidden',
     position: 'relative',
-    shadowColor: '#7C3AED',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.35,
     shadowRadius: 24,
@@ -730,7 +880,6 @@ const styles = StyleSheet.create({
     width: 160,
     height: 160,
     borderRadius: 80,
-    backgroundColor: 'rgba(168, 85, 247, 0.22)',
   },
   meshGlow2: {
     position: 'absolute',
@@ -739,7 +888,6 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: 'rgba(124, 58, 237, 0.18)',
   },
   specularTopLine: {
     position: 'absolute',
@@ -747,7 +895,7 @@ const styles = StyleSheet.create({
     left: 20,
     right: 20,
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -761,9 +909,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   livePulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: '#34D399',
   },
   cardSubTitle: {
@@ -774,14 +922,18 @@ const styles = StyleSheet.create({
   },
   eyeToggleBtn: {
     padding: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 12,
   },
   balanceRow: {
     marginVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
   },
   balanceMainText: {
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: '900',
     color: '#FFFFFF',
     letterSpacing: -1,
@@ -789,19 +941,28 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 4 },
     textShadowRadius: 12,
   },
-
-  // Flow Row (Income / Expense)
+  monthBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  monthBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.6)',
+    letterSpacing: 0.3,
+  },
   flowRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
     marginTop: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: 'rgba(255,255,255,0.06)',
   },
   flowPill: {
     flexDirection: 'row',
@@ -818,8 +979,8 @@ const styles = StyleSheet.create({
   },
   flowLabel: {
     fontSize: 10,
-    color: '#94A3B8',
     fontWeight: '600',
+    color: '#94A3B8',
     textTransform: 'uppercase',
   },
   flowValueIncome: {
@@ -835,16 +996,14 @@ const styles = StyleSheet.create({
   flowDivider: {
     width: 1,
     height: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
     marginHorizontal: 8,
   },
-
-  // Card Footer Gauge
   cardFooterSection: {
     marginTop: 16,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    borderTopColor: 'rgba(255,255,255,0.06)',
   },
   savingsLabelRow: {
     flexDirection: 'row',
@@ -869,7 +1028,7 @@ const styles = StyleSheet.create({
   gaugeTrack: {
     height: 6,
     borderRadius: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     overflow: 'hidden',
   },
   gaugeFill: {
@@ -877,7 +1036,40 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
 
-  // Quick Action Command Strip
+  // Monthly Snapshot Strip
+  snapshotStrip: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
+  },
+  snapshotTile: {
+    flex: 1,
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  snapshotIconBg: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  snapshotValue: {
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  snapshotLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+
+  // Quick Actions
   quickActionsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -895,7 +1087,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 18,
     borderWidth: 1.2,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -912,29 +1103,23 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
   },
-  quickActionTextCol: {
-    flex: 1,
-  },
+  quickActionTextCol: { flex: 1 },
   quickActionHeading: {
     fontSize: 13,
-    color: '#FFFFFF',
     fontWeight: '800',
     letterSpacing: -0.2,
   },
   quickActionSub: {
     fontSize: 10,
-    color: '#94A3B8',
     marginTop: 1,
     fontWeight: '600',
   },
 
-  // 7-Day Sparkline Card
+  // Sparkline
   sparklineCard: {
-    backgroundColor: '#120F20',
     borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
     marginBottom: 16,
   },
   sparklineHeader: {
@@ -946,12 +1131,10 @@ const styles = StyleSheet.create({
   sectionHeaderTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#FFFFFF',
     letterSpacing: -0.2,
   },
   sectionHeaderSub: {
     fontSize: 11,
-    color: '#94A3B8',
     marginTop: 1,
   },
   sparklineBadge: {
@@ -961,13 +1144,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    backgroundColor: 'rgba(168, 85, 247, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(168, 85, 247, 0.3)',
   },
   sparklineBadgeText: {
     fontSize: 10,
-    color: '#C084FC',
     fontWeight: '700',
   },
   barsRow: {
@@ -982,11 +1162,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     height: '100%',
     justifyContent: 'flex-end',
+    transformOrigin: 'bottom',
   },
   barTrack: {
     width: 8,
     height: 48,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 4,
     justifyContent: 'flex-end',
     overflow: 'hidden',
@@ -997,19 +1177,12 @@ const styles = StyleSheet.create({
   },
   barLabel: {
     fontSize: 9,
-    color: '#64748B',
     marginTop: 6,
     fontWeight: '600',
   },
-  barLabelPeak: {
-    color: '#F59E0B',
-    fontWeight: '800',
-  },
 
-  // Category Grid
-  categorySection: {
-    marginBottom: 16,
-  },
+  // Categories
+  categorySection: { marginBottom: 16 },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1020,13 +1193,11 @@ const styles = StyleSheet.create({
   sectionTitleText: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#FFFFFF',
     letterSpacing: -0.2,
   },
   seeAllText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#C084FC',
   },
   categoryGrid: {
     flexDirection: 'row',
@@ -1036,11 +1207,9 @@ const styles = StyleSheet.create({
   },
   categoryCard: {
     width: '48.5%',
-    backgroundColor: '#120F20',
     borderRadius: 16,
     padding: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   categoryCardTop: {
     flexDirection: 'row',
@@ -1058,24 +1227,20 @@ const styles = StyleSheet.create({
   categoryPercentText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#94A3B8',
   },
   categoryNameText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFFFFF',
     marginBottom: 2,
   },
   categoryAmountText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#E2E8F0',
     marginBottom: 8,
   },
   categoryProgressTrack: {
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
   },
   categoryProgressFill: {
@@ -1083,21 +1248,141 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
 
-  // Recent Transactions Feed
-  recentSection: {
-    marginBottom: 20,
+  // Savings Goal Widget
+  savingsGoalSection: {
+    marginBottom: 16,
   },
-  txListContainer: {
-    gap: 8,
+  goalWidget: {
+    borderRadius: 22,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 10,
   },
+  goalWidgetTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  goalWidgetLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  goalWidgetEmoji: { fontSize: 24 },
+  goalWidgetLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.55)',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  goalWidgetName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginTop: 1,
+  },
+  goalWidgetRight: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  goalWidgetPercent: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  goalAmountsRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+    marginBottom: 10,
+  },
+  goalSavedText: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  goalTargetText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.6)',
+  },
+  goalProgressTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+  goalProgressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  goalFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  goalDaysText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.65)',
+    fontWeight: '600',
+  },
+  goalEditBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  goalEditBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.85)',
+  },
+  goalCtaCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  goalCtaInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
+  },
+  goalCtaIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  goalCtaTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  goalCtaSub: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+
+  // Transactions
+  recentSection: { marginBottom: 20 },
+  txListContainer: { gap: 8 },
   txCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#120F20',
     borderRadius: 16,
     padding: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
     gap: 12,
   },
   txIconContainer: {
@@ -1107,13 +1392,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  txDetailsCol: {
-    flex: 1,
-  },
+  txDetailsCol: { flex: 1 },
   txCategoryTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
     marginBottom: 3,
   },
   txMetaRow: {
@@ -1125,35 +1407,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     paddingVertical: 1.5,
     borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
   },
   paymentMethodText: {
     fontSize: 9,
     fontWeight: '800',
-    color: '#CBD5E1',
     letterSpacing: 0.5,
   },
-  txTimeText: {
-    fontSize: 11,
-    color: '#64748B',
-  },
-  txAmountCol: {
-    alignItems: 'flex-end',
-  },
+  txTimeText: { fontSize: 11 },
+  txAmountCol: { alignItems: 'flex-end' },
   txAmountValue: {
     fontSize: 14,
     fontWeight: '800',
   },
   txNotesSnippet: {
     fontSize: 10,
-    color: '#94A3B8',
     marginTop: 2,
     maxWidth: 90,
   },
-
-  emptyContainer: {
-    paddingVertical: 16,
-  },
+  emptyContainer: { paddingVertical: 16 },
 
   // Onboarding Modal
   modalOverlay: {

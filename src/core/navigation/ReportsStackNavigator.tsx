@@ -3,7 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import MonthlyReportScreen from '../../features/reports/screens/MonthlyReportScreen';
 import YearlyReportScreen from '../../features/reports/screens/YearlyReportScreen';
 import CategoryDrilldownScreen from '../../features/reports/screens/CategoryDrilldownScreen';
-import { colors } from '../theme';
+import { useAppTheme } from '../../context/ThemeContext';
 
 import { ReportsStackParamList } from './types';
 export type { ReportsStackParamList };
@@ -11,13 +11,15 @@ export type { ReportsStackParamList };
 const Stack = createNativeStackNavigator<ReportsStackParamList>();
 
 export function ReportsStackNavigator() {
+  const { theme } = useAppTheme();
+
   return (
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
         animation: 'default',
         gestureEnabled: true,
-        contentStyle: { backgroundColor: colors.background },
+        contentStyle: { backgroundColor: theme.colors.background },
       }}
     >
       <Stack.Screen name="MonthlyReport" component={MonthlyReportScreen} />

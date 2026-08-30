@@ -375,6 +375,23 @@ export default function SettingsScreen({ navigation }: Props) {
           </View>
         </View>
 
+        {/* ── Section: Savings & Goals ── */}
+        <View style={styles.sectionBlock}>
+          <Text style={[styles.sectionHeaderTitle, { color: theme.colors.textMuted }]}>SAVINGS & GOALS</Text>
+          <View style={[styles.sectionCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.cardBorder }]}>
+            {renderSettingRow(
+              'flag-outline',
+              'Smart Savings Goal',
+              'Set and track your financial milestones',
+              undefined,
+              () => navigation.navigate('SavingsGoal'),
+              false,
+              undefined,
+              '#34D399'
+            )}
+          </View>
+        </View>
+
         {/* ── Section 2: Data & Storage ── */}
         <View style={styles.sectionBlock}>
           <Text style={[styles.sectionHeaderTitle, { color: theme.colors.textMuted }]}>DATA & BACKUP</Text>
@@ -402,6 +419,7 @@ export default function SettingsScreen({ navigation }: Props) {
             )}
           </View>
         </View>
+
 
         {/* ── Section 3: Security & Support ── */}
         <View style={styles.sectionBlock}>

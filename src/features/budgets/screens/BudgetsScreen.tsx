@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +18,7 @@ import { useCategories } from '../../../context/CategoryContext';
 import { useSettings } from '../../../context/SettingsContext';
 import { useToast } from '../../../context/ToastContext';
 import { useAppTheme } from '../../../context/ThemeContext';
+import { useSavingsGoal } from '../../../context/SavingsGoalContext';
 import { ConfirmModal } from '../../../shared/components/ConfirmModal';
 import { colors, typography, spacing, radius } from '../../../core/theme';
 import { getSafeTopInset } from '../../../shared/utils/layoutUtils';
@@ -24,6 +26,8 @@ import { getMonthKey, getMonthLabel } from '../../../shared/utils/dateUtils';
 import { formatCurrency } from '../../../shared/utils/currencyUtils';
 import { MonthSelector } from '../../../shared/components/MonthSelector';
 import { computeBudgetProgress } from '../../reports/services/reportEngine';
+
+const GOAL_EMOJIS = ['🎯', '🏠', '✈️', '💎', '🚗', '📱', '🎓', '💍', '🌴', '🏖️', '💰', '🚀'];
 
 export default function BudgetsScreen() {
   const insets = useSafeAreaInsets();
@@ -37,6 +41,34 @@ export default function BudgetsScreen() {
   const tc = theme.colors;
   const { showSuccess, showWarning, showInfo, showError } = useToast();
   const currencySymbol = settings?.currencySymbol ?? '₹';
+
+  // ── Tab state: Savings Goal is featured first ─────────────────────────────
+  const [activeTab, setActiveTab] = useState<'goals' | 'budgets'>('goals');
+
+  // ── Savings Goal from DB Context ──────────────────────────────────────────
+  const { goal, setGoal, updateSavedAmount: updateGoalSavedAmount, deleteGoal } = useSavingsGoal();
+  const [isEditingGoal, setIsEditingGoal] = useState(!goal);
+  const [goalName, setGoalName] = useState('');
+  const [goalTargetAmount, setGoalTargetAmount] = useState('');
+  const [goalSavedAmount, setGoalSavedAmount] = useState('');
+  const [goalTargetDate, setGoalTargetDate] = useState('');
+  const [selectedEmoji, setSelectedEmoji] = useState('🎯');
+  const [goalSaving, setGoalSaving] = useState(false);
+  const [quickAddAmount, setQuickAddAmount] = useState('');
+
+  // Sync state when goal changes
+  useEffect(() => {
+    if (goal) {
+      setGoalName(goal.name);
+      setGoalTargetAmount(goal.targetAmount.toString());
+      setGoalSavedAmount(goal.savedAmount.toString());
+      setGoalTargetDate(goal.targetDate);
+      setSelectedEmoji(goal.emoji || '🎯');
+      setIsEditingGoal(false);
+    } else {
+      setIsEditingGoal(true);
+    }
+  }, [goal]);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
@@ -73,6 +105,86 @@ export default function BudgetsScreen() {
       daysLeft,
     };
   }, [progressList, monthKey]);
+
+  // Savings Goal calculations
+  const goalProgress = useMemo(() => {
+    if (!goal || goal.targetAmount <= 0) return 0;
+    return Math.min(100, Math.round((goal.savedAmount / goal.targetAmount) * 100));
+  }, [goal]);
+
+  const goalDaysLeft = useMemo(() => {
+    if (!goal) return 0;
+    return Math.max(0, Math.ceil((new Date(goal.targetDate).getTime() - Date.now()) / 86400000));
+  }, [goal]);
+
+  // Savings Goal Actions
+  const handleSaveGoal = async () => {
+    if (!goalName.trim()) {
+      showWarning('Missing Name', 'Please enter a goal name.');
+      return;
+    }
+    const target = parseFloat(goalTargetAmount);
+    const saved = parseFloat(goalSavedAmount || '0');
+    if (!target || target <= 0) {
+      showWarning('Invalid Amount', 'Enter a valid target amount.');
+      return;
+    }
+    if (!goalTargetDate) {
+      showWarning('Missing Date', 'Please enter a target date (YYYY-MM-DD).');
+      return;
+    }
+
+    setGoalSaving(true);
+    try {
+      await setGoal({
+        name: goalName.trim(),
+        targetAmount: target,
+        savedAmount: Math.min(saved, target),
+        targetDate: goalTargetDate,
+        emoji: selectedEmoji,
+      });
+      showSuccess('Goal Saved! 🎯', `"${goalName.trim()}" goal stored in database.`);
+      setIsEditingGoal(false);
+    } catch {
+      showError('Error', 'Could not save goal.');
+    } finally {
+      setGoalSaving(false);
+    }
+  };
+
+  const handleUpdateGoalSaved = async () => {
+    const amount = parseFloat(quickAddAmount);
+    if (isNaN(amount) || amount < 0) {
+      showWarning('Invalid Amount', 'Enter a valid saved amount.');
+      return;
+    }
+    await updateGoalSavedAmount(amount);
+    showSuccess('Progress Updated!', `You've saved ${formatCurrency(amount, 'INR', currencySymbol)} so far.`);
+    setQuickAddAmount('');
+  };
+
+  const handleDeleteGoal = () => {
+    Alert.alert(
+      'Delete Savings Goal',
+      'Are you sure you want to delete this savings goal from your account?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteGoal();
+            showInfo('Goal Deleted', 'Your savings goal has been deleted from cloud database.');
+            setIsEditingGoal(true);
+            setGoalName('');
+            setGoalTargetAmount('');
+            setGoalSavedAmount('');
+            setGoalTargetDate('');
+          },
+        },
+      ]
+    );
+  };
 
   const handleSaveBudget = async () => {
     if (!budgetAmount || isNaN(Number(budgetAmount)) || Number(budgetAmount) <= 0) {
@@ -127,394 +239,743 @@ export default function BudgetsScreen() {
       {/* ── Top Header ── */}
       <View style={styles.header}>
         <View>
-          <Text style={[styles.headerTitle, { color: tc.textPrimary }]}>Budget Limits</Text>
-          <Text style={[styles.headerSubtitle, { color: tc.textMuted }]}>{getMonthLabel(monthKey)}</Text>
+          <Text style={[styles.headerTitle, { color: tc.textPrimary }]}>
+            {activeTab === 'goals' ? 'Savings Goal' : 'Budget Limits'}
+          </Text>
+          <Text style={[styles.headerSubtitle, { color: tc.textMuted }]}>
+            {activeTab === 'goals'
+              ? goal
+                ? `${goal.name} • ${goalProgress}% achieved`
+                : 'Track your financial milestones'
+              : getMonthLabel(monthKey)}
+          </Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.newBudgetBtn}
-          onPress={() => setShowAddModal(true)}
-          activeOpacity={0.85}
-        >
-          <LinearGradient
-            colors={theme.accentGradient}
-            style={styles.newBudgetGrad}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
+        {activeTab === 'budgets' ? (
+          <TouchableOpacity
+            style={styles.newBudgetBtn}
+            onPress={() => setShowAddModal(true)}
+            activeOpacity={0.85}
           >
-            <Ionicons name="add" size={16} color="#FFFFFF" />
-            <Text style={styles.newBudgetText}>New Limit</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+            <LinearGradient
+              colors={theme.accentGradient}
+              style={styles.newBudgetGrad}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Ionicons name="add" size={16} color="#FFFFFF" />
+              <Text style={styles.newBudgetText}>New Limit</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        ) : goal && !isEditingGoal ? (
+          <TouchableOpacity
+            style={[styles.deleteGoalTopBtn, { borderColor: 'rgba(244, 63, 94, 0.3)', backgroundColor: 'rgba(244, 63, 94, 0.1)' }]}
+            onPress={handleDeleteGoal}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="trash-outline" size={16} color="#F43F5E" />
+          </TouchableOpacity>
+        ) : null}
       </View>
 
-      <MonthSelector monthKey={monthKey} onChange={setMonthKey} />
-
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* ── Obsidian Budget Overview Hero Card ── */}
-        {progressList.length > 0 ? (
-          <View style={[styles.heroCard, { borderColor: theme.colors.cardBorderActive }]}>
-            <LinearGradient
-              colors={theme.heroGradient}
-              style={styles.heroGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+      {/* ── Top Segmented Switcher (Savings Goal vs Budget Limits) ── */}
+      <View style={styles.tabSwitchWrapper}>
+        <View style={[styles.tabSwitchContainer, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
+          <TouchableOpacity
+            style={[
+              styles.tabSwitchBtn,
+              activeTab === 'goals' && [
+                styles.tabSwitchBtnActive,
+                { backgroundColor: tc.card, borderColor: theme.accentColor },
+              ],
+            ]}
+            onPress={() => setActiveTab('goals')}
+            activeOpacity={0.8}
+          >
+            <Text style={{ fontSize: 13, marginRight: 5 }}>🎯</Text>
+            <Text
+              style={[
+                styles.tabSwitchText,
+                { color: activeTab === 'goals' ? theme.accentColor : tc.textMuted },
+                activeTab === 'goals' && styles.tabSwitchTextActive,
+              ]}
             >
-              <View style={styles.specularLine} />
+              Savings Goal
+            </Text>
+            {goal && (
+              <View style={[styles.tabGoalBadge, { backgroundColor: `${theme.accentColor}25` }]}>
+                <Text style={[styles.tabGoalBadgeText, { color: theme.accentColor }]}>
+                  {goalProgress}%
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
 
-              <View style={styles.heroHeaderRow}>
-                <Text style={styles.heroLabel}>MONTHLY BUDGET HEALTH</Text>
-                <View
-                  style={[
-                    styles.statusPill,
-                    {
-                      backgroundColor:
-                        overallStats.percentage > 100
-                          ? 'rgba(244, 63, 94, 0.2)'
-                          : overallStats.percentage > 80
-                          ? 'rgba(245, 158, 11, 0.2)'
-                          : 'rgba(16, 185, 129, 0.2)',
-                      borderColor:
-                        overallStats.percentage > 100
-                          ? 'rgba(244, 63, 94, 0.4)'
-                          : overallStats.percentage > 80
-                          ? 'rgba(245, 158, 11, 0.4)'
-                          : 'rgba(16, 185, 129, 0.4)',
-                    },
-                  ]}
-                >
+          <TouchableOpacity
+            style={[
+              styles.tabSwitchBtn,
+              activeTab === 'budgets' && [
+                styles.tabSwitchBtnActive,
+                { backgroundColor: tc.card, borderColor: theme.accentColor },
+              ],
+            ]}
+            onPress={() => setActiveTab('budgets')}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="speedometer-outline"
+              size={15}
+              color={activeTab === 'budgets' ? theme.accentColor : tc.textMuted}
+              style={{ marginRight: 5 }}
+            />
+            <Text
+              style={[
+                styles.tabSwitchText,
+                { color: activeTab === 'budgets' ? theme.accentColor : tc.textMuted },
+                activeTab === 'budgets' && styles.tabSwitchTextActive,
+              ]}
+            >
+              Budget Limits
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          TAB 1: SAVINGS GOAL (Cloud DB Integrated)
+         ═══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'goals' && (
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          {/* 1. Active Goal Hero Card */}
+          {goal && !isEditingGoal ? (
+            <>
+              <LinearGradient
+                colors={theme.heroGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.goalHeroCard}
+              >
+                <View style={styles.goalHeroTop}>
+                  <View style={styles.goalEmojiCircle}>
+                    <Text style={styles.goalEmojiText}>{goal.emoji || '🎯'}</Text>
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 14 }}>
+                    <Text style={styles.goalHeroName}>{goal.name}</Text>
+                    <Text style={styles.goalHeroSub}>
+                      {goal.achieved ? '🎉 Milestone Achieved!' : `${goalDaysLeft} days remaining`}
+                    </Text>
+                  </View>
+                  {goal.achieved && (
+                    <View style={styles.achievedBadge}>
+                      <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+                    </View>
+                  )}
+                </View>
+
+                {/* Amounts Row */}
+                <View style={styles.amountsRow}>
+                  <View>
+                    <Text style={styles.amountLabel}>Saved So Far</Text>
+                    <Text style={styles.amountSaved}>
+                      {formatCurrency(goal.savedAmount, 'INR', currencySymbol)}
+                    </Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.amountLabel}>Target Goal</Text>
+                    <Text style={styles.amountTarget}>
+                      {formatCurrency(goal.targetAmount, 'INR', currencySymbol)}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Progress Bar */}
+                <View style={styles.progressTrack}>
                   <View
                     style={[
-                      styles.statusDot,
+                      styles.progressFill,
                       {
-                        backgroundColor:
-                          overallStats.percentage > 100
-                            ? '#F43F5E'
-                            : overallStats.percentage > 80
-                            ? '#F59E0B'
-                            : '#10B981',
+                        width: `${Math.min(100, Math.max(3, goalProgress))}%`,
+                        backgroundColor: goal.achieved ? '#10B981' : theme.accentColor,
                       },
                     ]}
                   />
-                  <Text
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={styles.dbSyncPill}>☁️ Synced to MongoDB</Text>
+                  <Text style={styles.progressPercent}>{goalProgress}% achieved</Text>
+                </View>
+              </LinearGradient>
+
+              {/* Update Progress Card */}
+              <View style={[styles.updateCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+                <Text style={[styles.updateLabel, { color: tc.textPrimary }]}>Update Saved Amount</Text>
+                <Text style={[styles.updateSub, { color: tc.textMuted }]}>
+                  Enter the updated amount you have accumulated towards this goal:
+                </Text>
+
+                <View style={[styles.inputRow, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
+                  <Text style={[styles.currencyPrefix, { color: theme.accentColor }]}>{currencySymbol}</Text>
+                  <TextInput
+                    style={[styles.amountInput, { color: tc.textPrimary }]}
+                    placeholder={goal.savedAmount.toString()}
+                    placeholderTextColor={tc.textMuted}
+                    value={quickAddAmount}
+                    onChangeText={setQuickAddAmount}
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+
+                {/* Fast Presets */}
+                <View style={styles.presetsRow}>
+                  {[1000, 2500, 5000, 10000].map((preset) => (
+                    <TouchableOpacity
+                      key={preset}
+                      style={[styles.presetChip, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}
+                      onPress={() => setQuickAddAmount((goal.savedAmount + preset).toString())}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.presetChipText, { color: tc.textSecondary }]}>
+                        +{preset.toLocaleString()}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.updateBtn, { backgroundColor: theme.accentColor }]}
+                  onPress={handleUpdateGoalSaved}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[styles.updateBtnText, { color: theme.colors.textOnPrimary }]}>
+                    Save Progress
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Edit Details Action */}
+              <TouchableOpacity
+                style={[styles.editGoalBtn, { borderColor: tc.cardBorder, backgroundColor: tc.card }]}
+                onPress={() => setIsEditingGoal(true)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="create-outline" size={18} color={theme.accentColor} />
+                <Text style={[styles.editGoalBtnText, { color: theme.accentColor }]}>
+                  Edit Goal Details
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            /* 2. Create / Edit Goal Form */
+            <View style={[styles.formCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={[styles.formTitle, { color: tc.textPrimary }]}>
+                  {goal ? 'Edit Savings Goal' : 'Create a Savings Goal'}
+                </Text>
+                <View style={[styles.dbBadge, { backgroundColor: `${theme.accentColor}20`, borderColor: theme.accentColor }]}>
+                  <Text style={[styles.dbBadgeText, { color: theme.accentColor }]}>☁️ Cloud DB</Text>
+                </View>
+              </View>
+
+              <Text style={[styles.formSub, { color: tc.textMuted }]}>
+                Set a financial milestone. It is saved directly to your cloud database account.
+              </Text>
+
+              {/* Emoji Picker */}
+              <Text style={[styles.fieldLabel, { color: tc.textSecondary }]}>Choose an Icon</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.emojiScroll}>
+                {GOAL_EMOJIS.map((e) => (
+                  <TouchableOpacity
+                    key={e}
+                    onPress={() => setSelectedEmoji(e)}
                     style={[
-                      styles.statusText,
+                      styles.emojiBtn,
                       {
-                        color:
-                          overallStats.percentage > 100
-                            ? '#F43F5E'
-                            : overallStats.percentage > 80
-                            ? '#F59E0B'
-                            : '#10B981',
+                        backgroundColor: selectedEmoji === e ? `${theme.accentColor}33` : tc.surface,
+                        borderColor: selectedEmoji === e ? theme.accentColor : tc.cardBorder,
                       },
                     ]}
                   >
-                    {overallStats.percentage > 100
-                      ? 'Over Budget'
-                      : overallStats.percentage > 80
-                      ? 'Caution Pace'
-                      : 'Safe Pace'}{' '}
-                    ({overallStats.percentage}%)
-                  </Text>
-                </View>
-              </View>
-
-              {/* Amount Main Row */}
-              <View style={styles.amountsRow}>
-                <View>
-                  <Text style={styles.spentSubText}>Total Spent</Text>
-                  <Text style={styles.heroAmountSpent}>
-                    {formatCurrency(overallStats.totalSpent, 'INR', currencySymbol)}
-                  </Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.spentSubText}>Total Budget</Text>
-                  <Text style={styles.heroAmountTotal}>
-                    {formatCurrency(overallStats.totalBudget, 'INR', currencySymbol)}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Progress Bar */}
-              <View style={styles.heroProgressBg}>
-                <LinearGradient
-                  colors={
-                    overallStats.percentage > 100
-                      ? ['#F43F5E', '#E11D48']
-                      : overallStats.percentage > 80
-                      ? ['#F59E0B', '#D97706']
-                      : [theme.accentColor, tc.primaryDark]
-                  }
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={[
-                    styles.heroProgressFill,
-                    { width: `${Math.min(100, Math.max(2, overallStats.percentage))}%` },
-                  ]}
-                />
-              </View>
-
-              {/* Summary Footer Line */}
-              <View style={styles.heroFooter}>
-                <Text style={styles.heroFooterText}>
-                  {overallStats.remaining > 0 ? (
-                    <>
-                      <Text style={{ fontWeight: '800', color: '#FFFFFF' }}>
-                        {formatCurrency(overallStats.remaining, 'INR', currencySymbol)}
-                      </Text>{' '}
-                      left ({formatCurrency(overallStats.dailyAllowance, 'INR', currencySymbol)}/day for {overallStats.daysLeft}d)
-                    </>
-                  ) : (
-                    <Text style={{ color: '#F43F5E', fontWeight: '800' }}>
-                      Exceeded by {formatCurrency(Math.abs(overallStats.remaining), 'INR', currencySymbol)}
-                    </Text>
-                  )}
-                </Text>
-              </View>
-            </LinearGradient>
-          </View>
-        ) : null}
-
-        {/* ── Set Budget Inline Form / Modal Trigger ── */}
-        {showAddModal && (
-          <View style={[styles.addCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
-            <View style={styles.addCardHeader}>
-              <View style={[styles.addIconBg, { backgroundColor: tc.primaryMuted }]}>
-                <Ionicons name="speedometer-outline" size={18} color={theme.accentColor} />
-              </View>
-              <Text style={[styles.addCardTitle, { color: tc.textPrimary }]}>Set Budget Limit</Text>
-            </View>
-
-            {/* Target Category Selector */}
-            <Text style={[styles.formLabel, { color: tc.textMuted }]}>Target Scope</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
-              <TouchableOpacity
-                style={[
-                  styles.catChip,
-                  { backgroundColor: tc.surface, borderColor: tc.cardBorder },
-                  selectedCatId === null && { borderColor: theme.accentColor, backgroundColor: `${theme.accentColor}22` },
-                ]}
-                onPress={() => setSelectedCatId(null)}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name="wallet-outline"
-                  size={14}
-                  color={selectedCatId === null ? theme.accentColor : tc.textMuted}
-                />
-                <Text style={[styles.catChipText, { color: selectedCatId === null ? theme.accentColor : tc.textSecondary }, selectedCatId === null && styles.catChipTextActive]}>
-                  Overall Monthly
-                </Text>
-              </TouchableOpacity>
-
-              {expenseCategories.map((c) => {
-                const isSelected = selectedCatId === c.id;
-                return (
-                  <TouchableOpacity
-                    key={c.id}
-                    style={[
-                      styles.catChip,
-                      { backgroundColor: tc.surface, borderColor: tc.cardBorder },
-                      isSelected && { borderColor: theme.accentColor, backgroundColor: `${theme.accentColor}22` },
-                    ]}
-                    onPress={() => setSelectedCatId(c.id)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons
-                      name={c.icon as any}
-                      size={14}
-                      color={isSelected ? theme.accentColor : c.color}
-                    />
-                    <Text style={[styles.catChipText, { color: isSelected ? theme.accentColor : tc.textSecondary }, isSelected && styles.catChipTextActive]}>
-                      {c.name}
-                    </Text>
+                    <Text style={styles.emojiBtnText}>{e}</Text>
                   </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+                ))}
+              </ScrollView>
 
-            {/* Amount Input with Presets */}
-            <Text style={[styles.formLabel, { color: tc.textMuted }]}>Monthly Limit Amount</Text>
-            <View style={[styles.inputRow, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
-              <Text style={[styles.currencySymbol, { color: theme.accentColor }]}>{currencySymbol}</Text>
-              <TextInput
-                style={[styles.amountInput, { color: tc.textPrimary }]}
-                placeholder="5000"
-                placeholderTextColor={tc.textMuted}
-                keyboardType="numeric"
-                value={budgetAmount}
-                onChangeText={setBudgetAmount}
-              />
-            </View>
-
-            {/* Fast Presets */}
-            <View style={styles.presetsRow}>
-              {[2000, 5000, 10000, 25000].map((preset) => (
-                <TouchableOpacity
-                  key={preset}
-                  style={[styles.presetChip, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}
-                  onPress={() => setBudgetAmount(preset.toString())}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.presetChipText, { color: tc.textSecondary }]}>+{preset.toLocaleString()}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Buttons */}
-            <View style={styles.btnRow}>
-              <TouchableOpacity
-                style={[styles.cancelBtn, { borderColor: tc.cardBorder }]}
-                onPress={() => {
-                  setShowAddModal(false);
-                  setBudgetAmount('');
-                  setSelectedCatId(null);
-                }}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.cancelBtnText, { color: tc.textSecondary }]}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.saveBtn}
-                onPress={handleSaveBudget}
-                disabled={saving}
-                activeOpacity={0.85}
-              >
-                <LinearGradient
-                  colors={theme.accentGradient}
-                  style={styles.saveBtnGrad}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                >
-                  {saving ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                  ) : (
-                    <>
-                      <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                      <Text style={styles.saveBtnText}>Save Budget</Text>
-                    </>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* ── Active Budget Cards List ── */}
-        <View style={styles.budgetListSection}>
-          <Text style={[styles.sectionHeaderTitle, { color: tc.textMuted }]}>ACTIVE BUDGET TARGETS</Text>
-
-          {progressList.length === 0 && !showAddModal ? (
-            <View style={[styles.emptyCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
-              <View style={[styles.emptyIconBg, { backgroundColor: tc.surface }]}>
-                <Ionicons name="speedometer-outline" size={32} color={tc.textMuted} />
+              {/* Goal Name */}
+              <Text style={[styles.fieldLabel, { color: tc.textSecondary }]}>Goal Name</Text>
+              <View style={[styles.textInputWrapper, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
+                <TextInput
+                  style={[styles.textInput, { color: tc.textPrimary }]}
+                  placeholder="e.g. Emergency Fund, New Laptop, Vacation..."
+                  placeholderTextColor={tc.textMuted}
+                  value={goalName}
+                  onChangeText={setGoalName}
+                />
               </View>
-              <Text style={[styles.emptyTitle, { color: tc.textPrimary }]}>No Active Budgets</Text>
-              <Text style={[styles.emptySub, { color: tc.textMuted }]}>
-                Set spending limits to monitor your outflow and receive timely warnings.
+
+              {/* Target Amount */}
+              <Text style={[styles.fieldLabel, { color: tc.textSecondary }]}>
+                Target Amount ({currencySymbol})
               </Text>
-              <TouchableOpacity
-                style={[styles.emptyActionBtn, { backgroundColor: `${theme.accentColor}22`, borderColor: theme.accentColor }]}
-                onPress={() => setShowAddModal(true)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.emptyActionBtnText, { color: theme.accentColor }]}>Create Your First Budget</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            progressList.map((item) => {
-              const cat = categories.find((c) => c.id === item.budget.categoryId);
-              const catName = cat ? cat.name : 'Overall Monthly Budget';
-              const catIcon = cat ? cat.icon : 'pie-chart-outline';
-              const catColor = cat ? cat.color : theme.accentColor;
-              const remaining = item.budget.amount - item.spent;
-              const isOver = item.percentage >= 100;
-              const isWarning = item.percentage >= 80 && !isOver;
-              const barColor = isOver ? '#F43F5E' : isWarning ? '#F59E0B' : catColor;
+              <View style={[styles.textInputWrapper, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
+                <TextInput
+                  style={[styles.textInput, { color: tc.textPrimary }]}
+                  placeholder="50000"
+                  placeholderTextColor={tc.textMuted}
+                  value={goalTargetAmount}
+                  onChangeText={setGoalTargetAmount}
+                  keyboardType="decimal-pad"
+                />
+              </View>
 
-              return (
-                <View
-                  key={item.budget.id}
-                  style={[
-                    styles.budgetItem,
-                    { backgroundColor: tc.card, borderColor: tc.cardBorder },
-                    isOver && { borderColor: 'rgba(244, 63, 94, 0.4)' },
-                  ]}
+              {/* Already Saved */}
+              <Text style={[styles.fieldLabel, { color: tc.textSecondary }]}>
+                Already Saved ({currencySymbol})
+              </Text>
+              <View style={[styles.textInputWrapper, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
+                <TextInput
+                  style={[styles.textInput, { color: tc.textPrimary }]}
+                  placeholder="0"
+                  placeholderTextColor={tc.textMuted}
+                  value={goalSavedAmount}
+                  onChangeText={setGoalSavedAmount}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+
+              {/* Target Date */}
+              <Text style={[styles.fieldLabel, { color: tc.textSecondary }]}>
+                Target Date (YYYY-MM-DD)
+              </Text>
+              <View style={[styles.textInputWrapper, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
+                <TextInput
+                  style={[styles.textInput, { color: tc.textPrimary }]}
+                  placeholder="2026-12-31"
+                  placeholderTextColor={tc.textMuted}
+                  value={goalTargetDate}
+                  onChangeText={setGoalTargetDate}
+                />
+              </View>
+
+              {/* Action Buttons */}
+              <View style={styles.formActions}>
+                {goal && (
+                  <TouchableOpacity
+                    style={[styles.cancelBtn, { borderColor: tc.cardBorder }]}
+                    onPress={() => setIsEditingGoal(false)}
+                  >
+                    <Text style={[styles.cancelBtnText, { color: tc.textMuted }]}>Cancel</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={[styles.saveBtn, { backgroundColor: theme.accentColor, flex: goal ? 1 : undefined }]}
+                  onPress={handleSaveGoal}
+                  disabled={goalSaving}
+                  activeOpacity={0.85}
                 >
-                  <View style={styles.budgetHeader}>
-                    <View style={styles.budgetTitleRow}>
-                      <View style={[styles.iconBg, { backgroundColor: `${catColor}22` }]}>
-                        <Ionicons name={catIcon as any} size={18} color={catColor} />
-                      </View>
-                      <View>
-                        <Text style={[styles.budgetName, { color: tc.textPrimary }]}>{catName}</Text>
-                        <Text style={[styles.budgetRemainingText, { color: tc.textMuted }]}>
-                          {remaining >= 0 ? (
-                            <>
-                              <Text style={{ fontWeight: '700', color: tc.textSecondary }}>
-                                {formatCurrency(remaining, 'INR', currencySymbol)}
-                              </Text>{' '}
-                              remaining
-                            </>
-                          ) : (
-                            <Text style={{ color: '#F43F5E', fontWeight: '700' }}>
-                              Over by {formatCurrency(Math.abs(remaining), 'INR', currencySymbol)}
-                            </Text>
-                          )}
-                        </Text>
-                      </View>
-                    </View>
+                  <LinearGradient
+                    colors={theme.accentGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.saveBtnGrad}
+                  >
+                    {goalSaving ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <>
+                        <Ionicons name="checkmark-circle-outline" size={18} color="#FFF" />
+                        <Text style={styles.saveBtnText}>Save Goal to Cloud</Text>
+                      </>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
 
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <TouchableOpacity
-                        onPress={() => {
-                          setSelectedCatId(item.budget.categoryId || null);
-                          setBudgetAmount(item.budget.amount.toString());
-                          setShowAddModal(true);
-                        }}
-                        style={styles.trashBtn}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <Ionicons name="pencil-outline" size={16} color={tc.textMuted} />
-                      </TouchableOpacity>
+          {/* Motivational Tip Card */}
+          <View style={[styles.tipCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+            <Ionicons name="bulb-outline" size={20} color={theme.accentColor} />
+            <Text style={[styles.tipText, { color: tc.textSecondary }]}>
+              💡 Your savings goal is synced with your account database and automatically tracks on your Home Dashboard.
+            </Text>
+          </View>
+        </ScrollView>
+      )}
 
-                      <TouchableOpacity
-                        onPress={() => setDeletingBudgetId(item.budget.id)}
-                        style={styles.trashBtn}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      {/* ═══════════════════════════════════════════════════════════════════════
+          TAB 2: MONTHLY BUDGET LIMITS
+         ═══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'budgets' && (
+        <>
+          <MonthSelector monthKey={monthKey} onChange={setMonthKey} />
+
+          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+            {/* ── Obsidian Budget Overview Hero Card ── */}
+            {progressList.length > 0 ? (
+              <View style={[styles.heroCard, { borderColor: theme.colors.cardBorderActive }]}>
+                <LinearGradient
+                  colors={theme.heroGradient}
+                  style={styles.heroGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <View style={styles.specularLine} />
+
+                  <View style={styles.heroHeaderRow}>
+                    <Text style={styles.heroLabel}>MONTHLY BUDGET HEALTH</Text>
+                    <View
+                      style={[
+                        styles.statusPill,
+                        {
+                          backgroundColor:
+                            overallStats.percentage > 100
+                              ? 'rgba(244, 63, 94, 0.2)'
+                              : overallStats.percentage > 80
+                              ? 'rgba(245, 158, 11, 0.2)'
+                              : 'rgba(16, 185, 129, 0.2)',
+                          borderColor:
+                            overallStats.percentage > 100
+                              ? 'rgba(244, 63, 94, 0.4)'
+                              : overallStats.percentage > 80
+                              ? 'rgba(245, 158, 11, 0.4)'
+                              : 'rgba(16, 185, 129, 0.4)',
+                        },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.statusDot,
+                          {
+                            backgroundColor:
+                              overallStats.percentage > 100
+                                ? '#F43F5E'
+                                : overallStats.percentage > 80
+                                ? '#F59E0B'
+                                : '#10B981',
+                          },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.statusText,
+                          {
+                            color:
+                              overallStats.percentage > 100
+                                ? '#F43F5E'
+                                : overallStats.percentage > 80
+                                ? '#F59E0B'
+                                : '#10B981',
+                          },
+                        ]}
                       >
-                        <Ionicons name="trash-outline" size={16} color="#F43F5E" />
-                      </TouchableOpacity>
+                        {overallStats.percentage > 100
+                          ? 'Over Budget'
+                          : overallStats.percentage > 80
+                          ? 'Caution Pace'
+                          : 'Safe Pace'}{' '}
+                        ({overallStats.percentage}%)
+                      </Text>
                     </View>
                   </View>
 
-                  <View style={[styles.progressBarBg, { backgroundColor: theme.mode === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(255, 255, 255, 0.08)' }]}>
-                    <View
+                  {/* Amount Main Row */}
+                  <View style={styles.amountsRow}>
+                    <View>
+                      <Text style={styles.spentSubText}>Total Spent</Text>
+                      <Text style={styles.heroAmountSpent}>
+                        {formatCurrency(overallStats.totalSpent, 'INR', currencySymbol)}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={styles.spentSubText}>Total Budget</Text>
+                      <Text style={styles.heroAmountTotal}>
+                        {formatCurrency(overallStats.totalBudget, 'INR', currencySymbol)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Progress Bar */}
+                  <View style={styles.heroProgressBg}>
+                    <LinearGradient
+                      colors={
+                        overallStats.percentage > 100
+                          ? ['#F43F5E', '#E11D48']
+                          : overallStats.percentage > 80
+                          ? ['#F59E0B', '#D97706']
+                          : [theme.accentColor, tc.primaryDark]
+                      }
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
                       style={[
-                        styles.progressBarFill,
-                        { width: `${Math.min(100, item.percentage)}%`, backgroundColor: barColor },
+                        styles.heroProgressFill,
+                        { width: `${Math.min(100, Math.max(2, overallStats.percentage))}%` },
                       ]}
                     />
                   </View>
 
-                  <View style={styles.budgetFooter}>
-                    <Text style={[styles.spentText, { color: tc.textSecondary }]}>
-                      <Text style={{ fontWeight: '800', color: tc.textPrimary }}>
-                        {formatCurrency(item.spent, 'INR', currencySymbol)}
-                      </Text>{' '}
-                      / {formatCurrency(item.budget.amount, 'INR', currencySymbol)}
-                    </Text>
-                    <Text style={[styles.limitText, { color: barColor }]}>
-                      {item.percentage}%
+                  {/* Summary Footer Line */}
+                  <View style={styles.heroFooter}>
+                    <Text style={styles.heroFooterText}>
+                      {overallStats.remaining > 0 ? (
+                        <>
+                          <Text style={{ fontWeight: '800', color: '#FFFFFF' }}>
+                            {formatCurrency(overallStats.remaining, 'INR', currencySymbol)}
+                          </Text>{' '}
+                          left ({formatCurrency(overallStats.dailyAllowance, 'INR', currencySymbol)}/day for {overallStats.daysLeft}d)
+                        </>
+                      ) : (
+                        <Text style={{ color: '#F43F5E', fontWeight: '800' }}>
+                          Exceeded by {formatCurrency(Math.abs(overallStats.remaining), 'INR', currencySymbol)}
+                        </Text>
+                      )}
                     </Text>
                   </View>
+                </LinearGradient>
+              </View>
+            ) : null}
+
+            {/* ── Set Budget Inline Form / Modal Trigger ── */}
+            {showAddModal && (
+              <View style={[styles.addCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+                <View style={styles.addCardHeader}>
+                  <View style={[styles.addIconBg, { backgroundColor: tc.primaryMuted }]}>
+                    <Ionicons name="speedometer-outline" size={18} color={theme.accentColor} />
+                  </View>
+                  <Text style={[styles.addCardTitle, { color: tc.textPrimary }]}>Set Budget Limit</Text>
                 </View>
-              );
-            })
-          )}
-        </View>
-      </ScrollView>
+
+                {/* Target Category Selector */}
+                <Text style={[styles.formLabel, { color: tc.textMuted }]}>Target Scope</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.catChip,
+                      { backgroundColor: tc.surface, borderColor: tc.cardBorder },
+                      selectedCatId === null && { borderColor: theme.accentColor, backgroundColor: `${theme.accentColor}22` },
+                    ]}
+                    onPress={() => setSelectedCatId(null)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name="wallet-outline"
+                      size={14}
+                      color={selectedCatId === null ? theme.accentColor : tc.textMuted}
+                    />
+                    <Text style={[styles.catChipText, { color: selectedCatId === null ? theme.accentColor : tc.textSecondary }, selectedCatId === null && styles.catChipTextActive]}>
+                      Overall Monthly
+                    </Text>
+                  </TouchableOpacity>
+
+                  {expenseCategories.map((c) => {
+                    const isSelected = selectedCatId === c.id;
+                    return (
+                      <TouchableOpacity
+                        key={c.id}
+                        style={[
+                          styles.catChip,
+                          { backgroundColor: tc.surface, borderColor: tc.cardBorder },
+                          isSelected && { borderColor: theme.accentColor, backgroundColor: `${theme.accentColor}22` },
+                        ]}
+                        onPress={() => setSelectedCatId(c.id)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons
+                          name={c.icon as any}
+                          size={14}
+                          color={isSelected ? theme.accentColor : c.color}
+                        />
+                        <Text style={[styles.catChipText, { color: isSelected ? theme.accentColor : tc.textSecondary }, isSelected && styles.catChipTextActive]}>
+                          {c.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+
+                {/* Amount Input with Presets */}
+                <Text style={[styles.formLabel, { color: tc.textMuted }]}>Monthly Limit Amount</Text>
+                <View style={[styles.inputRow, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}>
+                  <Text style={[styles.currencySymbol, { color: theme.accentColor }]}>{currencySymbol}</Text>
+                  <TextInput
+                    style={[styles.amountInput, { color: tc.textPrimary }]}
+                    placeholder="5000"
+                    placeholderTextColor={tc.textMuted}
+                    keyboardType="numeric"
+                    value={budgetAmount}
+                    onChangeText={setBudgetAmount}
+                  />
+                </View>
+
+                {/* Fast Presets */}
+                <View style={styles.presetsRow}>
+                  {[2000, 5000, 10000, 25000].map((preset) => (
+                    <TouchableOpacity
+                      key={preset}
+                      style={[styles.presetChip, { backgroundColor: tc.surface, borderColor: tc.cardBorder }]}
+                      onPress={() => setBudgetAmount(preset.toString())}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.presetChipText, { color: tc.textSecondary }]}>+{preset.toLocaleString()}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Buttons */}
+                <View style={styles.btnRow}>
+                  <TouchableOpacity
+                    style={[styles.cancelBtn, { borderColor: tc.cardBorder }]}
+                    onPress={() => {
+                      setShowAddModal(false);
+                      setBudgetAmount('');
+                      setSelectedCatId(null);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.cancelBtnText, { color: tc.textSecondary }]}>Cancel</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.saveBtn}
+                    onPress={handleSaveBudget}
+                    disabled={saving}
+                    activeOpacity={0.85}
+                  >
+                    <LinearGradient
+                      colors={theme.accentGradient}
+                      style={styles.saveBtnGrad}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                    >
+                      {saving ? (
+                        <ActivityIndicator color="#FFFFFF" size="small" />
+                      ) : (
+                        <>
+                          <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                          <Text style={styles.saveBtnText}>Save Budget</Text>
+                        </>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {/* ── Active Budget Cards List ── */}
+            <View style={styles.budgetListSection}>
+              <Text style={[styles.sectionHeaderTitle, { color: tc.textMuted }]}>ACTIVE BUDGET TARGETS</Text>
+
+              {progressList.length === 0 && !showAddModal ? (
+                <View style={[styles.emptyCard, { backgroundColor: tc.card, borderColor: tc.cardBorder }]}>
+                  <View style={[styles.emptyIconBg, { backgroundColor: tc.surface }]}>
+                    <Ionicons name="speedometer-outline" size={32} color={tc.textMuted} />
+                  </View>
+                  <Text style={[styles.emptyTitle, { color: tc.textPrimary }]}>No Active Budgets</Text>
+                  <Text style={[styles.emptySub, { color: tc.textMuted }]}>
+                    Set spending limits to monitor your outflow and receive timely warnings.
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.emptyActionBtn, { backgroundColor: `${theme.accentColor}22`, borderColor: theme.accentColor }]}
+                    onPress={() => setShowAddModal(true)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.emptyActionBtnText, { color: theme.accentColor }]}>Create Your First Budget</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                progressList.map((item) => {
+                  const cat = categories.find((c) => c.id === item.budget.categoryId);
+                  const catName = cat ? cat.name : 'Overall Monthly Budget';
+                  const catIcon = cat ? cat.icon : 'pie-chart-outline';
+                  const catColor = cat ? cat.color : theme.accentColor;
+                  const remaining = item.budget.amount - item.spent;
+                  const isOver = item.percentage >= 100;
+                  const isWarning = item.percentage >= 80 && !isOver;
+                  const barColor = isOver ? '#F43F5E' : isWarning ? '#F59E0B' : catColor;
+
+                  return (
+                    <View
+                      key={item.budget.id}
+                      style={[
+                        styles.budgetItem,
+                        { backgroundColor: tc.card, borderColor: tc.cardBorder },
+                        isOver && { borderColor: 'rgba(244, 63, 94, 0.4)' },
+                      ]}
+                    >
+                      <View style={styles.budgetHeader}>
+                        <View style={styles.budgetTitleRow}>
+                          <View style={[styles.iconBg, { backgroundColor: `${catColor}22` }]}>
+                            <Ionicons name={catIcon as any} size={18} color={catColor} />
+                          </View>
+                          <View>
+                            <Text style={[styles.budgetName, { color: tc.textPrimary }]}>{catName}</Text>
+                            <Text style={[styles.budgetRemainingText, { color: tc.textMuted }]}>
+                              {remaining >= 0 ? (
+                                <>
+                                  <Text style={{ fontWeight: '700', color: tc.textSecondary }}>
+                                    {formatCurrency(remaining, 'INR', currencySymbol)}
+                                  </Text>{' '}
+                                  remaining
+                                </>
+                              ) : (
+                                <Text style={{ color: '#F43F5E', fontWeight: '700' }}>
+                                  Over by {formatCurrency(Math.abs(remaining), 'INR', currencySymbol)}
+                                </Text>
+                              )}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <TouchableOpacity
+                            onPress={() => {
+                              setSelectedCatId(item.budget.categoryId || null);
+                              setBudgetAmount(item.budget.amount.toString());
+                              setShowAddModal(true);
+                            }}
+                            style={styles.trashBtn}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Ionicons name="pencil-outline" size={16} color={tc.textMuted} />
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            onPress={() => setDeletingBudgetId(item.budget.id)}
+                            style={styles.trashBtn}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Ionicons name="trash-outline" size={16} color="#F43F5E" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+
+                      <View style={[styles.progressBarBg, { backgroundColor: theme.mode === 'light' ? 'rgba(0,0,0,0.06)' : 'rgba(255, 255, 255, 0.08)' }]}>
+                        <View
+                          style={[
+                            styles.progressBarFill,
+                            { width: `${Math.min(100, item.percentage)}%`, backgroundColor: barColor },
+                          ]}
+                        />
+                      </View>
+
+                      <View style={styles.budgetFooter}>
+                        <Text style={[styles.spentText, { color: tc.textSecondary }]}>
+                          <Text style={{ fontWeight: '800', color: tc.textPrimary }}>
+                            {formatCurrency(item.spent, 'INR', currencySymbol)}
+                          </Text>{' '}
+                          / {formatCurrency(item.budget.amount, 'INR', currencySymbol)}
+                        </Text>
+                        <Text style={[styles.limitText, { color: barColor }]}>
+                          {item.percentage}%
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </View>
+          </ScrollView>
+        </>
+      )}
 
       {/* Delete Confirmation Modal */}
       <ConfirmModal
@@ -941,5 +1402,267 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     color: '#C084FC',
+  },
+
+  // ── Tab Switcher ──────────────────────────────────────────────────────────
+  tabSwitchWrapper: {
+    paddingHorizontal: 16,
+    marginBottom: 14,
+  },
+  tabSwitchContainer: {
+    flexDirection: 'row',
+    borderRadius: 14,
+    padding: 4,
+    borderWidth: 1,
+  },
+  tabSwitchBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  tabSwitchBtnActive: {
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  tabSwitchText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  tabSwitchTextActive: {
+    fontWeight: '800',
+  },
+  tabGoalBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginLeft: 6,
+  },
+  tabGoalBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  deleteGoalTopBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+
+  // ── Savings Goal Hero Card ────────────────────────────────────────────────
+  goalHeroCard: {
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1.2,
+    borderColor: 'rgba(192, 132, 252, 0.3)',
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  goalHeroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  goalEmojiCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  goalEmojiText: {
+    fontSize: 26,
+  },
+  goalHeroName: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -0.3,
+  },
+  goalHeroSub: {
+    fontSize: 12,
+    color: 'rgba(233, 213, 255, 0.8)',
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  achievedBadge: {
+    padding: 4,
+  },
+  amountLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(233, 213, 255, 0.7)',
+    marginBottom: 2,
+  },
+  amountSaved: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+  },
+  amountTarget: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#E9D5FF',
+  },
+  progressTrack: {
+    height: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 5,
+    overflow: 'hidden',
+    marginTop: 14,
+    marginBottom: 10,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 5,
+  },
+  dbSyncPill: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'rgba(233, 213, 255, 0.75)',
+  },
+  progressPercent: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+
+  // ── Update Progress Card ──────────────────────────────────────────────────
+  updateCard: {
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+  },
+  updateLabel: {
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  updateSub: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  currencyPrefix: {
+    fontSize: 18,
+    fontWeight: '800',
+    paddingLeft: 14,
+  },
+  updateBtn: {
+    marginTop: 14,
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  updateBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  editGoalBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  editGoalBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  // ── Form Card ─────────────────────────────────────────────────────────────
+  formCard: {
+    borderRadius: 22,
+    padding: 18,
+    borderWidth: 1,
+  },
+  formTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  dbBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  dbBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  formSub: {
+    fontSize: 12,
+    marginTop: 4,
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  emojiScroll: {
+    marginBottom: 4,
+  },
+  emojiBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  emojiBtnText: {
+    fontSize: 20,
+  },
+  textInputWrapper: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  textInput: {
+    fontSize: 14,
+    paddingVertical: 2,
+  },
+  formActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 20,
+  },
+
+  // ── Motivational Tip Card ─────────────────────────────────────────────────
+  tipCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  tipText: {
+    fontSize: 12,
+    lineHeight: 18,
+    flex: 1,
   },
 });

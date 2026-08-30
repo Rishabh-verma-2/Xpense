@@ -9,6 +9,7 @@ export interface IGoal extends Document {
   savedAmount: number;
   deadline?: Date;
   icon: string;
+  emoji?: string;
   color: string;
   isCompleted: boolean;
   createdAt: Date;
@@ -47,6 +48,10 @@ const GoalSchema = new Schema<IGoal>(
     icon: {
       type: String,
       default: 'trophy-outline',
+    },
+    emoji: {
+      type: String,
+      default: '🎯',
     },
     color: {
       type: String,

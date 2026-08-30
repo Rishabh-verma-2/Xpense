@@ -247,6 +247,34 @@ export const analyticsApi = {
   },
 };
 
+// ─── Savings Goal endpoints ───────────────────────────────────────────────────
+export const goalsApi = {
+  async get() {
+    const { data } = await api.get('/api/goals');
+    return data;
+  },
+  async upsert(payload: {
+    name: string;
+    targetAmount: number;
+    savedAmount?: number;
+    deadline?: string;
+    emoji?: string;
+    icon?: string;
+    color?: string;
+  }) {
+    const { data } = await api.post('/api/goals', payload);
+    return data;
+  },
+  async updateProgress(amount: number) {
+    const { data } = await api.patch('/api/goals/progress', { amount });
+    return data;
+  },
+  async remove() {
+    const { data } = await api.delete('/api/goals');
+    return data;
+  },
+};
+
 // ─── Health check ─────────────────────────────────────────────────────────────
 export const healthApi = {
   async check() {

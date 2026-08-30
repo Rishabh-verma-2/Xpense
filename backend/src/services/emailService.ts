@@ -1,11 +1,14 @@
-import nodemailer from 'nodemailer';
-import dns from 'dns';
+import { Resend } from 'resend';
 import { config } from '../config/env';
 
-// ─── Force IPv4 DNS Resolution ───────────────────────────────────────────────
-// Fixes "ENETUNREACH" errors caused by Node attempting to route SMTP over unreachable IPv6 addresses
-if (typeof (dns as any).setDefaultResultOrder === 'function') {
-  (dns as any).setDefaultResultOrder('ipv4first');
+// ─── Resend client (lazy-initialized) ────────────────────────────────────────
+let resendClient: Resend | null = null;
+
+function getResendClient(): Resend {
+  if (!resendClient) {
+    resendClient = new Resend(config.email.resendApiKey);
+  }
+  return resendClient;
 }
 
 /**
@@ -19,73 +22,17 @@ function maskEmail(email: string): string {
 }
 
 /**
- * Creates a Gmail/SMTP transporter.
- */
-function createTransporter() {
-  const user = (config.email.user || '').trim();
-  const pass = (config.email.pass || '').replace(/\s+/g, '');
-
-  if (!user || !pass) {
-    throw new Error('EMAIL_USER or EMAIL_PASS is not configured in backend environment');
-  }
-
-  // Use service: 'gmail' for best-in-class reliability with Google App Passwords
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user,
-      pass,
-    },
-    tls: {
-      rejectUnauthorized: false,
-    },
-    connectionTimeout: 20000,
-    greetingTimeout: 15000,
-    socketTimeout: 30000,
-  });
-}
-
-/**
- * Sends email via Resend HTTP REST API (Port 443 - fallback for serverless cloud firewalls).
- */
-async function sendViaResendHttp(
-  apiKey: string,
-  toEmail: string,
-  subject: string,
-  html: string,
-): Promise<boolean> {
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      from: `Xpense Security <onboarding@resend.dev>`,
-      to: [toEmail],
-      subject,
-      html,
-    }),
-  });
-
-  if (!res.ok) {
-    const errorData = await res.text();
-    throw new Error(`Resend API Error (${res.status}): ${errorData}`);
-  }
-
-  const data: any = await res.json();
-  console.log(`✉️ Email successfully delivered via Resend HTTP API to ${maskEmail(toEmail)}`);
-  return true;
-}
-
-/**
- * Sends a password reset OTP verification code email.
+ * Sends a password reset OTP verification code email via Resend SDK.
  */
 export async function sendPasswordResetEmail(
   toEmail: string,
   userName: string,
   otpCode: string,
 ): Promise<boolean> {
+  if (!config.email.resendApiKey) {
+    throw new Error('RESEND_API_KEY is not configured in backend environment');
+  }
+
   const htmlTemplate = `
   <!DOCTYPE html>
   <html>
@@ -140,12 +87,8 @@ export async function sendPasswordResetEmail(
         letter-spacing: -0.5px;
         margin: 0;
       }
-      .logo-title span {
-        color: #C084FC;
-      }
-      .body-content {
-        padding: 32px 28px;
-      }
+      .logo-title span { color: #C084FC; }
+      .body-content { padding: 32px 28px; }
       .greeting {
         font-size: 20px;
         font-weight: 700;
@@ -225,7 +168,6 @@ export async function sendPasswordResetEmail(
           <div class="text">
             We received a request to reset the password for your Xpense account. Enter the 6-digit verification code below to complete your password reset:
           </div>
-          
           <div class="otp-card">
             <div class="otp-label">Verification Code</div>
             <div class="otp-code">${otpCode}</div>
@@ -233,7 +175,6 @@ export async function sendPasswordResetEmail(
               <span class="expiry-tag">⏳ Valid for 15 minutes</span>
             </div>
           </div>
-
           <div class="security-notice">
             🔒 <strong>Security reminder:</strong> If you did not request this password reset, please ignore this email. Your account credentials remain completely safe.
           </div>
@@ -247,31 +188,20 @@ export async function sendPasswordResetEmail(
   </html>
   `;
 
-  const mailOptions = {
-    from: `"Xpense Security" <${config.email.user || 'no-reply@xpense.app'}>`,
-    to: toEmail,
+  const resend = getResendClient();
+
+  const { data, error } = await resend.emails.send({
+    from: 'Xpense Security <onboarding@resend.dev>',
+    to: [toEmail],
     subject: '🔒 Your Xpense Password Reset Code',
     html: htmlTemplate,
-  };
+  });
 
-  // Option 1: Resend HTTP API if configured
-  if (config.email.resendApiKey) {
-    try {
-      await sendViaResendHttp(config.email.resendApiKey, toEmail, mailOptions.subject, htmlTemplate);
-      return true;
-    } catch (err: any) {
-      console.warn(`⚠️ Resend HTTP API delivery failed: ${err.message}`);
-    }
+  if (error) {
+    console.error(`❌ Resend failed for ${maskEmail(toEmail)}:`, error);
+    throw new Error(error.message || 'Failed to send password reset email');
   }
 
-  // Option 2: Gmail SMTP Transporter
-  try {
-    const transporter = createTransporter();
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`✉️ Password reset OTP email sent via Gmail to ${maskEmail(toEmail)} (MessageId: ${info.messageId})`);
-    return true;
-  } catch (err: any) {
-    console.error(`❌ Failed to deliver email to ${maskEmail(toEmail)}:`, err.message || err);
-    throw new Error(err.message || 'Failed to send password reset email');
-  }
+  console.log(`✉️ Password reset email sent via Resend to ${maskEmail(toEmail)} (id: ${data?.id})`);
+  return true;
 }
